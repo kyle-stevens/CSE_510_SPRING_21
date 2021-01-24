@@ -1,0 +1,753 @@
+Script started on 2021-01-23 20:54:38-0700
+[37;1mkyle-stevens@[35msrc[0m$ make test
+cd tests; make bmtest dbtest; whoami; make hftest bttest indextest jointest sorttest sortmerge
+make[1]: Entering directory '/mnt/c/Users/kyleb/Desktop/GITHUB_REPOS/CSE_510_SPRING_21/minjava/javaminibase/src/tests'
+/usr/java/jdk1.3.1_02/bin/javac -classpath .:.. TestDriver.java BMTest.java
+make[1]: /usr/java/jdk1.3.1_02/bin/javac: Command not found
+Makefile:12: recipe for target 'BMTest' failed
+make[1]: *** [BMTest] Error 127
+make[1]: Leaving directory '/mnt/c/Users/kyleb/Desktop/GITHUB_REPOS/CSE_510_SPRING_21/minjava/javaminibase/src/tests'
+kyle-stevens
+make[1]: Entering directory '/mnt/c/Users/kyleb/Desktop/GITHUB_REPOS/CSE_510_SPRING_21/minjava/javaminibase/src/tests'
+/usr/java/jdk1.3.1_02/bin/javac -classpath .:.. TestDriver.java HFTest.java
+make[1]: /usr/java/jdk1.3.1_02/bin/javac: Command not found
+Makefile:28: recipe for target 'HFTest' failed
+make[1]: *** [HFTest] Error 127
+make[1]: Leaving directory '/mnt/c/Users/kyleb/Desktop/GITHUB_REPOS/CSE_510_SPRING_21/minjava/javaminibase/src/tests'
+Makefile:46: recipe for target 'test' failed
+make: *** [test] Error 2
+[37;1mkyle-stevens@[35msrc[0m$ ls
+[0m[34;42mMETA-INF[0m  [34;42mbtree[0m   [34;42mcatalog[0m         [34;42mdiskmgr[0m  [34;42mheap[0m   [34;42miterator[0m  [34;42mlib[0m    [01;32mtypescript[0m
+[01;32mMakefile[0m  [34;42mbufmgr[0m  [34;42mchainexception[0m  [34;42mglobal[0m   [34;42mindex[0m  [34;42mjavadoc[0m   [34;42mtests[0m
+[37;1mkyle-stevens@[35msrc[0m$ cd [K[K[Kls /tmp/
+[0m[01;34mhsperfdata_kyle-stevens[0m  [01;34mhsperfdata_root[0m  [01;34mpulse-PKdhtXMmr18n[0m
+[37;1mkyle-stevens@[35msrc[0m$ ls /tmp/[K[K[K[Kests[K[K[K[Ktests
+ls: cannot access '/tests': No such file or directory
+[37;1mkyle-stevens@[35msrc[0m$ ls /tests[K
+ls: cannot access '/test': No such file or directory
+[37;1mkyle-stevens@[35msrc[0m$ ls
+[0m[34;42mMETA-INF[0m  [34;42mbtree[0m   [34;42mcatalog[0m         [34;42mdiskmgr[0m  [34;42mheap[0m   [34;42miterator[0m  [34;42mlib[0m    [01;32mtypescript[0m
+[01;32mMakefile[0m  [34;42mbufmgr[0m  [34;42mchainexception[0m  [34;42mglobal[0m   [34;42mindex[0m  [34;42mjavadoc[0m   [34;42mtests[0m
+[37;1mkyle-stevens@[35msrc[0m$ cd T[Ktests/
+[37;1mkyle-stevens@[35mtests[0m$ ls
+[0m[01;32mBMTest.java[0m  [01;32mDBTest.java[0m  [01;32mIndexTest.java[0m  [01;32mMakefile[0m         [01;32mSM_JoinTest.java[0m  [01;32mTestDriver.java[0m
+[01;32mBTTest.java[0m  [01;32mHFTest.java[0m  [01;32mJoinTest.java[0m   [01;32mQueryCheck.java[0m  [01;32mSortTest.java[0m
+[37;1mkyle-stevens@[35mtests[0m$ nano Makefile 
+[?1049h[22;0;0t[1;65r(B[m[4l[?7h[39;49m[?1h=[?1h=[?1h=[?25l[39;49m(B[m[H[2J[63;51H(B[0;7m[ Reading File ](B[m[63;57H(B[0;7m 75 lines ](B[m[H(B[0;7m  GNU nano 2.9.3                                         Makefile                                                    [1;116H(B[m[64d(B[0;7m^G(B[m Get Help     (B[0;7m^O(B[m Write Out    (B[0;7m^W(B[m Where Is     (B[0;7m^K(B[m Cut Text     (B[0;7m^J(B[m Justify[81G(B[0;7m^C(B[m Cur Pos[97G(B[0;7mM-U(B[m Undo[65d(B[0;7m^X(B[m Exit[65;17H(B[0;7m^R(B[m Read File    (B[0;7m^\(B[m Replace[49G(B[0;7m^U(B[m Uncut Text   (B[0;7m^T(B[m To Spell     (B[0;7m^_(B[m Go To Line   (B[0;7mM-E(B[m Redo[63d[3d[39;49m[32m# modify the paths appropriately[4d[39m(B[mJDKPATH [31m=[39m(B[m /usr/java/jdk1.3.1_02[5dLIBPATH [31m=[39m(B[m .[31m:[39m(B[m..[6dCLASSPATH [31m=[39m(B[m [34m$(LIBPATH)[7d[39m(B[mBINPATH [31m=[39m(B[m [34m$(JDKPATH)[39m(B[m/bin[8dJAVAC [31m=[39m(B[m [34m$(JDKPATH)[39m(B[m/bin/javac -classpath [34m$(CLASSPATH)[9d[39m(B[mJAVA  [31m=[39m(B[m [34m$(JDKPATH)[39m(B[m/bin/java  -classpath [34m$(CLASSPATH)[11d[32m# test buffer manager[13d(B[0;1m[34mBMTest:[39m(B[mBMTest.java[14;9H[34m$(JAVAC)[39m(B[m TestDriver.java BMTest.java[16d(B[0;1m[34mbmtest:[39m(B[m BMTest[17;9H[34m$(JAVA)[39m(B[m tests.BMTest[19d[32m# test disk manager[21d(B[0;1m[34mDBTest:[39m(B[mDBTest.java[22;9H[34m$(JAVAC)[39m(B[m TestDriver.java DBTest.java[24d(B[0;1m[34mdbtest:[39m(B[m DBTest[25;9H[34m$(JAVA)[39m(B[m tests.DBTest[27d[32m# test heapfile[39m[42m [29d(B[0;1m[34mHFTest:[39m(B[mHFTest.java[30;9H[34m$(JAVAC)[39m(B[m TestDriver.java HFTest.java[32d(B[0;1m[34mhftest:[39m(B[m HFTest[33;9H[34m$(JAVA)[39m(B[m tests.HFTest[35d[32m# test btree[37d(B[0;1m[34mBTTest:[39m(B[mBTTest.java[38;9H[34m$(JAVAC)[39m(B[m TestDriver.java BTTest.java[40d(B[0;1m[34mbttest:[39m(B[m BTTest[41;9H[34m$(JAVA)[39m(B[m tests.BTTest[43d[32m# test index[45d(B[0;1m[34mIndexTest:[39m(B[mIndexTest.java[46;9H[34m$(JAVAC)[39m(B[m TestDriver.java IndexTest.java[48d(B[0;1m[34mindextest:[39m(B[m IndexTest[49;9H[34m$(JAVA)[39m(B[m tests.IndexTest[51d[32m# test join[53d(B[0;1m[34mJoinTest:[39m(B[mJoinTest.java[54;9H[34m$(JAVAC)[39m(B[m TestDriver.java JoinTest.java[56d(B[0;1m[34mjointest:[39m(B[m JoinTest[57;9H[34m$(JAVA)[39m(B[m tests.JoinTest[59d[32m# test sort[61d(B[0;1m[34mSortTest:[39m(B[mSortTest.java[62;9H[34m$(JAVAC)[39m(B[m TestDriver.java SortTest.java[3d[?12l[?25h[?25l[4d[?12l[?25h[?25l[4;32H[?12l[?25h[?25l[1;108H(B[0;7mModified(B[m[4;31H [?12l[?25h[?25l [?12l[?25h[?25l [?12l[?25h[?25l [?12l[?25h[?25l [?12l[?25h[?25l [?12l[?25h[?25l [?12l[?25h[?25l [?12l[?25h[?25l [?12l[?25h[?25l [?12l[?25h[?25l [?12l[?25h[?25l [?12l[?25h[?25l [?12l[?25h[?25l [?12l[?25h[?25l [?12l[?25h[?25l [?12l[?25h[?25l [?12l[?25h[?25l [?12l[?25h[?25l [?12l[?25h[?25l [?12l[?25h[?25l[42m [49m(B[m[K[?12l[?25h[?25l /usr/lib/jvm/java-11-openjdk-amd64/[32m #bin/javac[63d[39m(B[m[K[4;57H[?12l[?25h[?25l[63d(B[0;7mSave modified buffer?  (Answering "No" will DISCARD changes.)                                                        [64;1H Y(B[m Yes[K[65d(B[0;7m N(B[m No  [65;18H(B[0;7mC(B[m Cancel[K[63;63H[?12l[?25h[?25l[64d(B[0;7m^G(B[m Get Help[64;30H(B[0;7mM-D(B[m DOS Format[64;59H(B[0;7mM-A(B[m Append[64;88H(B[0;7mM-B(B[m Backup File[65d(B[0;7m^C(B[m Cancel[17G             (B[0;7mM-M(B[m Mac Format[65;59H(B[0;7mM-P(B[m Prepend[65;88H(B[0;7m^T(B[m To Files[63d(B[0;7mFile Name to Write: Makefile                                 (B[m[63;29H[?12l[?25h[?25l[K[1;116H[1;108H(B[0;7m        (B[m[63;50H(B[0;7m[ Wrote 75 lines ](B[m[J[65;117H[?12l[?25h[65;1H[?1049l[23;0;0t[?1l>[37;1mkyle-stevens@[35mtests[0m$ nano Makefile ls[Kcd tests/ls[K /tests[1Pmp/[Kmake test
+make: *** No rule to make target 'test'.  Stop.
+[37;1mkyle-stevens@[35mtests[0m$ cd ..
+[37;1mkyle-stevens@[35msrc[0m$ cd ..make test
+cd tests; make bmtest dbtest; whoami; make hftest bttest indextest jointest sorttest sortmerge
+make[1]: Entering directory '/mnt/c/Users/kyleb/Desktop/GITHUB_REPOS/CSE_510_SPRING_21/minjava/javaminibase/src/tests'
+/usr/lib/jvm/java-11-openjdk-amd64/ /bin/javac -classpath .:.. TestDriver.java BMTest.java
+make[1]: execvp: /usr/lib/jvm/java-11-openjdk-amd64/: Permission denied
+Makefile:12: recipe for target 'BMTest' failed
+make[1]: *** [BMTest] Error 127
+make[1]: Leaving directory '/mnt/c/Users/kyleb/Desktop/GITHUB_REPOS/CSE_510_SPRING_21/minjava/javaminibase/src/tests'
+kyle-stevens
+make[1]: Entering directory '/mnt/c/Users/kyleb/Desktop/GITHUB_REPOS/CSE_510_SPRING_21/minjava/javaminibase/src/tests'
+/usr/lib/jvm/java-11-openjdk-amd64/ /bin/javac -classpath .:.. TestDriver.java HFTest.java
+make[1]: execvp: /usr/lib/jvm/java-11-openjdk-amd64/: Permission denied
+Makefile:28: recipe for target 'HFTest' failed
+make[1]: *** [HFTest] Error 127
+make[1]: Leaving directory '/mnt/c/Users/kyleb/Desktop/GITHUB_REPOS/CSE_510_SPRING_21/minjava/javaminibase/src/tests'
+Makefile:46: recipe for target 'test' failed
+make: *** [test] Error 2
+[37;1mkyle-stevens@[35msrc[0m$ make test[1@d[1@u[1@f[1@o[1@ [1P[1P[1P[1P[1P[1@s[1@u[1@d[1@o[1@ 
+[sudo] password for kyle-stevens: 
+Sorry, try again.
+[sudo] password for kyle-stevens: 
+cd tests; make bmtest dbtest; whoami; make hftest bttest indextest jointest sorttest sortmerge
+make[1]: Entering directory '/mnt/c/Users/kyleb/Desktop/GITHUB_REPOS/CSE_510_SPRING_21/minjava/javaminibase/src/tests'
+/usr/lib/jvm/java-11-openjdk-amd64/ /bin/javac -classpath .:.. TestDriver.java BMTest.java
+make[1]: execvp: /usr/lib/jvm/java-11-openjdk-amd64/: Permission denied
+Makefile:12: recipe for target 'BMTest' failed
+make[1]: *** [BMTest] Error 127
+make[1]: Leaving directory '/mnt/c/Users/kyleb/Desktop/GITHUB_REPOS/CSE_510_SPRING_21/minjava/javaminibase/src/tests'
+root
+make[1]: Entering directory '/mnt/c/Users/kyleb/Desktop/GITHUB_REPOS/CSE_510_SPRING_21/minjava/javaminibase/src/tests'
+/usr/lib/jvm/java-11-openjdk-amd64/ /bin/javac -classpath .:.. TestDriver.java HFTest.java
+make[1]: execvp: /usr/lib/jvm/java-11-openjdk-amd64/: Permission denied
+Makefile:28: recipe for target 'HFTest' failed
+make[1]: *** [HFTest] Error 127
+make[1]: Leaving directory '/mnt/c/Users/kyleb/Desktop/GITHUB_REPOS/CSE_510_SPRING_21/minjava/javaminibase/src/tests'
+Makefile:46: recipe for target 'test' failed
+make: *** [test] Error 2
+[37;1mkyle-stevens@[35msrc[0m$ sudo root
+sudo: root: command not found
+[37;1mkyle-stevens@[35msrc[0m$ su root
+Password: 
+su: Authentication failure
+[37;1mkyle-stevens@[35msrc[0m$ su
+Password: 
+su: Authentication failure
+[37;1mkyle-stevens@[35msrc[0m$ su root
+Password: 
+su: Authentication failure
+[37;1mkyle-stevens@[35msrc[0m$ ls -l /usr/lib/jvm/java-11-openjdk-amd64/:[K
+total 4
+drwxr-xr-x 1 root root 4096 Jan 23 20:33 [0m[01;34mbin[0m
+drwxr-xr-x 1 root root 4096 Jan 23 20:33 [01;34mconf[0m
+lrwxrwxrwx 1 root root   42 Nov  9 21:18 [01;36mdocs[0m -> [01;34m../../../share/doc/openjdk-11-jre-headless[0m
+drwxr-xr-x 1 root root 4096 Jan 23 20:33 [01;34minclude[0m
+drwxr-xr-x 1 root root 4096 Jan 23 20:33 [01;34mjmods[0m
+drwxr-xr-x 1 root root 4096 Jan 23 20:33 [01;34mlegal[0m
+drwxr-xr-x 1 root root 4096 Jan 23 20:33 [01;34mlib[0m
+drwxr-xr-x 1 root root 4096 Jan 23 20:33 [01;34mman[0m
+-rw-r--r-- 1 root root 1179 Nov  9 21:18 release
+[37;1mkyle-stevens@[35msrc[0m$ chmod u=rwx,g=rwx,o=rwx [file_name][K[K[K[K[K[K[K[K[K[K[K/usr/lib/jvm/java-11-openjdk-amd64/
+chmod: changing permissions of '/usr/lib/jvm/java-11-openjdk-amd64/': Operation not permitted
+[37;1mkyle-stevens@[35msrc[0m$ chmod u=rwx,g=rwx,o=rwx /usr/lib/jvm/java-11-openjdk-amd64/^[[H[K[K[K[K/[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[1@s[1@u[1@d[1@o[1@i[1P[1@ [Ksudo chmod u=rwx,g=rwx,o=rwx /usr/lib/jvm/java-11-openjdk-amd64/
+[37;1mkyle-stevens@[35msrc[0m$ ls
+[0m[34;42mMETA-INF[0m  [34;42mbtree[0m   [34;42mcatalog[0m         [34;42mdiskmgr[0m  [34;42mheap[0m   [34;42miterator[0m  [34;42mlib[0m    [01;32mtypescript[0m
+[01;32mMakefile[0m  [34;42mbufmgr[0m  [34;42mchainexception[0m  [34;42mglobal[0m   [34;42mindex[0m  [34;42mjavadoc[0m   [34;42mtests[0m
+[37;1mkyle-stevens@[35msrc[0m$ lssudo chmod u=rwx,g=rwx,o=rwx /usr/lib/jvm/java-11-openjdk-amd64/[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[5P[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[18Pls -l[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[Csu root[K[K rootdo rootmake test[5P[C[C[C[C[C[C[C[C[C[4Pcd ..make testnano Makefile ls[Knano Makefile [5Pmake test[4Pcd ..make test[5@sudo [C[C[C[C[C[C[C[C[C[5Proot[2P root[K rootls -l /usr/lib/jvm/java-11-openjdk-amd64/[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[18@chmod u=rwx,g=rwx,o=rwx[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[5@sudo [C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[Cls[K[Klssudo chmod u=rwx,g=rwx,o=rwx /usr/lib/jvm/java-11-openjdk-amd64/[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[5P[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[18Pls -l[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C
+total 4
+drwxr-xr-x 1 root root 4096 Jan 23 20:33 [0m[01;34mbin[0m
+drwxr-xr-x 1 root root 4096 Jan 23 20:33 [01;34mconf[0m
+lrwxrwxrwx 1 root root   42 Nov  9 21:18 [01;36mdocs[0m -> [01;34m../../../share/doc/openjdk-11-jre-headless[0m
+drwxr-xr-x 1 root root 4096 Jan 23 20:33 [01;34minclude[0m
+drwxr-xr-x 1 root root 4096 Jan 23 20:33 [01;34mjmods[0m
+drwxr-xr-x 1 root root 4096 Jan 23 20:33 [01;34mlegal[0m
+drwxr-xr-x 1 root root 4096 Jan 23 20:33 [01;34mlib[0m
+drwxr-xr-x 1 root root 4096 Jan 23 20:33 [01;34mman[0m
+-rw-r--r-- 1 root root 1179 Nov  9 21:18 release
+[37;1mkyle-stevens@[35msrc[0m$ ls -l /usr/lib/jvm/java-11-openjdk-amd64/[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[Kmake tests
+make: Nothing to be done for 'tests'.
+[37;1mkyle-stevens@[35msrc[0m$ ls
+[0m[34;42mMETA-INF[0m  [34;42mbtree[0m   [34;42mcatalog[0m         [34;42mdiskmgr[0m  [34;42mheap[0m   [34;42miterator[0m  [34;42mlib[0m    [01;32mtypescript[0m
+[01;32mMakefile[0m  [34;42mbufmgr[0m  [34;42mchainexception[0m  [34;42mglobal[0m   [34;42mindex[0m  [34;42mjavadoc[0m   [34;42mtests[0m
+[37;1mkyle-stevens@[35msrc[0m$ make test
+cd tests; make bmtest dbtest; whoami; make hftest bttest indextest jointest sorttest sortmerge
+make[1]: Entering directory '/mnt/c/Users/kyleb/Desktop/GITHUB_REPOS/CSE_510_SPRING_21/minjava/javaminibase/src/tests'
+/usr/lib/jvm/java-11-openjdk-amd64/ /bin/javac -classpath .:.. TestDriver.java BMTest.java
+make[1]: execvp: /usr/lib/jvm/java-11-openjdk-amd64/: Permission denied
+Makefile:12: recipe for target 'BMTest' failed
+make[1]: *** [BMTest] Error 127
+make[1]: Leaving directory '/mnt/c/Users/kyleb/Desktop/GITHUB_REPOS/CSE_510_SPRING_21/minjava/javaminibase/src/tests'
+kyle-stevens
+make[1]: Entering directory '/mnt/c/Users/kyleb/Desktop/GITHUB_REPOS/CSE_510_SPRING_21/minjava/javaminibase/src/tests'
+/usr/lib/jvm/java-11-openjdk-amd64/ /bin/javac -classpath .:.. TestDriver.java HFTest.java
+make[1]: execvp: /usr/lib/jvm/java-11-openjdk-amd64/: Permission denied
+Makefile:28: recipe for target 'HFTest' failed
+make[1]: *** [HFTest] Error 127
+make[1]: Leaving directory '/mnt/c/Users/kyleb/Desktop/GITHUB_REPOS/CSE_510_SPRING_21/minjava/javaminibase/src/tests'
+Makefile:46: recipe for target 'test' failed
+make: *** [test] Error 2
+[37;1mkyle-stevens@[35msrc[0m$ make test[1@s[1@u[1@d[1@o[1@ 
+cd tests; make bmtest dbtest; whoami; make hftest bttest indextest jointest sorttest sortmerge
+make[1]: Entering directory '/mnt/c/Users/kyleb/Desktop/GITHUB_REPOS/CSE_510_SPRING_21/minjava/javaminibase/src/tests'
+/usr/lib/jvm/java-11-openjdk-amd64/ /bin/javac -classpath .:.. TestDriver.java BMTest.java
+make[1]: execvp: /usr/lib/jvm/java-11-openjdk-amd64/: Permission denied
+Makefile:12: recipe for target 'BMTest' failed
+make[1]: *** [BMTest] Error 127
+make[1]: Leaving directory '/mnt/c/Users/kyleb/Desktop/GITHUB_REPOS/CSE_510_SPRING_21/minjava/javaminibase/src/tests'
+root
+make[1]: Entering directory '/mnt/c/Users/kyleb/Desktop/GITHUB_REPOS/CSE_510_SPRING_21/minjava/javaminibase/src/tests'
+/usr/lib/jvm/java-11-openjdk-amd64/ /bin/javac -classpath .:.. TestDriver.java HFTest.java
+make[1]: execvp: /usr/lib/jvm/java-11-openjdk-amd64/: Permission denied
+Makefile:28: recipe for target 'HFTest' failed
+make[1]: *** [HFTest] Error 127
+make[1]: Leaving directory '/mnt/c/Users/kyleb/Desktop/GITHUB_REPOS/CSE_510_SPRING_21/minjava/javaminibase/src/tests'
+Makefile:46: recipe for target 'test' failed
+make: *** [test] Error 2
+[37;1mkyle-stevens@[35msrc[0m$ sudo make test[5P[C[C[C[C[C[C[C[C[C[5@sudo [C[C[C[C[C[C[C[C[C[1@r[1@o[1@o[1@t[1@ 
+sudo: root: command not found
+[37;1mkyle-stevens@[35msrc[0m$ c[Knano tests/Makefile 
+[?1049h[22;0;0t[1;65r(B[m[4l[?7h[39;49m[?1h=[?1h=[?1h=[?25l[39;49m(B[m[H[2J[63;51H(B[0;7m[ Reading File ](B[m[63;57H(B[0;7m 75 lines ](B[m[H(B[0;7m  GNU nano 2.9.3                                      tests/Makefile                                                 [1;116H(B[m[64d(B[0;7m^G(B[m Get Help     (B[0;7m^O(B[m Write Out    (B[0;7m^W(B[m Where Is     (B[0;7m^K(B[m Cut Text     (B[0;7m^J(B[m Justify[81G(B[0;7m^C(B[m Cur Pos[97G(B[0;7mM-U(B[m Undo[65d(B[0;7m^X(B[m Exit[65;17H(B[0;7m^R(B[m Read File    (B[0;7m^\(B[m Replace[49G(B[0;7m^U(B[m Uncut Text   (B[0;7m^T(B[m To Spell     (B[0;7m^_(B[m Go To Line   (B[0;7mM-E(B[m Redo[63d[3d[39;49m[32m# modify the paths appropriately[4d[39m(B[mJDKPATH [31m=[39m(B[m /usr/lib/jvm/java-11-openjdk-amd64/[32m #bin/javac[5d[39m(B[mLIBPATH [31m=[39m(B[m .[31m:[39m(B[m..[6dCLASSPATH [31m=[39m(B[m [34m$(LIBPATH)[7d[39m(B[mBINPATH [31m=[39m(B[m [34m$(JDKPATH)[39m(B[m/bin[8dJAVAC [31m=[39m(B[m [34m$(JDKPATH)[39m(B[m/bin/javac -classpath [34m$(CLASSPATH)[9d[39m(B[mJAVA  [31m=[39m(B[m [34m$(JDKPATH)[39m(B[m/bin/java  -classpath [34m$(CLASSPATH)[11d[32m# test buffer manager[13d(B[0;1m[34mBMTest:[39m(B[mBMTest.java[14;9H[34m$(JAVAC)[39m(B[m TestDriver.java BMTest.java[16d(B[0;1m[34mbmtest:[39m(B[m BMTest[17;9H[34m$(JAVA)[39m(B[m tests.BMTest[19d[32m# test disk manager[21d(B[0;1m[34mDBTest:[39m(B[mDBTest.java[22;9H[34m$(JAVAC)[39m(B[m TestDriver.java DBTest.java[24d(B[0;1m[34mdbtest:[39m(B[m DBTest[25;9H[34m$(JAVA)[39m(B[m tests.DBTest[27d[32m# test heapfile[39m[42m [29d(B[0;1m[34mHFTest:[39m(B[mHFTest.java[30;9H[34m$(JAVAC)[39m(B[m TestDriver.java HFTest.java[32d(B[0;1m[34mhftest:[39m(B[m HFTest[33;9H[34m$(JAVA)[39m(B[m tests.HFTest[35d[32m# test btree[37d(B[0;1m[34mBTTest:[39m(B[mBTTest.java[38;9H[34m$(JAVAC)[39m(B[m TestDriver.java BTTest.java[40d(B[0;1m[34mbttest:[39m(B[m BTTest[41;9H[34m$(JAVA)[39m(B[m tests.BTTest[43d[32m# test index[45d(B[0;1m[34mIndexTest:[39m(B[mIndexTest.java[46;9H[34m$(JAVAC)[39m(B[m TestDriver.java IndexTest.java[48d(B[0;1m[34mindextest:[39m(B[m IndexTest[49;9H[34m$(JAVA)[39m(B[m tests.IndexTest[51d[32m# test join[53d(B[0;1m[34mJoinTest:[39m(B[mJoinTest.java[54;9H[34m$(JAVAC)[39m(B[m TestDriver.java JoinTest.java[56d(B[0;1m[34mjointest:[39m(B[m JoinTest[57;9H[34m$(JAVA)[39m(B[m tests.JoinTest[59d[32m# test sort[61d(B[0;1m[34mSortTest:[39m(B[mSortTest.java[62;9H[34m$(JAVAC)[39m(B[m TestDriver.java SortTest.java[3d[?12l[?25h[?25l[4d[?12l[?25h[?25l[63d[J[65;117H[?12l[?25h[65;1H[?1049l[23;0;0t[?1l>[37;1mkyle-stevens@[35msrc[0m$ nano tests/Makefile [Knano tests/Makefile 
+[?1049h[22;0;0t[1;65r(B[m[4l[?7h[39;49m[?1h=[?1h=[?1h=[?25l[39;49m(B[m[H[2J[63;51H(B[0;7m[ Reading File ](B[m[63;57H(B[0;7m 75 lines ](B[m[H(B[0;7m  GNU nano 2.9.3                                      tests/Makefile                                                 [1;116H(B[m[64d(B[0;7m^G(B[m Get Help     (B[0;7m^O(B[m Write Out    (B[0;7m^W(B[m Where Is     (B[0;7m^K(B[m Cut Text     (B[0;7m^J(B[m Justify[81G(B[0;7m^C(B[m Cur Pos[97G(B[0;7mM-U(B[m Undo[65d(B[0;7m^X(B[m Exit[65;17H(B[0;7m^R(B[m Read File    (B[0;7m^\(B[m Replace[49G(B[0;7m^U(B[m Uncut Text   (B[0;7m^T(B[m To Spell     (B[0;7m^_(B[m Go To Line   (B[0;7mM-E(B[m Redo[63d[3d[39;49m[32m# modify the paths appropriately[4d[39m(B[mJDKPATH [31m=[39m(B[m /usr/lib/jvm/java-11-openjdk-amd64/[32m #bin/javac[5d[39m(B[mLIBPATH [31m=[39m(B[m .[31m:[39m(B[m..[6dCLASSPATH [31m=[39m(B[m [34m$(LIBPATH)[7d[39m(B[mBINPATH [31m=[39m(B[m [34m$(JDKPATH)[39m(B[m/bin[8dJAVAC [31m=[39m(B[m [34m$(JDKPATH)[39m(B[m/bin/javac -classpath [34m$(CLASSPATH)[9d[39m(B[mJAVA  [31m=[39m(B[m [34m$(JDKPATH)[39m(B[m/bin/java  -classpath [34m$(CLASSPATH)[11d[32m# test buffer manager[13d(B[0;1m[34mBMTest:[39m(B[mBMTest.java[14;9H[34m$(JAVAC)[39m(B[m TestDriver.java BMTest.java[16d(B[0;1m[34mbmtest:[39m(B[m BMTest[17;9H[34m$(JAVA)[39m(B[m tests.BMTest[19d[32m# test disk manager[21d(B[0;1m[34mDBTest:[39m(B[mDBTest.java[22;9H[34m$(JAVAC)[39m(B[m TestDriver.java DBTest.java[24d(B[0;1m[34mdbtest:[39m(B[m DBTest[25;9H[34m$(JAVA)[39m(B[m tests.DBTest[27d[32m# test heapfile[39m[42m [29d(B[0;1m[34mHFTest:[39m(B[mHFTest.java[30;9H[34m$(JAVAC)[39m(B[m TestDriver.java HFTest.java[32d(B[0;1m[34mhftest:[39m(B[m HFTest[33;9H[34m$(JAVA)[39m(B[m tests.HFTest[35d[32m# test btree[37d(B[0;1m[34mBTTest:[39m(B[mBTTest.java[38;9H[34m$(JAVAC)[39m(B[m TestDriver.java BTTest.java[40d(B[0;1m[34mbttest:[39m(B[m BTTest[41;9H[34m$(JAVA)[39m(B[m tests.BTTest[43d[32m# test index[45d(B[0;1m[34mIndexTest:[39m(B[mIndexTest.java[46;9H[34m$(JAVAC)[39m(B[m TestDriver.java IndexTest.java[48d(B[0;1m[34mindextest:[39m(B[m IndexTest[49;9H[34m$(JAVA)[39m(B[m tests.IndexTest[51d[32m# test join[53d(B[0;1m[34mJoinTest:[39m(B[mJoinTest.java[54;9H[34m$(JAVAC)[39m(B[m TestDriver.java JoinTest.java[56d(B[0;1m[34mjointest:[39m(B[m JoinTest[57;9H[34m$(JAVA)[39m(B[m tests.JoinTest[59d[32m# test sort[61d(B[0;1m[34mSortTest:[39m(B[mSortTest.java[62;9H[34m$(JAVAC)[39m(B[m TestDriver.java SortTest.java[3d[?12l[?25h[?25l[4d[?12l[?25h[?25l[4;57H[?12l[?25h[?25l[1;108H(B[0;7mModified(B[m[4;56H [?12l[?25h[?25l [?12l[?25h[?25l [?12l[?25h[?25l [?12l[?25h[?25l [?12l[?25h[?25l [?12l[?25h[?25l [?12l[?25h[?25l [?12l[?25h[?25l [?12l[?25h[?25l[42m [49m(B[m[K[?12l[?25h[?25l [?12l[?25h[?25l[63d(B[0;7mSave modified buffer?  (Answering "No" will DISCARD changes.)                                                        [64;1H Y(B[m Yes[K[65d(B[0;7m N(B[m No  [65;18H(B[0;7mC(B[m Cancel[K[63;63H[?12l[?25h[?25l[64d(B[0;7m^G(B[m Get Help[64;30H(B[0;7mM-D(B[m DOS Format[64;59H(B[0;7mM-A(B[m Append[64;88H(B[0;7mM-B(B[m Backup File[65d(B[0;7m^C(B[m Cancel[17G             (B[0;7mM-M(B[m Mac Format[65;59H(B[0;7mM-P(B[m Prepend[65;88H(B[0;7m^T(B[m To Files[63d(B[0;7mFile Name to Write: tests/Makefile                           (B[m[63;35H[?12l[?25h[?25l[K[1;116H[1;108H(B[0;7m        (B[m[63;50H(B[0;7m[ Wrote 75 lines ](B[m[J[65;117H[?12l[?25h[65;1H[?1049l[23;0;0t[?1l>[37;1mkyle-stevens@[35msrc[0m$ nano tests/Makefile [1Psudo root make test[5P[C[C[C[C[C[C[C[C[C[5P[C[C[C[C[C[C[C[C[C
+cd tests; make bmtest dbtest; whoami; make hftest bttest indextest jointest sorttest sortmerge
+make[1]: Entering directory '/mnt/c/Users/kyleb/Desktop/GITHUB_REPOS/CSE_510_SPRING_21/minjava/javaminibase/src/tests'
+/usr/lib/jvm/java-11-openjdk-amd64//bin/javac -classpath .:.. TestDriver.java BMTest.java
+/usr/lib/jvm/java-11-openjdk-amd64//bin/java  -classpath .:.. tests.BMTest
+
+Running Buffer Management tests....
+Replacer: Clock
+
+
+  Test 1 does a simple test of normal buffer manager operations:
+  - Allocate a bunch of new pages
+  - Write something on each one
+  - Read that something back from each one
+   (because we're buffering, this is where most of the writes happen)
+  - Free the pages again
+  Test 1 completed successfully.
+
+  Test 2 exercises some illegal buffer manager operations:
+  - Try to pin more pages than there are frames
+*** Pinning too many pages
+  --> Failed as expected 
+
+  - Try to free a doubly-pinned page
+*** Freeing a pinned page
+  --> Failed as expected 
+
+  - Try to unpin a page not in the buffer pool
+*** Unpinning a page not in the buffer pool
+  --> Failed as expected 
+
+  Test 2 completed successfully.
+
+  Test 3 exercises some of the internals of the buffer manager
+  - Allocate and dirty some new pages, one at a time, and leave some pinned
+  - Read the pages
+  Test 3 completed successfully.
+
+...Buffer Management tests completely successfully.
+
+/usr/lib/jvm/java-11-openjdk-amd64//bin/javac -classpath .:.. TestDriver.java DBTest.java
+/usr/lib/jvm/java-11-openjdk-amd64//bin/java  -classpath .:.. tests.DBTest
+
+Running Disk Space Management tests....
+
+Replacer: Clock
+
+
+  Test 1 creates a new database and does some tests of normal operations:
+  - Add some file entries
+  - Allocate a run of pages
+  - Write something on some of them
+  - Deallocate the rest of them
+  Test 1 completed successfully.
+
+  Test 2 opens the database created in test 1 and does some further tests:
+  - Delete some of the file entries
+  - Look up file entries that should still be there
+  - Read stuff back from pages we wrote in test 1
+  Test 2 completed successfully.
+
+  Test 3 tests for some error conditions:
+  - Look up a deleted file entry
+**** Looking up a deleted file entry
+  --> Failed as expected 
+
+  - Try to delete a deleted entry again
+**** Delete a deleted file entry again
+  --> Failed as expected 
+
+  - Try to delete a nonexistent file entry
+**** Deleting a nonexistent file entry
+  --> Failed as expected 
+
+  - Look up a nonexistent file entry
+**** Looking up a nonexistent file entry
+  --> Failed as expected 
+
+  - Try to add a file entry that's already there
+**** Adding a duplicate file entry
+  --> Failed as expected 
+
+  - Try to add a file entry whose name is too long
+**** Adding a file entry with too long a name
+  --> Failed as expected 
+
+  - Try to allocate a run of pages that's too long 
+**** Allocating a run that's too long
+  --> Failed as expected 
+
+  - Try to allocate a negative run of pages 
+**** Allocating a negative run
+  --> Failed as expected 
+
+  - Try to deallocate a negative run of pages 
+**** Deallocating a negative run
+  --> Failed as expected 
+
+  Test 3 completed successfully.
+
+  Test 4 tests some boundary conditions.
+    (These tests are very implementation-specific.)
+  - Make sure no pages are pinned
+  - Allocate all pages remaining after DB overhead is accounted for
+  - Attempt to allocate one more page
+**** Allocating one additional page
+  --> Failed as expected 
+
+  - Free some of the allocated pages
+  - Allocate some of the just-freed pages
+  - Free two continued run of the allocated pages
+  - Allocate back number of pages equal to the just freed pages
+
+  - Add enough file entries that the directory must surpass a page
+  - Make sure that the directory has taken up an extra page: try to
+    allocate more pages than should be available
+**** Allocating more pages than are now available
+   --> Failed as expected 
+
+  - At this point, all pages should be claimed.  Try to allocateone more.
+**** Allocating one more page than there is
+   --> Failed as expected 
+
+  - Free the last two pages: this tests a boundary condition in the space map.
+  Test 4 completed successfully.
+
+...Disk Space Management tests completely successfully.
+
+make[1]: Leaving directory '/mnt/c/Users/kyleb/Desktop/GITHUB_REPOS/CSE_510_SPRING_21/minjava/javaminibase/src/tests'
+kyle-stevens
+make[1]: Entering directory '/mnt/c/Users/kyleb/Desktop/GITHUB_REPOS/CSE_510_SPRING_21/minjava/javaminibase/src/tests'
+/usr/lib/jvm/java-11-openjdk-amd64//bin/javac -classpath .:.. TestDriver.java HFTest.java
+/usr/lib/jvm/java-11-openjdk-amd64//bin/java  -classpath .:.. tests.HFTest
+
+Running Heap File tests....
+
+Replacer: Clock
+
+
+  Test 1: Insert and scan fixed-size records
+
+  - Create a heap file
+
+  - Add 100 records to the file
+
+  - Scan the records just inserted
+
+  Test 1 completed successfully.
+
+
+  Test 2: Delete fixed-size records
+
+  - Open the same heap file as test 1
+
+  - Delete half the records
+
+  - Scan the remaining records
+
+  Test 2 completed successfully.
+
+
+  Test 3: Update fixed-size records
+
+  - Open the same heap file as tests 1 and 2
+
+  - Change the records
+
+  - Check that the updates are really there
+
+  Test 3 completed successfully.
+
+
+  Test 4: Test some error conditions
+
+  - Try to change the size of a record
+
+**** Shortening a record
+  --> Failed as expected 
+
+**** Lengthening a record
+  --> Failed as expected 
+
+  - Try to insert a record that's too long
+
+**** Inserting a too-long record
+  --> Failed as expected 
+
+  Test 4 completed successfully.
+
+
+...Heap File tests completely successfully.
+
+/usr/lib/jvm/java-11-openjdk-amd64//bin/javac -classpath .:.. TestDriver.java BTTest.java
+/usr/lib/jvm/java-11-openjdk-amd64//bin/java  -classpath .:.. tests.BTTest
+Replacer: Clock
+
+
+Running  tests....
+
+ ***************** The file name is: AAA0  **********
+-------------------------- MENU ------------------
+
+
+[0]   Naive delete (new file)
+[1]   Full delete(Default) (new file)
+
+[2]   Print the B+ Tree Structure
+[3]   Print All Leaf Pages
+[4]   Choose a Page to Print
+
+           ---Integer Key (for choices [6]-[14]) ---
+
+[5]   Insert a Record
+[6]   Delete a Record
+[7]   Test1 (new file): insert n records in order
+[8]   Test2 (new file): insert n records in reverse order
+[9]   Test3 (new file): insert n records in random order
+[10]  Test4 (new file): insert n records in random order
+      and delete m records randomly
+[11]  Delete some records
+
+[12]  Initialize a Scan
+[13]  Scan the next Record
+[14]  Delete the just-scanned record
+
+           ---String Key (for choice [15]) ---
+
+[15]  Test5 (new file): insert n records in random order  
+        and delete m records randomly.
+
+[16]  Close the file
+[17]  Open which file (input an integer for the file name): 
+[18]  Destroy which file (input an integer for the file name): 
+
+[19]  Quit!
+Hi, make your choice :19
+
+... Finished .
+
+
+/usr/lib/jvm/java-11-openjdk-amd64//bin/javac -classpath .:.. TestDriver.java IndexTest.java
+/usr/lib/jvm/java-11-openjdk-amd64//bin/java  -classpath .:.. tests.IndexTest
+
+Running Index tests....
+
+Replacer: Clock
+
+------------------------ TEST 1 --------------------------
+BTreeIndex created successfully.
+
+BTreeIndex file created successfully.
+
+Test1 -- Index Scan OK
+------------------- TEST 1 completed ---------------------
+
+------------------------ TEST 2 --------------------------
+BTreeIndex opened successfully.
+
+Test2 -- Index Scan OK
+------------------- TEST 2 completed ---------------------
+
+------------------------ TEST 3 --------------------------
+BTreeIndex created successfully.
+
+BTreeIndex file created successfully.
+
+Test3 -- Index scan on int key OK
+
+------------------- TEST 3 completed ---------------------
+
+
+...Index tests 
+completely successfully
+.
+
+
+Index tests completed successfully
+/usr/lib/jvm/java-11-openjdk-amd64//bin/javac -classpath .:.. TestDriver.java JoinTest.java
+Note: Some input files use unchecked or unsafe operations.
+Note: Recompile with -Xlint:unchecked for details.
+/usr/lib/jvm/java-11-openjdk-amd64//bin/java  -classpath .:.. tests.JoinTest
+Replacer: Clock
+
+
+
+Any resemblance of persons in this database to people living or dead
+is purely coincidental. The contents of this database do not reflect
+the views of the University, the Computer  Sciences Department or the
+developers...
+
+**********************Query1 strating *********************
+Query: Find the names of sailors who have reserved boat number 1.
+       and print out the date of reservation.
+
+  SELECT S.sname, R.date
+  FROM   Sailors S, Reserves R
+  WHERE  S.sid = R.sid AND R.bid = 1
+
+
+(Tests FileScan, Projection, and Sort-Merge Join)
+[Mike Carey, 05/10/95]
+[David Dewitt, 05/11/95]
+[Jeff Naughton, 05/12/95]
+
+Query1 completed successfully!
+*******************Query1 finished!!!*****************
+
+
+
+**********************Query2 strating *********************
+Query: Find the names of sailors who have reserved a red boat
+       and return them in alphabetical order.
+
+  SELECT   S.sname
+  FROM     Sailors S, Boats B, Reserves R
+  WHERE    S.sid = R.sid AND R.bid = B.bid AND B.color = 'red'
+  ORDER BY S.sname
+Plan used:
+ Sort (Pi(sname) (Sigma(B.color='red')  |><|  Pi(sname, bid) (S  |><|  R)))
+
+(Tests File scan, Index scan ,Projection,  index selection,
+ sort and simple nested-loop join.)
+
+After Building btree index on sailors.sid.
+
+[David Dewitt]
+[Mike Carey]
+[Raghu Ramakrishnan]
+[Yannis Ioannidis]
+
+Query2 completed successfully!
+*******************Query2 finished!!!*****************
+
+
+
+**********************Query3 strating *********************
+Query: Find the names of sailors who have reserved a boat.
+
+  SELECT S.sname
+  FROM   Sailors S, Reserves R
+  WHERE  S.sid = R.sid
+
+(Tests FileScan, Projection, and SortMerge Join.)
+
+[Mike Carey]
+[Mike Carey]
+[Mike Carey]
+[David Dewitt]
+[David Dewitt]
+[Jeff Naughton]
+[Miron Livny]
+[Yannis Ioannidis]
+[Raghu Ramakrishnan]
+[Raghu Ramakrishnan]
+
+Query3 completed successfully!
+*******************Query3 finished!!!*****************
+
+
+
+**********************Query4 strating *********************
+Query: Find the names of sailors who have reserved a boat
+       and print each name once.
+
+  SELECT DISTINCT S.sname
+  FROM   Sailors S, Reserves R
+  WHERE  S.sid = R.sid
+
+(Tests FileScan, Projection, Sort-Merge Join and Duplication elimination.)
+
+[David Dewitt]
+[Jeff Naughton]
+[Mike Carey]
+[Miron Livny]
+[Raghu Ramakrishnan]
+[Yannis Ioannidis]
+
+Query4 completed successfully!
+*******************Query4 finished!!!*****************
+
+
+
+**********************Query5 strating *********************
+Query: Find the names of old sailors or sailors with a rating less
+       than 7, who have reserved a boat, (perhaps to increase the
+       amount they have to pay to make a reservation).
+
+  SELECT S.sname, S.rating, S.age
+  FROM   Sailors S, Reserves R
+  WHERE  S.sid = R.sid and (S.age > 40 || S.rating < 7)
+
+(Tests FileScan, Multiple Selection, Projection, and Sort-Merge Join.)
+
+[Mike Carey, 9, 40.3]
+[Mike Carey, 9, 40.3]
+[Mike Carey, 9, 40.3]
+[David Dewitt, 10, 47.2]
+[David Dewitt, 10, 47.2]
+[Jeff Naughton, 5, 35.0]
+[Yannis Ioannidis, 8, 40.2]
+
+Query5 completed successfully!
+*******************Query5 finished!!!*****************
+
+
+
+**********************Query6 strating *********************
+Query: Find the names of sailors with a rating greater than 7
+  who have reserved a red boat, and print them out in sorted order.
+
+  SELECT   S.sname
+  FROM     Sailors S, Boats B, Reserves R
+  WHERE    S.sid = R.sid AND S.rating > 7 AND R.bid = B.bid 
+           AND B.color = 'red'
+  ORDER BY S.name
+
+Plan used:
+ Sort(Pi(sname) (Sigma(B.color='red')  |><|  Pi(sname, bid) (Sigma(S.rating > 7)  |><|  R)))
+
+(Tests FileScan, Multiple Selection, Projection,sort and nested-loop join.)
+
+After nested loop join S.sid|><|R.sid.
+After nested loop join R.bid|><|B.bid AND B.color=red.
+After sorting the output tuples.
+[David Dewitt]
+[Mike Carey]
+[Raghu Ramakrishnan]
+[Yannis Ioannidis]
+
+Query6 completed successfully!
+*******************Query6 finished!!!*****************
+
+
+
+Finished joins testing
+join tests completed successfully
+/usr/lib/jvm/java-11-openjdk-amd64//bin/javac -classpath .:.. TestDriver.java SortTest.java
+/usr/lib/jvm/java-11-openjdk-amd64//bin/java  -classpath .:.. tests.SortTest
+
+Running Sort tests....
+
+Replacer: Clock
+
+------------------------ TEST 1 --------------------------
+Test1 -- Sorting OK
+------------------- TEST 1 completed ---------------------
+
+------------------------ TEST 2 --------------------------
+Test2 -- Sorting OK
+------------------- TEST 2 completed ---------------------
+
+------------------------ TEST 3 --------------------------
+ -- Sorting in ascending order on the int field -- 
+Test3 -- Sorting of int field OK
+
+ -- Sorting in descending order on the float field -- 
+Test3 -- Sorting of float field OK
+
+------------------- TEST 3 completed ---------------------
+
+------------------------ TEST 4 --------------------------
+Test4 -- Sorting OK
+------------------- TEST 4 completed ---------------------
+
+
+...Sort tests 
+completely successfully
+.
+
+
+Sorting tests completed successfully
+/usr/lib/jvm/java-11-openjdk-amd64//bin/javac -classpath .:.. SM_JoinTest.java TestDriver.java
+Note: SM_JoinTest.java uses unchecked or unsafe operations.
+Note: Recompile with -Xlint:unchecked for details.
+/usr/lib/jvm/java-11-openjdk-amd64//bin/java  -classpath .:.. tests.SM_JoinTest
+Replacer: Clock
+
+
+
+Any resemblance of persons in this database to people living or dead
+is purely coincidental. The contents of this database do not reflect
+the views of the University, the Computer  Sciences Department or the
+developers...
+
+**********************Query1 strating *********************
+Query: Find the names of sailors who have reserved boat number 1.
+       and print out the date of reservation.
+
+  SELECT S.sname, R.date
+  FROM   Sailors S, Reserves R
+  WHERE  S.sid = R.sid AND R.bid = 1
+
+
+(Tests FileScan, Projection, and Sort-Merge Join)
+[Mike Carey, 05/10/95]
+[David Dewitt, 05/11/95]
+[Jeff Naughton, 05/12/95]
+
+Query1 completed successfully!
+*******************Query1 finished!!!*****************
+
+
+
+**********************Query3 strating *********************
+Query: Find the names of sailors who have reserved a boat.
+
+  SELECT S.sname
+  FROM   Sailors S, Reserves R
+  WHERE  S.sid = R.sid
+
+(Tests FileScan, Projection, and SortMerge Join.)
+
+[Mike Carey]
+[Mike Carey]
+[Mike Carey]
+[David Dewitt]
+[David Dewitt]
+[Jeff Naughton]
+[Miron Livny]
+[Yannis Ioannidis]
+[Raghu Ramakrishnan]
+[Raghu Ramakrishnan]
+
+Query3 completed successfully!
+*******************Query3 finished!!!*****************
+
+
+
+**********************Query4 strating *********************
+Query: Find the names of sailors who have reserved a boat
+       and print each name once.
+
+  SELECT DISTINCT S.sname
+  FROM   Sailors S, Reserves R
+  WHERE  S.sid = R.sid
+
+(Tests FileScan, Projection, Sort-Merge Join and Duplication elimination.)
+
+[David Dewitt]
+[Jeff Naughton]
+[Mike Carey]
+[Miron Livny]
+[Raghu Ramakrishnan]
+[Yannis Ioannidis]
+
+Query4 completed successfully!
+*******************Query4 finished!!!*****************
+
+
+
+**********************Query5 strating *********************
+Query: Find the names of old sailors or sailors with a rating less
+       than 7, who have reserved a boat, (perhaps to increase the
+       amount they have to pay to make a reservation).
+
+  SELECT S.sname, S.rating, S.age
+  FROM   Sailors S, Reserves R
+  WHERE  S.sid = R.sid and (S.age > 40 || S.rating < 7)
+
+(Tests FileScan, Multiple Selection, Projection, and Sort-Merge Join.)
+
+[Mike Carey, 9, 40.3]
+[Mike Carey, 9, 40.3]
+[Mike Carey, 9, 40.3]
+[David Dewitt, 10, 47.2]
+[David Dewitt, 10, 47.2]
+[Jeff Naughton, 5, 35.0]
+[Yannis Ioannidis, 8, 40.2]
+
+Query5 completed successfully!
+*******************Query5 finished!!!*****************
+
+
+
+Finished joins testing
+join tests completed successfully
+make[1]: Leaving directory '/mnt/c/Users/kyleb/Desktop/GITHUB_REPOS/CSE_510_SPRING_21/minjava/javaminibase/src/tests'
+[37;1mkyle-stevens@[35msrc[0m$ ls
+[0m[34;42mMETA-INF[0m  [34;42mbtree[0m   [34;42mcatalog[0m         [34;42mdiskmgr[0m  [34;42mheap[0m   [34;42miterator[0m  [34;42mlib[0m    [01;32mtypescript[0m
+[01;32mMakefile[0m  [34;42mbufmgr[0m  [34;42mchainexception[0m  [34;42mglobal[0m   [34;42mindex[0m  [34;42mjavadoc[0m   [34;42mtests[0m
+[37;1mkyle-stevens@[35msrc[0m$ cd[K[Kls tests/
+[0m[01;32mBMDriver.class[0m  [01;32mDBDriver.class[0m     [01;32mHFTest.class[0m       [01;32mJoinsDriver.class[0m  [01;32mS2.class[0m           [01;32mSortTest.java[0m
+[01;32mBMTest.class[0m    [01;32mDBTest.class[0m       [01;32mHFTest.java[0m        [01;32mMakefile[0m           [01;32mS5.class[0m           [01;32mTestDriver.class[0m
+[01;32mBMTest.java[0m     [01;32mDBTest.java[0m        [01;32mIndexDriver.class[0m  [01;32mOrder.class[0m        [01;32mSM_JoinTest.class[0m  [01;32mTestDriver.java[0m
+[01;32mBTDriver.class[0m  [01;32mDummyRecord.class[0m  [01;32mIndexTest.class[0m    [01;32mQueryCheck.class[0m   [01;32mSM_JoinTest.java[0m   [01;32mTupleList.class[0m
+[01;32mBTTest.class[0m    [01;32mGetStuff.class[0m     [01;32mIndexTest.java[0m     [01;32mQueryCheck.java[0m    [01;32mSORTDriver.class[0m
+[01;32mBTTest.java[0m     [01;32mGroup.class[0m        [01;32mJoinTest.class[0m     [01;32mReserves.class[0m     [01;32mSailor.class[0m
+[01;32mBoats.class[0m     [01;32mHFDriver.class[0m     [01;32mJoinTest.java[0m      [01;32mS1.class[0m           [01;32mSortTest.class[0m
+[37;1mkyle-stevens@[35msrc[0m$ ls
+[0m[34;42mMETA-INF[0m  [34;42mbtree[0m   [34;42mcatalog[0m         [34;42mdiskmgr[0m  [34;42mheap[0m   [34;42miterator[0m  [34;42mlib[0m    [01;32mtypescript[0m
+[01;32mMakefile[0m  [34;42mbufmgr[0m  [34;42mchainexception[0m  [34;42mglobal[0m   [34;42mindex[0m  [34;42mjavadoc[0m   [34;42mtests[0m
+[37;1mkyle-stevens@[35msrc[0m$ ls
+[0m[34;42mMETA-INF[0m  [34;42mbtree[0m   [34;42mcatalog[0m         [34;42mdiskmgr[0m  [34;42mheap[0m   [34;42miterator[0m  [34;42mlib[0m    [01;32mtypescript[0m
+[01;32mMakefile[0m  [34;42mbufmgr[0m  [34;42mchainexception[0m  [34;42mglobal[0m   [34;42mindex[0m  [34;42mjavadoc[0m   [34;42mtests[0m
+[37;1mkyle-stevens@[35msrc[0m$ nano Makefile 
+[?1049h[22;0;0t[1;65r(B[m[4l[?7h[39;49m[?1h=[?1h=[?1h=[?25l[39;49m(B[m[H[2J[63;51H(B[0;7m[ Reading File ](B[m[63;57H(B[0;7m 50 lines ](B[m[H(B[0;7m  GNU nano 2.9.3                                         Makefile                                                    [1;116H(B[m[64d(B[0;7m^G(B[m Get Help     (B[0;7m^O(B[m Write Out    (B[0;7m^W(B[m Where Is     (B[0;7m^K(B[m Cut Text     (B[0;7m^J(B[m Justify[81G(B[0;7m^C(B[m Cur Pos[97G(B[0;7mM-U(B[m Undo[65d(B[0;7m^X(B[m Exit[65;17H(B[0;7m^R(B[m Read File    (B[0;7m^\(B[m Replace[49G(B[0;7m^U(B[m Uncut Text   (B[0;7m^T(B[m To Spell     (B[0;7m^_(B[m Go To Line   (B[0;7mM-E(B[m Redo[63d[3d[39;49m[32m#This Makefile is used to create assignments.[5d#the following macros should be updated according to[6d#the assignment to be generated[8d[39m(B[mJARFILES[31m=[39m(B[mbufmgr/*.class diskmgr/*.class global/*.class iterator/*.class\[9;10Hheap/*.class chainexception/*.class  btree/*.class index/*.class tests/*.class[11d[32m#JDKPATH = /usr/java/jdk1.3.1_02[12d[39m(B[mJDKPATH [31m=[39m(B[m /usr/lib/jvm/java-11-op
