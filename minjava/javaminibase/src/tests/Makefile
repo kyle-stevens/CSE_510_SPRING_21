@@ -1,5 +1,5 @@
 # modify the paths appropriately
-JDKPATH = /usr/lib/jvm/java-11-openjdk-amd64/
+JDKPATH = /usr/lib/jvm/java-11-openjdk-amd64
 LIBPATH = .:..
 CLASSPATH = $(LIBPATH)
 BINPATH = $(JDKPATH)/bin
