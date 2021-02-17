@@ -231,8 +231,8 @@ class JoinsDriver implements GlobalConst {
     }
     try {
     	  int[] pref_list = new int[2];
-    	  pref_list[0] = 2;
-    	  pref_list[1] = 3;
+    	  pref_list[0] = 3;
+    	  pref_list[1] = 4;
     	  for(int i1=0;i1<numsailors;i1++) {
     		  for(int j=i1+1;j<numsailors;j++) {
     			  
