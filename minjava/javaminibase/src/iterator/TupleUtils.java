@@ -339,6 +339,79 @@ public class TupleUtils
       } 
       return res_str_sizes;
     }
+  public static boolean Dominates(Tuple t1, AttrType[] type1, Tuple t2, AttrType[] type2, short len_in,
+			short[] str_sizes, int[] pref_list, int pref_list_length) throws Exception {
+		for (int i = 0; i < pref_list_length; i++) {
+			int fieldNo = pref_list[i];
+			if (fieldNo <= 0 || fieldNo > len_in) {
+				throw new Exception("Sort.java: fieldNo is not in range.");
+			}
+			switch (type1[fieldNo - 1].attrType) {
+			case AttrType.attrInteger:
+				int t1fldInt = t1.getIntFld(fieldNo);
+				int t2fldInt = t2.getIntFld(fieldNo);
+				if (t1fldInt < t2fldInt) {
+					System.out.println(fieldNo + " " + t1fldInt + " " + t2fldInt);
+					return false;
+				}
+				break;
+			case AttrType.attrReal:
+				float t1fldFlt = t1.getFloFld(fieldNo);
+				float t2fldFlt = t2.getFloFld(fieldNo);
+				if (t1fldFlt < t2fldFlt) {
+					System.out.println(fieldNo + " " + t1fldFlt + " " + t2fldFlt);
+					return false;
+				}
+				break;
+			case AttrType.attrString:
+				String t1fldStr = t1.getStrFld(fieldNo);
+				String t2fldStr = t2.getStrFld(fieldNo);
+				if (t1fldStr.compareTo(t2fldStr) < 0) {
+					return false;
+				}
+				break;
+			default:
+				throw new UnknowAttrType("Sort.java: don't know how to handle attrSymbol, attrNull, attrString");
+			}
+		}
+
+		return true;
+	}
+
+	public static int CompareTupleWithTuplePref(Tuple t1, AttrType[] type1, Tuple t2, AttrType[] type2, short len_in,
+			short[] str_sizes, int[] pref_list, int pref_list_length) throws Exception {
+		double sum_t1 = 0;
+		double sum_t2 = 0;
+		for (int i = 0; i < pref_list_length; i++) {
+			int fieldNo = pref_list[i];
+			if (fieldNo <= 0 || fieldNo > len_in) {
+				throw new Exception("Sort.java: Pref_field_no is not in range.");
+			}
+			switch (type1[fieldNo - 1].attrType) {
+			case AttrType.attrInteger:
+				int t1fldInt = t1.getIntFld(fieldNo);
+				int t2fldInt = t2.getIntFld(fieldNo);
+				sum_t1 += t1fldInt;
+				sum_t2 += t2fldInt;
+				break;
+			case AttrType.attrReal:
+				float t1fldFlt = t1.getFloFld(fieldNo);
+				float t2fldFlt = t2.getFloFld(fieldNo);
+				sum_t1 += t1fldFlt;
+				sum_t2 += t2fldFlt;
+				break;
+			default:
+				throw new UnknowAttrType("Sort.java: don't know how to handle attrSymbol, attrNull, attrString");
+			}
+		}
+		if (sum_t1 == sum_t2) {
+			return 0;
+		}
+		if (sum_t2 < sum_t1) {
+			return 1;
+		}
+		return -1;
+	}
 }
 
 

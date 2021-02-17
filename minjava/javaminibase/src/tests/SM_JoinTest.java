@@ -199,12 +199,20 @@ class JoinsDriver implements GlobalConst {
       e.printStackTrace();
     }
     
+    Tuple[] tuplesSailors = new Tuple[numsailors];
     for (int i=0; i<numsailors; i++) {
       try {
 	t.setIntFld(1, ((Sailor)sailors.elementAt(i)).sid);
 	t.setStrFld(2, ((Sailor)sailors.elementAt(i)).sname);
 	t.setIntFld(3, ((Sailor)sailors.elementAt(i)).rating);
 	t.setFloFld(4, (float)((Sailor)sailors.elementAt(i)).age);
+	Tuple tmp = new Tuple(size);
+	tmp.setHdr((short) 4, Stypes, Ssizes);
+	tmp.setIntFld(1, ((Sailor)sailors.elementAt(i)).sid);
+	tmp.setStrFld(2, ((Sailor)sailors.elementAt(i)).sname);
+	tmp.setIntFld(3, ((Sailor)sailors.elementAt(i)).rating);
+	tmp.setFloFld(4, (float)((Sailor)sailors.elementAt(i)).age);
+	tuplesSailors[i] = tmp;
       }
       catch (Exception e) {
 	System.err.println("*** Heapfile error in Tuple.setStrFld() ***");
@@ -221,6 +229,27 @@ class JoinsDriver implements GlobalConst {
 	e.printStackTrace();
       }      
     }
+    try {
+    	  int[] pref_list = new int[2];
+    	  pref_list[0] = 2;
+    	  pref_list[1] = 3;
+    	  for(int i1=0;i1<numsailors;i1++) {
+    		  for(int j=i1+1;j<numsailors;j++) {
+    			  
+    			 boolean result = TupleUtils.Dominates(tuplesSailors[i1], Stypes, tuplesSailors[j], Stypes, (short)4, Ssizes, pref_list, (short)2);
+    			 tuplesSailors[i1].print(Stypes);
+    			 tuplesSailors[j].print(Stypes);
+    			 System.out.println("Response of Task 1: "+result);
+    			 
+    			 int respnse = TupleUtils.CompareTupleWithTuplePref(tuplesSailors[i1], Stypes, tuplesSailors[j], Stypes, (short)4, Ssizes, pref_list, (short)2);
+    			 System.out.println("Response of Task 2: "+respnse);
+    		  }
+    	  }
+      }catch(Exception e) {
+    	  //JTRE
+    	  e.printStackTrace();
+    	  System.out.println("***Custom: Dominate failed");
+      }
     if (status != OK) {
       //bail out
       System.err.println ("*** Error creating relation for sailors");
