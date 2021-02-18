@@ -24,7 +24,13 @@ public abstract class pnodePQ
 
   /** the sorting order (Ascending or Descending) */
   protected TupleOrder            sort_order;
-
+  
+  protected AttrType[] type;
+  
+  protected short len_in;
+  protected short[] str_sizes;
+  protected int[] pref_list;
+  protected int pref_list_length;
   /**
    * class constructor, set <code>count</code> to <code>0</code>.
    */
@@ -79,7 +85,12 @@ public abstract class pnodePQ
     int ans = TupleUtils.CompareTupleWithTuple(fld_type, a.tuple, fld_no, b.tuple, fld_no);
     return ans;
   }
-
+  
+  
+  public int pnodeCMPPref(pnode a, pnode b) 
+	         throws Exception {
+	    return TupleUtils.CompareTupleWithTuplePref(a.tuple, type, b.tuple, type, len_in, str_sizes, pref_list, pref_list_length);
+	  }
   /**
    * tests whether the two elements are equal.
    * @param a one of the element for comparison

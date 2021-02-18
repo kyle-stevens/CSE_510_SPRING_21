@@ -412,6 +412,60 @@ public class TupleUtils
 		}
 		return -1;
 	}
+
+	public static int CompareTupleWithValuePref(double sum, Tuple t1, AttrType[] type1, short len_in, int[] pref_list,
+			int pref_list_length) throws Exception {
+		double sum_t1 = 0;
+		for (int i = 0; i < pref_list_length; i++) {
+			int fieldNo = pref_list[i];
+			if (fieldNo <= 0 || fieldNo > len_in) {
+				throw new Exception("Sort.java: Pref_field_no is not in range.");
+			}
+			switch (type1[fieldNo - 1].attrType) {
+			case AttrType.attrInteger:
+				int t1fldInt = t1.getIntFld(fieldNo);
+				sum_t1 += t1fldInt;
+				break;
+			case AttrType.attrReal:
+				float t1fldFlt = t1.getFloFld(fieldNo);
+				sum_t1 += t1fldFlt;
+				break;
+			default:
+				throw new UnknowAttrType("Sort.java: don't know how to handle attrSymbol, attrNull, attrString");
+			}
+		}
+		if (sum_t1 == sum) {
+			return 0;
+		}
+		if (sum_t1 < sum) {
+			return 1;
+		}
+		return -1;
+	}
+	
+	public static double getPrefAttrSum(Tuple t1, AttrType[] type1, short len_in, int[] pref_list,
+			int pref_list_length) throws Exception {
+		double sum_t1 = 0;
+		for (int i = 0; i < pref_list_length; i++) {
+			int fieldNo = pref_list[i];
+			if (fieldNo <= 0 || fieldNo > len_in) {
+				throw new Exception("Sort.java: Pref_field_no is not in range.");
+			}
+			switch (type1[fieldNo - 1].attrType) {
+			case AttrType.attrInteger:
+				int t1fldInt = t1.getIntFld(fieldNo);
+				sum_t1 += t1fldInt;
+				break;
+			case AttrType.attrReal:
+				float t1fldFlt = t1.getFloFld(fieldNo);
+				sum_t1 += t1fldFlt;
+				break;
+			default:
+				throw new UnknowAttrType("Sort.java: don't know how to handle attrSymbol, attrNull, attrString");
+			}
+		}
+		return sum_t1;
+	}
 }
 
 

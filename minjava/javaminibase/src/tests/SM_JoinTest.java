@@ -555,169 +555,71 @@ class JoinsDriver implements GlobalConst {
   }
 
   public void Query1() {
-    
-    System.out.print("**********************Query1 strating *********************\n");
-    boolean status = OK;
-    
-    // Sailors, Boats, Reserves Queries.
-    System.out.print ("Query: Find the names of sailors who have reserved "
-		      + "boat number 1.\n"
-		      + "       and print out the date of reservation.\n\n"
-		      + "  SELECT S.sname, R.date\n"
-		      + "  FROM   Sailors S, Reserves R\n"
-		      + "  WHERE  S.sid = R.sid AND R.bid = 1\n\n");
-    
-    System.out.print ("\n(Tests FileScan, Projection, and Sort-Merge Join)\n");
- 
-    CondExpr[] outFilter = new CondExpr[3];
-    outFilter[0] = new CondExpr();
-    outFilter[1] = new CondExpr();
-    outFilter[2] = new CondExpr();
- 
-    Query1_CondExpr(outFilter);
- 
-    Tuple t = new Tuple();
-    
-    AttrType [] Stypes = new AttrType[4];
-    Stypes[0] = new AttrType (AttrType.attrInteger);
-    Stypes[1] = new AttrType (AttrType.attrString);
-    Stypes[2] = new AttrType (AttrType.attrInteger);
-    Stypes[3] = new AttrType (AttrType.attrReal);
+	    
+	    System.out.print("**********************Query1 strating *********************\n");
+	    boolean status = OK;
+	    
+	 
+	    Tuple t = new Tuple();
+	    
+	    AttrType [] Stypes = new AttrType[4];
+	    Stypes[0] = new AttrType (AttrType.attrInteger);
+	    Stypes[1] = new AttrType (AttrType.attrString);
+	    Stypes[2] = new AttrType (AttrType.attrInteger);
+	    Stypes[3] = new AttrType (AttrType.attrReal);
 
-    //SOS
-    short [] Ssizes = new short[1];
-    Ssizes[0] = 30; //first elt. is 30
-    
-    FldSpec [] Sprojection = new FldSpec[4];
-    Sprojection[0] = new FldSpec(new RelSpec(RelSpec.outer), 1);
-    Sprojection[1] = new FldSpec(new RelSpec(RelSpec.outer), 2);
-    Sprojection[2] = new FldSpec(new RelSpec(RelSpec.outer), 3);
-    Sprojection[3] = new FldSpec(new RelSpec(RelSpec.outer), 4);
+	    //SOS
+	    short [] Ssizes = new short[1];
+	    Ssizes[0] = 30; //first elt. is 30
+	    
+	    FldSpec [] Sprojection = new FldSpec[4];
+	    Sprojection[0] = new FldSpec(new RelSpec(RelSpec.outer), 1);
+	    Sprojection[1] = new FldSpec(new RelSpec(RelSpec.outer), 2);
+	    Sprojection[2] = new FldSpec(new RelSpec(RelSpec.outer), 3);
+	    Sprojection[3] = new FldSpec(new RelSpec(RelSpec.outer), 4);
 
-    CondExpr [] selects = new CondExpr [1];
-    selects = null;
-    
- 
-    FileScan am = null;
-    try {
-      am  = new FileScan("sailors.in", Stypes, Ssizes, 
-				  (short)4, (short)4,
-				  Sprojection, null);
-    }
-    catch (Exception e) {
-      status = FAIL;
-      System.err.println (""+e);
-    }
+	    
+	 
+	    FileScan am = null;
+	    try {
+	      am  = new FileScan("sailors.in", Stypes, Ssizes, 
+					  (short)4, (short)4,
+					  Sprojection, null);
+	    }
+	    catch (Exception e) {
+	      status = FAIL;
+	      System.err.println (""+e);
+	    }
 
-    if (status != OK) {
-      //bail out
-      System.err.println ("*** Error setting up scan for sailors");
-      Runtime.getRuntime().exit(1);
-    }
-    
-    AttrType [] Rtypes = new AttrType[3];
-    Rtypes[0] = new AttrType (AttrType.attrInteger);
-    Rtypes[1] = new AttrType (AttrType.attrInteger);
-    Rtypes[2] = new AttrType (AttrType.attrString);
+	    if (status != OK) {
+	      //bail out
+	      System.err.println ("*** Error setting up scan for sailors");
+	      Runtime.getRuntime().exit(1);
+	    }
 
-    short [] Rsizes = new short[1];
-    Rsizes[0] = 15; 
-    FldSpec [] Rprojection = new FldSpec[3];
-    Rprojection[0] = new FldSpec(new RelSpec(RelSpec.outer), 1);
-    Rprojection[1] = new FldSpec(new RelSpec(RelSpec.outer), 2);
-    Rprojection[2] = new FldSpec(new RelSpec(RelSpec.outer), 3);
- 
-    FileScan am2 = null;
-    try {
-      am2 = new FileScan("reserves.in", Rtypes, Rsizes, 
-				  (short)3, (short) 3,
-				  Rprojection, null);
-    }
-    catch (Exception e) {
-      status = FAIL;
-      System.err.println (""+e);
-    }
-
-    if (status != OK) {
-      //bail out
-      System.err.println ("*** Error setting up scan for reserves");
-      Runtime.getRuntime().exit(1);
-    }
-   
-    
-    FldSpec [] proj_list = new FldSpec[2];
-    proj_list[0] = new FldSpec(new RelSpec(RelSpec.outer), 2);
-    proj_list[1] = new FldSpec(new RelSpec(RelSpec.innerRel), 3);
-
-    AttrType [] jtype = new AttrType[2];
-    jtype[0] = new AttrType (AttrType.attrString);
-    jtype[1] = new AttrType (AttrType.attrString);
- 
-    TupleOrder ascending = new TupleOrder(TupleOrder.Ascending);
-    SortMerge sm = null;
-    try {
-      sm = new SortMerge(Stypes, 4, Ssizes,
-			 Rtypes, 3, Rsizes,
-			 1, 4, 
-			 1, 4, 
-			 10,
-			 am, am2, 
-			 false, false, ascending,
-			 outFilter, proj_list, 2);
-    }
-    catch (Exception e) {
-      System.err.println("*** join error in SortMerge constructor ***"); 
-      status = FAIL;
-      System.err.println (""+e);
-      e.printStackTrace();
-    }
-
-    if (status != OK) {
-      //bail out
-      System.err.println ("*** Error constructing SortMerge");
-      Runtime.getRuntime().exit(1);
-    }
-
-   
- 
-    QueryCheck qcheck1 = new QueryCheck(1);
- 
-   
-    t = null;
- 
-    try {
-      while ((t = sm.get_next()) != null) {
-        t.print(jtype);
-
-        qcheck1.Check(t);
-      }
-    }
-    catch (Exception e) {
-      System.err.println (""+e);
-       e.printStackTrace();
-       status = FAIL;
-    }
-    if (status != OK) {
-      //bail out
-      System.err.println ("*** Error in get next tuple ");
-      Runtime.getRuntime().exit(1);
-    }
-    
-    qcheck1.report(1);
-    try {
-      sm.close();
-    }
-    catch (Exception e) {
-      status = FAIL;
-      e.printStackTrace();
-    }
-    System.out.println ("\n"); 
-    if (status != OK) {
-      //bail out
-      System.err.println ("*** Error in closing ");
-      Runtime.getRuntime().exit(1);
-    }
-  }
+		int[] pref_list = new int[2];
+		pref_list[0] = 3;
+		pref_list[1] = 4;
+	    SortPref sort = null;
+	    try {
+	        sort = new SortPref(Stypes,(short)4,Ssizes,am,new TupleOrder(TupleOrder.Ascending),pref_list,2,12);
+	      }
+	      catch (Exception e) {
+	        status = FAIL;
+	        e.printStackTrace();
+	      }
+	    
+	    if (status != OK) {
+	      //bail out
+	      System.err.println ("*** Error in closing ");
+	      Runtime.getRuntime().exit(1);
+	    }
+	    try {
+	    while((t=sort.get_next())!=null) {
+	    	t.print(Stypes);
+	    	System.out.println(TupleUtils.getPrefAttrSum(t, Stypes, (short)4, pref_list, 2));
+	    }}catch(Exception e) {}
+	  }
   
   public void Query2() {}
   
