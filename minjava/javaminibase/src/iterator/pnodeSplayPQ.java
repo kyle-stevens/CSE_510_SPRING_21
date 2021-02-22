@@ -47,7 +47,56 @@ public class pnodeSplayPQ extends pnodePQ
     fld_type = fldType;
     sort_order = order;
   }
+  
+  
+  public pnodeSplayPQ(TupleOrder order, int[] pref_list, int pref_list_length, AttrType[] type, short len_in,
+			short[] str_sizes) {
+		root = null;
+		count = 0;
+		fld_no = 0;
+		fld_type = new AttrType(AttrType.attrInteger);
+		sort_order = order;
+		super.pref_list = pref_list;
+		super.pref_list_length = pref_list_length;
+		super.type = type;
+		super.len_in = len_in;
+		super.str_sizes = str_sizes;
+	}
 
+	public void enqPref(pnode item) throws Exception {
+		count++;
+		pnodeSplayNode newnode = new pnodeSplayNode(item);
+		pnodeSplayNode t = root;
+
+		if (t == null) {
+			root = newnode;
+			return;
+		}
+
+
+		boolean done = false;
+
+		while (!done) {
+			int comp = pnodeCMPPref(item, t.item);
+			if ((sort_order.tupleOrder == TupleOrder.Ascending && comp < 0)
+					|| (sort_order.tupleOrder == TupleOrder.Descending && comp > 0)) {
+				if (t.lt == null) {
+					t.lt = newnode;
+					newnode.par = t;
+					done = true;
+				}
+				t = t.lt;
+			} else {
+				if (t.rt == null) {
+					t.rt = newnode;
+					newnode.par = t;
+					done = true;
+				}
+				t = t.rt;
+			}
+		}
+
+	}
   /**
    * Inserts an element into the binary tree.
    * @param item the element to be inserted
@@ -186,6 +235,31 @@ public class pnodeSplayPQ extends pnodePQ
       } // end of while(true)
     } 
   }
+  
+  public pnode deqPref() {
+		if (root == null)
+			return null;
+
+		count--;
+
+		pnodeSplayNode t = root;
+
+		while (t.lt != null) {
+			t = t.lt;
+		}
+		if (t == root) {
+			root = t.rt;
+			if (root != null)
+				root.par = null;
+		} else {
+			t.par.lt = t.rt;
+			if (t.rt != null) {
+				t.rt.par = t.par;
+			}
+		}
+		return t.item;
+
+	}
   
   /*  
                   pnodeSplayPQ(pnodeSplayPQ& a);
