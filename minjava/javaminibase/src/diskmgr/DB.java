@@ -10,7 +10,7 @@ public class DB implements GlobalConst {
 
 
   private static final int bits_per_page = MAX_SPACE * 8;
-  private static PCounter pcount = new PCounter();
+  
 
 
   /** Open the database with the given name.
