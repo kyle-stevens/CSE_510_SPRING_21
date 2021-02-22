@@ -2,7 +2,7 @@ package diskmgr;
 public class PCounter {
 	public static int rcounter;
 	public static int wcounter;
-	puclic static void initialize() {
+	public static void initialize() {
 		rcounter = 0;
 		wcounter = 0;
 	}
