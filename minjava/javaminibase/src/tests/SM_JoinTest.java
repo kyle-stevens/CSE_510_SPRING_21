@@ -619,7 +619,44 @@ class JoinsDriver implements GlobalConst {
 	    	t.print(Stypes);
 	    	System.out.println(TupleUtils.getPrefAttrSum(t, Stypes, (short)4, pref_list, 2));
 	    }}catch(Exception e) {}
-	  }
+
+      //NestedLoopSkyline
+
+      FileScan am1 = null;
+      try {
+          am1  = new FileScan("sailors.in", Stypes, Ssizes,
+                  (short)4, (short)4,
+                  Sprojection, null);
+      }
+      catch (Exception e) {
+          status = FAIL;
+          System.err.println (""+e);
+      }
+
+
+      try {
+          int[] pref_list1 = new int[2];
+          pref_list1[0] = 3;
+          pref_list1[1] = 4;
+
+          NestedLoopsSky sky = new NestedLoopsSky(Stypes, 4, Ssizes,
+                  am1, "sailors.in", pref_list1, 2, 0 );
+
+          System.out.println("Skyline tuples: ");
+
+          Tuple temp = sky.get_next();
+          while(temp!=null)
+          {
+              System.out.println("-------------#########------------------");
+              temp.print(Stypes);
+              System.out.println("-------------#########------------------");
+              temp = sky.get_next();
+          }
+
+      } catch (Exception e) {
+          e.printStackTrace();
+      }
+  }
   
   public void Query2() {}
   

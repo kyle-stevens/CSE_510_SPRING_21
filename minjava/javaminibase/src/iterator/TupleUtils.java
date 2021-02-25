@@ -351,7 +351,7 @@ public class TupleUtils
 				int t1fldInt = t1.getIntFld(fieldNo);
 				int t2fldInt = t2.getIntFld(fieldNo);
 				if (t1fldInt < t2fldInt) {
-					System.out.println(fieldNo + " " + t1fldInt + " " + t2fldInt);
+//					System.out.println(fieldNo + " " + t1fldInt + " " + t2fldInt);
 					return false;
 				}
 				break;
@@ -359,7 +359,7 @@ public class TupleUtils
 				float t1fldFlt = t1.getFloFld(fieldNo);
 				float t2fldFlt = t2.getFloFld(fieldNo);
 				if (t1fldFlt < t2fldFlt) {
-					System.out.println(fieldNo + " " + t1fldFlt + " " + t2fldFlt);
+//					System.out.println(fieldNo + " " + t1fldFlt + " " + t2fldFlt);
 					return false;
 				}
 				break;
