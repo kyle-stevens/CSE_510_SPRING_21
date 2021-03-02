@@ -33,7 +33,7 @@ public class BTreeSortedSky extends Iterator {
 		col_len = len_in1;
 		str_sizes = t1_str_sizes;
 
-		oBuf = new OBufSortSky(in1, len_in1, t1_str_sizes, am1, relationName, pref_list, pref_list_length, index_file, n_pages);
+		oBuf = new OBufSortSky(in1, len_in1, t1_str_sizes, am1, relationName, pref_list, pref_list_length, n_pages);
 
 		Sprojection = new FldSpec[len_in1];
 

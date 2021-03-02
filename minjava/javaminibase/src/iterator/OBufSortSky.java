@@ -49,7 +49,7 @@ public class OBufSortSky implements GlobalConst{
 	}
 
 	public OBufSortSky(AttrType[] in1, short len_in1, short[] t1_str_sizes, Iterator am1, String relationName,
-			int[] pref_list, int pref_list_length, String index_file, int n_pages) throws SortException{
+			int[] pref_list, int pref_list_length, int n_pages) throws SortException{
 		
 		this.in1 = in1;
 		System.out.println("len = "+in1.length);
@@ -69,6 +69,7 @@ public class OBufSortSky implements GlobalConst{
 		_n_pages = n_pages;
 		t_per_pg = MINIBASE_PAGESIZE / t_size;
 		t_in_buf = _n_pages * t_per_pg;
+		System.out.println(t_in_buf+" "+t_per_pg+" "+t_size);
 		_bufs = new byte[_n_pages][];
 		init();
 	}
@@ -106,8 +107,17 @@ public class OBufSortSky implements GlobalConst{
 
 	public Tuple Put(Tuple buf) throws IOException, Exception {
 
+		
+		
 		byte[] copybuf;
 		copybuf = buf.getTupleByteArray();
+		if (t_wr_to_buf == t_in_buf) // Buffer full?
+		{
+			Heapfile f = new Heapfile(curr_file + number_of_window_file);
+			f.insertRecord(copybuf);
+			flag = true;
+			return buf;
+		}
 		System.arraycopy(copybuf, 0, _bufs[curr_page], t_wr_to_pg * t_size, t_size);
 		Tuple tuple_ptr = new Tuple(_bufs[curr_page], t_wr_to_pg * t_size, t_size);
 		tuple_ptr.setHdr(col_len, in1, str_sizes);
