@@ -346,35 +346,36 @@ public class TupleUtils
 			if (fieldNo <= 0 || fieldNo > len_in) {
 				throw new Exception("Sort.java: fieldNo is not in range.");
 			}
+			int count=0;
 			switch (type1[fieldNo - 1].attrType) {
 			case AttrType.attrInteger:
 				int t1fldInt = t1.getIntFld(fieldNo);
 				int t2fldInt = t2.getIntFld(fieldNo);
 				if (t1fldInt < t2fldInt) {
-					System.out.println(fieldNo + " " + t1fldInt + " " + t2fldInt);
 					return false;
-				}
+				}else if(t1fldInt == t2fldInt)count++;
 				break;
 			case AttrType.attrReal:
 				float t1fldFlt = t1.getFloFld(fieldNo);
 				float t2fldFlt = t2.getFloFld(fieldNo);
 				if (t1fldFlt < t2fldFlt) {
-					System.out.println(fieldNo + " " + t1fldFlt + " " + t2fldFlt);
 					return false;
-				}
+				}else if(t1fldFlt == t2fldFlt)count++;
 				break;
 			case AttrType.attrString:
 				String t1fldStr = t1.getStrFld(fieldNo);
 				String t2fldStr = t2.getStrFld(fieldNo);
 				if (t1fldStr.compareTo(t2fldStr) < 0) {
 					return false;
-				}
+				}else if(t1fldStr.compareTo(t2fldStr)==0)count++;
 				break;
 			default:
 				throw new UnknowAttrType("Sort.java: don't know how to handle attrSymbol, attrNull, attrString");
 			}
 		}
-
+		if(count==pref_list_length) {
+			return false;
+		}
 		return true;
 	}
 
