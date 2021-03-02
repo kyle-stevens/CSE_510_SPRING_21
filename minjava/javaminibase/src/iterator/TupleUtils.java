@@ -136,6 +136,61 @@ public class TupleUtils
 	  return false;
       return true;
     }
+
+	/**
+	 *This function Compares two Tuple in preferred fields to see if they are equala
+	 * @param t1 the first tuple
+	 * @param t2 the secocnd tuple
+	 * @param type1 [] the field types
+	 * @param type2 [] the field types
+	 * @param len_in the field numbers
+	 * @param str_sizes the size of string fields
+	 * @param pref_list [] list of preference attributes
+	 * @param pref_list_length number of preference attributes
+	 * @return  False        if the two are not equal,
+	 *          True        if the two are equal,
+	 *@exception UnknowAttrType don't know the attribute type
+	 *@exception IOException some I/O fault
+	 *@exception TupleUtilsException exception from this class
+	 */
+
+	public static boolean Equal_pref(Tuple t1, AttrType[] type1, Tuple t2, AttrType[] type2, short len_in,
+									 short[] str_sizes, int[] pref_list, int pref_list_length)
+			throws IOException,UnknowAttrType,TupleUtilsException, Exception {
+
+		for (int i = 0; i < pref_list_length; i++) {
+			int fieldNo = pref_list[i];
+			if (fieldNo <= 0 || fieldNo > len_in) {
+				throw new Exception("Sort.java: fieldNo is not in range.");
+			}
+			switch (type1[fieldNo - 1].attrType) {
+				case AttrType.attrInteger:
+					int t1fldInt = t1.getIntFld(fieldNo);
+					int t2fldInt = t2.getIntFld(fieldNo);
+					if (t1fldInt != t2fldInt) {
+						return false;
+					}
+					break;
+				case AttrType.attrReal:
+					float t1fldFlt = t1.getFloFld(fieldNo);
+					float t2fldFlt = t2.getFloFld(fieldNo);
+					if (t1fldFlt != t2fldFlt) {
+						return false;
+					}
+					break;
+				case AttrType.attrString:
+					String t1fldStr = t1.getStrFld(fieldNo);
+					String t2fldStr = t2.getStrFld(fieldNo);
+					if (t1fldStr.compareTo(t2fldStr) != 0) {
+						return false;
+					}
+					break;
+				default:
+					throw new UnknowAttrType("Sort.java: don't know how to handle attrSymbol, attrNull, attrString");
+			}
+		}
+		return true;
+	}
   
   /**
    *get the string specified by the field number
@@ -351,7 +406,7 @@ public class TupleUtils
 				int t1fldInt = t1.getIntFld(fieldNo);
 				int t2fldInt = t2.getIntFld(fieldNo);
 				if (t1fldInt < t2fldInt) {
-					System.out.println(fieldNo + " " + t1fldInt + " " + t2fldInt);
+//					System.out.println(fieldNo + " " + t1fldInt + " " + t2fldInt);
 					return false;
 				}
 				break;
@@ -359,7 +414,7 @@ public class TupleUtils
 				float t1fldFlt = t1.getFloFld(fieldNo);
 				float t2fldFlt = t2.getFloFld(fieldNo);
 				if (t1fldFlt < t2fldFlt) {
-					System.out.println(fieldNo + " " + t1fldFlt + " " + t2fldFlt);
+//					System.out.println(fieldNo + " " + t1fldFlt + " " + t2fldFlt);
 					return false;
 				}
 				break;
