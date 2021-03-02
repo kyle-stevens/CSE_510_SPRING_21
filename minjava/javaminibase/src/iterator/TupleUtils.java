@@ -396,12 +396,12 @@ public class TupleUtils
     }
   public static boolean Dominates(Tuple t1, AttrType[] type1, Tuple t2, AttrType[] type2, short len_in,
 			short[] str_sizes, int[] pref_list, int pref_list_length) throws Exception {
+	  	int count=0;
 		for (int i = 0; i < pref_list_length; i++) {
 			int fieldNo = pref_list[i];
 			if (fieldNo <= 0 || fieldNo > len_in) {
 				throw new Exception("Sort.java: fieldNo is not in range.");
 			}
-			int count=0;
 			switch (type1[fieldNo - 1].attrType) {
 			case AttrType.attrInteger:
 				int t1fldInt = t1.getIntFld(fieldNo);
