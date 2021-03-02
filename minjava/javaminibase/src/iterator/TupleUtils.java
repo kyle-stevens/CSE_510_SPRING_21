@@ -341,7 +341,8 @@ public class TupleUtils
     }
   public static boolean Dominates(Tuple t1, AttrType[] type1, Tuple t2, AttrType[] type2, short len_in,
 			short[] str_sizes, int[] pref_list, int pref_list_length) throws Exception {
-		int count=0;
+    
+	  	int count=0;
 		for (int i = 0; i < pref_list_length; i++) {
 			int fieldNo = pref_list[i];
 			if (fieldNo <= 0 || fieldNo > len_in) {
