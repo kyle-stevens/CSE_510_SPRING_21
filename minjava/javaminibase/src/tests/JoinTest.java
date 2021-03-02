@@ -374,15 +374,17 @@ class JoinsDriver implements GlobalConst {
   public boolean runTests() {
     
     Disclaimer();
-    Query1();
-    
-    Query2();
-    Query3();
+   // Query1();
+    try {
+    Query2();}catch(Exception e) {
+    	
+    }
+  //  Query3();
     
    
-    Query4();
-    Query5();
-    Query6();
+   // Query4();
+   // Query5();
+    //Query6();
     
     
     System.out.print ("Finished joins testing"+"\n");
@@ -691,7 +693,7 @@ class JoinsDriver implements GlobalConst {
     }
   }
   
-  public void Query2() {
+  public void Query2() throws JoinsException, IndexException, InvalidTupleSizeException, InvalidTypeException, PageNotReadException, TupleUtilsException, PredEvalException, SortException, LowMemException, UnknowAttrType, UnknownKeyTypeException, IOException, Exception {
     System.out.print("**********************Query2 strating *********************\n");
     boolean status = OK;
 
@@ -794,8 +796,8 @@ class JoinsDriver implements GlobalConst {
     FldSpec [] Sprojection = {
        new FldSpec(new RelSpec(RelSpec.outer), 1),
        new FldSpec(new RelSpec(RelSpec.outer), 2),
-       // new FldSpec(new RelSpec(RelSpec.outer), 3),
-       // new FldSpec(new RelSpec(RelSpec.outer), 4)
+        new FldSpec(new RelSpec(RelSpec.outer), 3),
+        new FldSpec(new RelSpec(RelSpec.outer), 4)
     };
  
     CondExpr [] selects = new CondExpr[1];
@@ -851,7 +853,7 @@ class JoinsDriver implements GlobalConst {
     // create the index file
     BTreeFile btf = null;
     try {
-      btf = new BTreeFile("BTreeIndex", AttrType.attrInteger, 4, 1); 
+      btf = new BTreeFile("BTreeIndex", AttrType.attrReal, 4, 1); 
     }
     catch (Exception e) {
       status = FAIL;
@@ -860,7 +862,7 @@ class JoinsDriver implements GlobalConst {
     }
     
     RID rid = new RID();
-    int key =0;
+    float key = 0;
     Tuple temp = null;
     
     try {
@@ -870,11 +872,16 @@ class JoinsDriver implements GlobalConst {
       status = FAIL;
       e.printStackTrace();
     }
+
+    int[] pref_list = {3,4};
     while ( temp != null) {
       tt.tupleCopy(temp);
       
       try {
-	key = tt.getIntFld(1);
+    	  float tmp = (float)TupleUtils.getPrefAttrSum(tt, Stypes, (short)4, pref_list, 2);
+    	  
+    	  key = -tmp;
+    	  System.out.println("Key: "+key);
       }
       catch (Exception e) {
 	status = FAIL;
@@ -882,7 +889,7 @@ class JoinsDriver implements GlobalConst {
       }
       
       try {
-	btf.insert(new IntegerKey(key), rid); 
+	btf.insert(new RealKey(key), rid); 
       }
       catch (Exception e) {
 	status = FAIL;
@@ -907,93 +914,100 @@ class JoinsDriver implements GlobalConst {
     //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
     System.out.print ("After Building btree index on sailors.sid.\n\n");
-    try {
-      am = new IndexScan ( b_index, "sailors.in",
-			   "BTreeIndex", Stypes, Ssizes, 4, 2,
-			   Sprojection, null, 1, false);
-    }
+//    try {
+//      am = new IndexScan ( b_index, "sailors.in",
+//			   "BTreeIndex", Stypes, Ssizes, 4, 4,
+//			   Sprojection, null, 4, false);
+//    }
+//    
+//    catch (Exception e) {
+//      System.err.println ("*** Error creating scan for Index scan");
+//      System.err.println (""+e);
+//      Runtime.getRuntime().exit(1);
+//    }
+    BTreeSortedSky sc = new BTreeSortedSky(Stypes, (short)4, Ssizes, null, 
+    		"sailors.in", pref_list, 2, "BTreeIndex", 12);
     
-    catch (Exception e) {
-      System.err.println ("*** Error creating scan for Index scan");
-      System.err.println (""+e);
-      Runtime.getRuntime().exit(1);
-    }
-   
-    
-    NestedLoopsJoins nlj = null;
-    try {
-      nlj = new NestedLoopsJoins (Stypes2, 2, Ssizes,
-				  Rtypes, 3, Rsizes,
-				  10,
-				  am, "reserves.in",
-				  outFilter, null, proj1, 2);
-    }
-    catch (Exception e) {
-      System.err.println ("*** Error preparing for nested_loop_join");
-      System.err.println (""+e);
-      e.printStackTrace();
-      Runtime.getRuntime().exit(1);
-    }
-
-     NestedLoopsJoins nlj2 = null ; 
-    try {
-      nlj2 = new NestedLoopsJoins (Jtypes, 2, Jsizes,
-				   Btypes, 3, Bsizes,
-				   10,
-				   nlj, "boats.in",
-				   outFilter2, null, proj2, 1);
-    }
-    catch (Exception e) {
-      System.err.println ("*** Error preparing for nested_loop_join");
-      System.err.println (""+e);
-      Runtime.getRuntime().exit(1);
-    }
-    
-    TupleOrder ascending = new TupleOrder(TupleOrder.Ascending);
-    Sort sort_names = null;
-    try {
-      sort_names = new Sort (JJtype,(short)1, JJsize,
-			     (iterator.Iterator) nlj2, 1, ascending, JJsize[0], 10);
-    }
-    catch (Exception e) {
-      System.err.println ("*** Error preparing for nested_loop_join");
-      System.err.println (""+e);
-      Runtime.getRuntime().exit(1);
-    }
-    
-    
-    QueryCheck qcheck2 = new QueryCheck(2);
-    
-   
-    t = null;
-    try {
-      while ((t = sort_names.get_next()) != null) {
-        t.print(JJtype);
-        qcheck2.Check(t);
-      }
-    }
-    catch (Exception e) {
-      System.err.println (""+e);
-      e.printStackTrace();
-      Runtime.getRuntime().exit(1);
-    }
-
-    qcheck2.report(2);
-
-    System.out.println ("\n"); 
-    try {
-      sort_names.close();
-    }
-    catch (Exception e) {
-      status = FAIL;
-      e.printStackTrace();
-    }
-    
-    if (status != OK) {
-      //bail out
-   
-      Runtime.getRuntime().exit(1);
-      }
+   Tuple t1 = null;try {
+    while((t1 = sc.get_next())!=null) {
+    	System.out.println(TupleUtils.getPrefAttrSum(t1, Stypes, (short)4, pref_list, 2));
+    	t1.print(Stypes);
+    }}catch(Exception e) {e.printStackTrace();}
+//    
+//    NestedLoopsJoins nlj = null;
+//    try {
+//      nlj = new NestedLoopsJoins (Stypes2, 2, Ssizes,
+//				  Rtypes, 3, Rsizes,
+//				  10,
+//				  am, "reserves.in",
+//				  outFilter, null, proj1, 2);
+//    }
+//    catch (Exception e) {
+//      System.err.println ("*** Error preparing for nested_loop_join");
+//      System.err.println (""+e);
+//      e.printStackTrace();
+//      Runtime.getRuntime().exit(1);
+//    }
+//
+//     NestedLoopsJoins nlj2 = null ; 
+//    try {
+//      nlj2 = new NestedLoopsJoins (Jtypes, 2, Jsizes,
+//				   Btypes, 3, Bsizes,
+//				   10,
+//				   nlj, "boats.in",
+//				   outFilter2, null, proj2, 1);
+//    }
+//    catch (Exception e) {
+//      System.err.println ("*** Error preparing for nested_loop_join");
+//      System.err.println (""+e);
+//      Runtime.getRuntime().exit(1);
+//    }
+//    
+//    TupleOrder ascending = new TupleOrder(TupleOrder.Ascending);
+//    Sort sort_names = null;
+//    try {
+//      sort_names = new Sort (JJtype,(short)1, JJsize,
+//			     (iterator.Iterator) nlj2, 1, ascending, JJsize[0], 10);
+//    }
+//    catch (Exception e) {
+//      System.err.println ("*** Error preparing for nested_loop_join");
+//      System.err.println (""+e);
+//      Runtime.getRuntime().exit(1);
+//    }
+//    
+//    
+//    QueryCheck qcheck2 = new QueryCheck(2);
+//    
+//   
+//    t = null;
+//    try {
+//      while ((t = sort_names.get_next()) != null) {
+//        t.print(JJtype);
+//        qcheck2.Check(t);
+//      }
+//    }
+//    catch (Exception e) {
+//      System.err.println (""+e);
+//      e.printStackTrace();
+//      Runtime.getRuntime().exit(1);
+//    }
+//
+//    qcheck2.report(2);
+//
+//    System.out.println ("\n"); 
+//    try {
+//      sort_names.close();
+//    }
+//    catch (Exception e) {
+//      status = FAIL;
+//      e.printStackTrace();
+//    }
+//    
+//    if (status != OK) {
+//      //bail out
+//   
+//      Runtime.getRuntime().exit(1);
+//      }
   }
   
 

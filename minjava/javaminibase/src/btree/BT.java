@@ -55,11 +55,19 @@ public class BT  implements GlobalConst{
 	return  (((IntegerKey)key1).getKey()).intValue() 
 	  - (((IntegerKey)key2).getKey()).intValue();
       }
+      else if ( (key1 instanceof RealKey) && (key2 instanceof RealKey) ) {
+    		
+    		return  (((RealKey)key1).getKey()).floatValue() 
+    		  - (((RealKey)key2).getKey()).floatValue()>=0?1:-1;
+    	      }
       else if  ( (key1 instanceof StringKey) && (key2 instanceof StringKey)){
         return ((StringKey)key1).getKey().compareTo(((StringKey)key2).getKey());
       }
       
-      else { throw new  KeyNotMatchException(null, "key types do not match");}
+      else {
+    	  System.out.println("Key1 : "+key1);
+    	  System.out.println("Key2 : "+key2);
+    	  throw new  KeyNotMatchException(null, "key types do not match");}
     } 
   
   
@@ -83,6 +91,7 @@ public class BT  implements GlobalConst{
     }
       else if ( key instanceof IntegerKey)
 	return 4;
+      else if(key instanceof RealKey) return 4;
       else throw new KeyNotMatchException(null, "key types do not match"); 
     }
   
@@ -172,6 +181,10 @@ public class BT  implements GlobalConst{
 	  //System.out.println(" offset  "+ offset + "  " + length + "  "+n);
           key= new StringKey( Convert.getStrValue(offset, from, length-n));
 	} 
+	else if(keyType==AttrType.attrReal) {
+		  key= new RealKey( new Float 
+			       (Convert.getFloValue(offset, from)));
+	}
 	else 
           throw new KeyNotMatchException(null, "key types do not match");
 	
@@ -215,6 +228,11 @@ public class BT  implements GlobalConst{
         else if ( entry.key instanceof StringKey ) {
 	  Convert.setStrValue( ((StringKey)entry.key).getKey(),
 			       0, data);            
+        }
+        else if(entry.key instanceof RealKey) {
+      	  Convert.setFloValue( ((RealKey)entry.key).getKey(),
+			       0, data);            
+        	
         }
         else throw new KeyNotMatchException(null, "key types do not match");
         
