@@ -1,6 +1,7 @@
 package tests;
 //originally from : joins.C
 
+import index.IndexException;
 import iterator.*;
 import heap.*;
 import global.*;
@@ -101,26 +102,26 @@ class JoinsDriver implements GlobalConst {
     sailors.addElement(new Sailor(31, "Jeff Naughton",      5, 35.0));
     sailors.addElement(new Sailor(35, "Miron Livny",        7, 37.6));
     sailors.addElement(new Sailor(37, "Marv Solomon",      10, 48.9));
-//    sailors.addElement(new Sailor(100, "Bob the Second1",       9, 53.6));
-//    sailors.addElement(new Sailor(101, "Bob the Third1",       9, 53.6));
-//    sailors.addElement(new Sailor(102, "Bob the Second2",       9, 53.6));
-//    sailors.addElement(new Sailor(103, "Bob the Third2",       9, 53.6));
-//    sailors.addElement(new Sailor(104, "Bob the Second3",       9, 53.6));
-//    sailors.addElement(new Sailor(105, "Bob the Third4",       9, 53.6));
-//    sailors.addElement(new Sailor(106, "Bob the Second4",       9, 53.6));
-//    sailors.addElement(new Sailor(107, "Bob the Third3",       9, 53.6));
-//    sailors.addElement(new Sailor(108, "Bob the Second5",       9, 53.6));
-//    sailors.addElement(new Sailor(109, "Bob the Third5",       9, 53.6));
-//    sailors.addElement(new Sailor(110, "Bob the Second6",       9, 53.6));
-//    sailors.addElement(new Sailor(111, "Bob the Third6",       9, 53.6));
-//    sailors.addElement(new Sailor(112, "Bob the Second7",       9, 53.6));
-//    sailors.addElement(new Sailor(113, "Bob the Third7",       9, 53.6));
-//    sailors.addElement(new Sailor(114, "Bob the Second8",       9, 53.6));
-//    sailors.addElement(new Sailor(115, "Bob the Third8",       9, 53.6));
-//    sailors.addElement(new Sailor(116, "Bob the Second9",       9, 53.6));
-//    sailors.addElement(new Sailor(117, "Bob the Third9",       9, 53.6));
-//    sailors.addElement(new Sailor(118, "Bob the Second0",       7, 37.6));
-//    sailors.addElement(new Sailor(119, "Bob the Third0",       9, 53.6));
+    sailors.addElement(new Sailor(100, "Bob the Second1",       9, 53.6));
+    sailors.addElement(new Sailor(101, "Bob the Third1",       9, 53.6));
+    sailors.addElement(new Sailor(102, "Bob the Second2",       9, 53.6));
+    sailors.addElement(new Sailor(103, "Bob the Third2",       9, 53.6));
+    sailors.addElement(new Sailor(104, "Bob the Second3",       9, 53.6));
+    sailors.addElement(new Sailor(105, "Bob the Third4",       9, 53.6));
+    sailors.addElement(new Sailor(106, "Bob the Second4",       9, 53.6));
+    sailors.addElement(new Sailor(107, "Bob the Third3",       9, 53.6));
+    sailors.addElement(new Sailor(108, "Bob the Second5",       9, 53.6));
+    sailors.addElement(new Sailor(109, "Bob the Third5",       9, 53.6));
+    sailors.addElement(new Sailor(110, "Bob the Second6",       9, 53.6));
+    sailors.addElement(new Sailor(111, "Bob the Third6",       9, 53.6));
+    sailors.addElement(new Sailor(112, "Bob the Second7",       9, 53.6));
+    sailors.addElement(new Sailor(113, "Bob the Third7",       9, 53.6));
+    sailors.addElement(new Sailor(114, "Bob the Second8",       9, 53.6));
+    sailors.addElement(new Sailor(115, "Bob the Third8",       9, 53.6));
+    sailors.addElement(new Sailor(116, "Bob the Second9",       9, 53.6));
+    sailors.addElement(new Sailor(117, "Bob the Third9",       9, 53.6));
+    sailors.addElement(new Sailor(118, "Bob the Second0",       7, 37.6));
+    sailors.addElement(new Sailor(119, "Bob the Third0",       9, 53.6));
 
     boats.addElement(new Boats(1, "Onion",      "white"));
     boats.addElement(new Boats(2, "Buckey",     "red"  ));
@@ -140,8 +141,8 @@ class JoinsDriver implements GlobalConst {
     reserves.addElement(new Reserves(35, 3, "05/15/95"));
 
     boolean status = OK;
-    int numsailors = 25;
-//    int numsailors = 45;
+//    int numsailors = 25;
+    int numsailors = 45;
     int numsailors_attrs = 4;
     int numreserves = 10;
     int numreserves_attrs = 3;
@@ -575,164 +576,167 @@ class JoinsDriver implements GlobalConst {
   }
 
   public void Query1() {
-	    
-	    System.out.print("**********************Query1 strating *********************\n");
-	    boolean status = OK;
-	    
-	 
-	    Tuple t = new Tuple();
-	    
-	    AttrType [] Stypes = new AttrType[4];
-	    Stypes[0] = new AttrType (AttrType.attrInteger);
-	    Stypes[1] = new AttrType (AttrType.attrString);
-	    Stypes[2] = new AttrType (AttrType.attrInteger);
-	    Stypes[3] = new AttrType (AttrType.attrReal);
 
-	    //SOS
-	    short [] Ssizes = new short[1];
-	    Ssizes[0] = 30; //first elt. is 30
-	    
-	    FldSpec [] Sprojection = new FldSpec[4];
-	    Sprojection[0] = new FldSpec(new RelSpec(RelSpec.outer), 1);
-	    Sprojection[1] = new FldSpec(new RelSpec(RelSpec.outer), 2);
-	    Sprojection[2] = new FldSpec(new RelSpec(RelSpec.outer), 3);
-	    Sprojection[3] = new FldSpec(new RelSpec(RelSpec.outer), 4);
+    System.out.print("**********************Query1 strating *********************\n");
+    boolean status = OK;
 
-	    
-	 
-	    FileScan am = null;
-	    try {
-	      am  = new FileScan("sailors.in", Stypes, Ssizes,
-					  (short)4, (short)4,
-					  Sprojection, null);
-	    }
-	    catch (Exception e) {
-	      status = FAIL;
-	      System.err.println (""+e);
-	    }
 
-	    if (status != OK) {
-	      //bail out
-	      System.err.println ("*** Error setting up scan for sailors");
-	      Runtime.getRuntime().exit(1);
-	    }
+    Tuple t = new Tuple();
 
-		int[] pref_list = new int[2];
-		pref_list[0] = 3;
-		pref_list[1] = 4;
-	    SortPref sort = null;
-	    try {
-	        sort = new SortPref(Stypes,(short)4,Ssizes,am,
-                    new TupleOrder(TupleOrder.Ascending),pref_list,2,12);
-	      }
-	      catch (Exception e) {
-	        status = FAIL;
-	        e.printStackTrace();
-	      }
+    AttrType[] Stypes = new AttrType[4];
+    Stypes[0] = new AttrType(AttrType.attrInteger);
+    Stypes[1] = new AttrType(AttrType.attrString);
+    Stypes[2] = new AttrType(AttrType.attrInteger);
+    Stypes[3] = new AttrType(AttrType.attrReal);
 
-	    if (status != OK) {
-	      //bail out
-	      System.err.println ("*** Error in closing ");
-	      Runtime.getRuntime().exit(1);
-	    }
-	    try {
-	    while((t=sort.get_next())!=null) {
-	    	t.print(Stypes);
-	    	System.out.println(TupleUtils.getPrefAttrSum(t, Stypes, (short)4, pref_list, 2));
-	    }
-	    }catch(Exception e) {}
+    //SOS
+    short[] Ssizes = new short[1];
+    Ssizes[0] = 30; //first elt. is 30
 
-      try {
+    FldSpec[] Sprojection = new FldSpec[4];
+    Sprojection[0] = new FldSpec(new RelSpec(RelSpec.outer), 1);
+    Sprojection[1] = new FldSpec(new RelSpec(RelSpec.outer), 2);
+    Sprojection[2] = new FldSpec(new RelSpec(RelSpec.outer), 3);
+    Sprojection[3] = new FldSpec(new RelSpec(RelSpec.outer), 4);
+
+
+    FileScan am = null;
+    try {
+      am = new FileScan("sailors.in", Stypes, Ssizes,
+              (short) 4, (short) 4,
+              Sprojection, null);
+    } catch (Exception e) {
+      status = FAIL;
+      System.err.println("" + e);
+    }
+
+    if (status != OK) {
+      //bail out
+      System.err.println("*** Error setting up scan for sailors");
+      Runtime.getRuntime().exit(1);
+    }
+
+    int[] pref_list = new int[2];
+    pref_list[0] = 3;
+    pref_list[1] = 4;
+    SortPref sort = null;
+    try {
+      sort = new SortPref(Stypes, (short) 4, Ssizes, am,
+              new TupleOrder(TupleOrder.Ascending), pref_list, 2, 12);
+    } catch (Exception e) {
+      status = FAIL;
+      e.printStackTrace();
+    }
+
+    if (status != OK) {
+      //bail out
+      System.err.println("*** Error in closing ");
+      Runtime.getRuntime().exit(1);
+    }
+    try {
+      while ((t = sort.get_next()) != null) {
+        t.print(Stypes);
+        System.out.println(TupleUtils.getPrefAttrSum(t, Stypes, (short) 4, pref_list, 2));
+      }
+    } catch (Exception e) {
+    }
+
+    try {
 //        System.out.println("Closing Sort scan");
-        sort.close();
-      } catch (Exception e) {
-        System.err.println("Failed to close Sort scan: " + e);
-        status = FAIL;
-        e.printStackTrace();
+      sort.close();
+    } catch (Exception e) {
+      System.err.println("Failed to close Sort scan: " + e);
+      status = FAIL;
+      e.printStackTrace();
+    }
+
+    //NestedLoopSkyline
+
+    FileScan am1 = null;
+    try {
+      am1 = new FileScan("sailors.in", Stypes, Ssizes,
+              (short) 4, (short) 4,
+              Sprojection, null);
+    } catch (Exception e) {
+      status = FAIL;
+      System.err.println("" + e);
+    }
+
+    try {
+      int[] pref_list1 = new int[2];
+      pref_list1[0] = 3;
+      pref_list1[1] = 4;
+
+      NestedLoopsSky sky = new NestedLoopsSky(Stypes, 4, Ssizes,
+              am1, "sailors.in", pref_list1, 2, 0);
+
+      System.out.println("Skyline tuples: ");
+
+      Tuple temp = sky.get_next();
+      while (temp != null) {
+        System.out.println("-------------#########------------------");
+        temp.print(Stypes);
+        System.out.println("-------------#########------------------");
+        temp = sky.get_next();
       }
+      sky.close();
 
-      //NestedLoopSkyline
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
 
-      FileScan am1 = null;
-      try {
-          am1  = new FileScan("sailors.in", Stypes, Ssizes,
-                  (short)4, (short)4,
-                  Sprojection, null);
-      }
-      catch (Exception e) {
-          status = FAIL;
-          System.err.println (""+e);
-      }
+    //BlockNestedSkyLoop
 
-      try {
-          int[] pref_list1 = new int[2];
-          pref_list1[0] = 3;
-          pref_list1[1] = 4;
-
-        NestedLoopsSky sky = new NestedLoopsSky(Stypes, 4, Ssizes,
-                  am1, "sailors.in", pref_list1, 2, 0 );
-
-          System.out.println("Skyline tuples: ");
-
-          Tuple temp = sky.get_next();
-          while(temp!=null)
-          {
-              System.out.println("-------------#########------------------");
-              temp.print(Stypes);
-              System.out.println("-------------#########------------------");
-              temp = sky.get_next();
-          }
-        sky.close();
-
-      } catch (Exception e) {
-          e.printStackTrace();
-      }
-
-      //BlockNestedSkyLoop
-
-      FileScan am2 = null;
-      try {
+    FileScan am2 = null;
+    try {
 //          am2 = new Heapfile("sailors.in");
 //          am2_scan = am2.openScan();
-          am2  = new FileScan("sailors.in", Stypes, Ssizes,
-                  (short)4, (short)4,
-                  Sprojection, null);
-      }
-      catch (Exception e) {
-          status = FAIL;
-          System.err.println (""+e);
-      }
+      am2 = new FileScan("sailors.in", Stypes, Ssizes,
+              (short) 4, (short) 4,
+              Sprojection, null);
+    } catch (Exception e) {
+      status = FAIL;
+      System.err.println("" + e);
+    }
 
-      try {
-          int[] pref_list1 = new int[2];
-          pref_list1[0] = 3;
-          pref_list1[1] = 4;
+    BlockNestedLoopSky sky2 = null;
+    try {
+      int[] pref_list1 = new int[2];
+      pref_list1[0] = 3;
+      pref_list1[1] = 4;
 
 
-
-          BlockNestedLoopSky sky2 = new BlockNestedLoopSky(Stypes, 4, Ssizes,
-                  am2, "sailors.in", pref_list1, 2, 1 );
+      sky2 = new BlockNestedLoopSky(Stypes, 4, Ssizes,
+              am2, "sailors.in", pref_list1, 2, 1);
+      System.out.println("**************************************************");
+      System.out.println("**************************************************");
+      System.out.println("\t\tBLOCK NESTED SKYLINE ");
+      System.out.println("**************************************************");
+      System.out.println("**************************************************\n");
 
 //          Tuple temp = sky2.get_skyline();
-          Vector<Tuple> skyline = sky2.get_skyline();
-          System.out.println("**************************************************");
-          System.out.println("**************************************************");
-          System.out.println("\t\tBLOCK NESTED SKYLINE ");
-          System.out.println("**************************************************");
-          System.out.println("**************************************************\n");
-          for (int i = 0; i < skyline.size(); i++) {
-              System.out.print((i+1) + ". ");
-              skyline.get(i).print(Stypes);
-          }
-        System.out.println("\n********BLOCK NESTED SKYLINE completed successfully********\n");
-          sky2.close();
-
-      } catch (Exception e) {
-          e.printStackTrace();
+      Vector<Tuple> skyline;
+      int batch = 1;
+      while ((skyline = sky2.get_skyline()) != null) {
+        System.out.println("\n************* SKYLINE BATCH " + batch + " ***************\n");
+        for (int i = 0; i < skyline.size(); i++) {
+          System.out.print((i + 1) + ". ");
+          skyline.get(i).print(Stypes);
+        }
+        batch++;
       }
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+    try {
+      sky2.close();
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+    System.out.println("\n********BLOCK NESTED SKYLINE completed successfully********\n");
   }
-  
-  public void Query2() {}
+
+    public void Query2() {}
   
 
    public void Query3() {
