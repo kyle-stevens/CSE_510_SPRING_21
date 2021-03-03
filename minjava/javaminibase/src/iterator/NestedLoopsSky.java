@@ -2,12 +2,11 @@ package iterator;
 
 import heap.*;
 import global.*;
-import bufmgr.*;
 import index.*;
 import java.lang.*;
 import java.io.*;
-
-import static global.GlobalConst.MAX_SPACE;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  *  This file contains an implementation of the nested loops skyline
@@ -18,7 +17,7 @@ public class NestedLoopsSky extends Iterator
 {
     private AttrType _in1[];
     private   int        in1_len;
-    private   Iterator  outer;
+    private   FileScan  outer;
     private   short t1_str_sizescopy[];
     private   int        n_buf_pgs;        // # of buffer pages available.
     private   boolean        done,         // Is the join complete
@@ -30,6 +29,8 @@ public class NestedLoopsSky extends Iterator
     private int pref_list_length;
     private int n_pages;
     private boolean dominated;
+    private Set<RID> dominated_set = new HashSet<RID>();
+    private Boolean skip_outer;
 
     /**constructor
      *@param in1  Array containing field types of R.
@@ -53,7 +54,7 @@ public class NestedLoopsSky extends Iterator
         _in1 = new AttrType[in1.length];
         System.arraycopy(in1,0,_in1,0,in1.length);
         in1_len = len_in1;
-        outer = am1;
+        outer = (FileScan) am1;
         t1_str_sizescopy =  t1_str_sizes;
         inner_tuple = new Tuple();
         inner = null;
@@ -63,6 +64,7 @@ public class NestedLoopsSky extends Iterator
         this.pref_list = pref_list;
         this.pref_list_length = pref_list_length;
         this.n_pages = n_pages;
+        this.skip_outer = false;
 
         try {
             hf = new Heapfile(relationName);
@@ -79,63 +81,74 @@ public class NestedLoopsSky extends Iterator
      */
     public Tuple get_next()
             throws NestedLoopException,
-            Exception
-    {
+            Exception {
+
         if (done)
             return null;
 
-        do
-        {
-            if (get_from_outer == true)
+        do {
+            if(get_from_outer == true)
             {
                 get_from_outer = false;
-                if (inner != null)
-                {
+                skip_outer = false;
+
+                if (inner != null) {
                     inner = null;
                 }
 
                 try {
                     inner = hf.openScan();
-                }
-                catch(Exception e){
+                } catch (Exception e) {
                     throw new NestedLoopException(e, "openScan failed");
                 }
-
-                if ((outer_tuple=outer.get_next()) == null)
-                {
+                RID rid_outer = new RID();
+                outer_tuple = outer.get_next(rid_outer);
+                if (outer_tuple == null) {
                     done = true;
-                    if (inner != null)
-                    {
+                    if (inner != null) {
                         inner = null;
                     }
                     return null;
                 }
+
+                if (dominated_set.contains(rid_outer)) {
+                    skip_outer = true;
+                    get_from_outer = true;
+                }
             }
 
-            dominated = false;
-
-            RID rid = new RID();
-            while ((inner_tuple = inner.getNext(rid)) != null)
+            if(skip_outer == false)
             {
-                inner_tuple.setHdr((short)in1_len, _in1,t1_str_sizescopy);
-                if(TupleUtils.Equal(outer_tuple, inner_tuple, _in1, in1_len )){
-                    continue;
+                dominated = false;
+
+                RID rid_inner = new RID();
+                while ((inner_tuple = inner.getNext(rid_inner)) != null)
+                {
+                    inner_tuple.setHdr((short) in1_len, _in1, t1_str_sizescopy);
+                    if (TupleUtils.Equal(outer_tuple, inner_tuple, _in1, in1_len)) {
+                        continue;
+
+                    }
+
+                    if (TupleUtils.Dominates(inner_tuple, _in1, outer_tuple, _in1,
+                            Short.parseShort(in1_len + ""), t1_str_sizescopy,
+                            pref_list, pref_list_length) == true) {
+                        dominated = true;
+
+                        break;
+                    } else if(TupleUtils.Dominates(outer_tuple, _in1, inner_tuple, _in1, Short.parseShort(in1_len + ""), t1_str_sizescopy,
+                            pref_list, pref_list_length) == true) {
+                        dominated_set.add(rid_inner);
+                    }
                 }
-                if(TupleUtils.Dominates(inner_tuple, _in1, outer_tuple, _in1,
-                        Short.parseShort(in1_len+""), t1_str_sizescopy,
-                        pref_list, pref_list_length)) {
-                    dominated = true;
-                    break;
+
+                get_from_outer = true;
+
+                if (!dominated) {
+                    return outer_tuple;
                 }
             }
-
-            get_from_outer = true;
-
-            if(!dominated){
-                return outer_tuple;
-            }
-
-        } while (true);
+        }while(true);
     }
 
     /**
@@ -157,9 +170,3 @@ public class NestedLoopsSky extends Iterator
         }
     }
 }
-
-
-
-
-
-
