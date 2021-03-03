@@ -81,7 +81,7 @@ public class Scan implements GlobalConst{
    * @param rid Record ID of the record
    * @return the Tuple of the retrieved record.
    */
-  public Tuple getNext(RID rid) 
+  public Tuple getNext(RID rid)
     throws InvalidTupleSizeException,
 	   IOException
   {
@@ -96,7 +96,8 @@ public class Scan implements GlobalConst{
     
     rid.pageNo.pid = userrid.pageNo.pid;    
     rid.slotNo = userrid.slotNo;
-         
+
+
     try {
       recptrtuple = datapage.getRecord(rid);
     }
@@ -125,39 +126,46 @@ public class Scan implements GlobalConst{
   public boolean position(RID rid) 
     throws InvalidTupleSizeException,
 	   IOException
-  { 
+  {
     RID    nxtrid = new RID();
     boolean bst;
 
     bst = peekNext(nxtrid);
 
-    if (nxtrid.equals(rid)==true) 
-    	return true;
+    if (bst) {
+        if ((nxtrid.equals(rid))) return true;
+    }
 
     // This is kind lame, but otherwise it will take all day.
     PageId pgid = new PageId();
     pgid.pid = rid.pageNo.pid;
- 
+
     if (!datapageId.equals(pgid)) {
 
       // reset everything and start over from the beginning
       reset();
-      
+
       bst =  firstDataPage();
 
-      if (bst != true)
-	return bst;
-      
-      while (!datapageId.equals(pgid)) {
-	bst = nextDataPage();
-	if (bst != true)
-	  return bst;
+      if (bst != true) {
+          return bst;
       }
+      while (!datapageId.equals(pgid))
+      {
+//            System.out.println("SCAN: Position(): Current DatapageID: " + datapageId + ", Target Page ID: " + pgid);
+            bst = nextDataPage();
+            if (bst != true)
+            {
+                return bst;
+            }
+        }
     }
     
     // Now we are on the correct page.
+//      System.out.println("SCAN: Position(): Now we are on the current page : " + datapageId);
     
     try{
+//        System.out.println("SCAN: Position(): Getting the first record of the page : " + datapageId);
     	userrid = datapage.firstRecord();
 	}
     catch (Exception e) {
@@ -170,12 +178,15 @@ public class Scan implements GlobalConst{
     	bst = false;
         return bst;
       }
-    
+
+//    System.out.println("SCAN: Position(): Starting RID seek");
     bst = peekNext(nxtrid);
-    
-    while ((bst == true) && (nxtrid != rid))
-      bst = mvNext(nxtrid);
-    
+//    System.out.println("SCAN: Position(): Current RID - PageNo: " + nxtrid.pageNo + ", SlotNo: " + nxtrid.slotNo);
+
+    while ((bst) && !(nxtrid.equals(rid))) {
+        bst = mvNext(nxtrid);
+//        System.out.println("SCAN: Position(): Current RID - PageNo: " + nxtrid.pageNo + ", SlotNo: " + nxtrid.slotNo);
+    }
     return bst;
   }
 
@@ -211,6 +222,7 @@ public class Scan implements GlobalConst{
     if (datapage != null) {
     
     try{
+//        System.out.println("SCAN: reset(): Unpinning Data page");
       unpinPage(datapageId, false);
     }
     catch (Exception e){
@@ -224,6 +236,7 @@ public class Scan implements GlobalConst{
     if (dirpage != null) {
     
       try{
+//          System.out.println("SCAN: reset(): Unpinning Dir page");
 	unpinPage(dirpageId, false);
       }
       catch (Exception e){
@@ -238,7 +251,7 @@ public class Scan implements GlobalConst{
   }
  
  
-  /** Move to the first data page in the file. 
+  /** Move to the first data page in the file.
    * @exception InvalidTupleSizeException Invalid tuple size
    * @exception IOException I/O errors
    * @return true if successful
@@ -254,13 +267,13 @@ public class Scan implements GlobalConst{
 
     /** copy data about first directory page */
  
-    dirpageId.pid = _hf._firstDirPageId.pid;  
+    dirpageId.pid = _hf._firstDirPageId.pid;
     nextUserStatus = true;
 
     /** get first directory page and pin it */
     	try {
 	   dirpage  = new HFPage();
-       	   pinPage(dirpageId, (Page) dirpage, false);	   
+       	   pinPage(dirpageId, (Page) dirpage, false);
        }
 
     	catch (Exception e) {
@@ -276,7 +289,8 @@ public class Scan implements GlobalConst{
 	
 	try {
           rectuple = dirpage.getRecord(datapageRid);
-	}  
+//          System.out.println("SCAN: firstdatapage(): Found a record in the first data page");
+	}
 				
 	catch (Exception e) {
 	//	System.err.println("SCAN: Chain Error in Scan: " + e);
@@ -285,6 +299,7 @@ public class Scan implements GlobalConst{
       			    
     	dpinfo = new DataPageInfo(rectuple);
         datapageId.pid = dpinfo.pageId.pid;
+//        System.out.println("SCAN: firstdatapage(): Found page id is : " + datapageId);
 
     } else {
 
@@ -293,6 +308,7 @@ public class Scan implements GlobalConst{
      * check it. The next one has to contain a datapage record, unless
      * the heapfile is empty:
      */
+//    System.out.println("SCAN: firstdatapage(): First page is null, so checking for record in the next page");
       PageId nextDirPageId = new PageId();
       
       nextDirPageId = dirpage.getNextPage();
@@ -326,13 +342,13 @@ public class Scan implements GlobalConst{
 	try {
 	  datapageRid = dirpage.firstRecord();
 	}
-        
+
 	catch (Exception e) {
-	//  System.err.println("SCAN: Error in 1stdatapg 3 " + e);
+//	  System.err.println("SCAN: firstdatapage(): Error in 1stdatapge " + e);
 	  e.printStackTrace();
 	  datapageId.pid = INVALID_PAGE;
 	}
-       
+
 	if(datapageRid != null) {
           
 	  try {
@@ -353,10 +369,12 @@ public class Scan implements GlobalConst{
 	  
          } else {
 	   // heapfile empty
+//        System.out.println("Scan: firstdatapage(): Second page is empty. Hence marking the page as INVALID");
            datapageId.pid = INVALID_PAGE;
          }
        }//end if01
        else {// heapfile empty
+//          System.out.println("Scan: firstdatapage(): Second page is null and hence marking it as INVALID");
 	datapageId.pid = INVALID_PAGE;
 	}
 }	
@@ -365,6 +383,7 @@ public class Scan implements GlobalConst{
 
 	try{
          nextDataPage();
+//         System.out.println("SCAN: firstdatapage(): Found next data page successfully");
 	  }
 	  
 	catch (Exception e) {
@@ -419,14 +438,16 @@ public class Scan implements GlobalConst{
   // (4)- if the scan had already been done,
   //        dirpage = NULL;  datapageId = INVALID_PAGE
     
-    if ((dirpage == null) && (datapageId.pid == INVALID_PAGE))
+    if ((dirpage == null) && (datapageId.pid == INVALID_PAGE)) {
+//        System.out.println("SCAN: nextdatapage(): Failed - Current page is INVALID and DirPage is NULL");
         return false;
-
+    }
     if (datapage == null) {
       if (datapageId.pid == INVALID_PAGE) {
 	// heapfile is empty to begin with
 	
 	try{
+//	    System.out.println("SCAN: nextdatapage(): Heap file is empty and hence unpinning the page");
 	  unpinPage(dirpageId, false);
 	  dirpage = null;
 	}
@@ -439,6 +460,7 @@ public class Scan implements GlobalConst{
 	
 	// pin first data page
 	try {
+//	    System.out.println("SCAN: nextdatapage(): Heap file is not empty and hence Pinning the first page");
 	  datapage  = new HFPage();
 	  pinPage(datapageId, (Page) datapage, false);
 	}
@@ -448,6 +470,8 @@ public class Scan implements GlobalConst{
 	
 	try {
 	  userrid = datapage.firstRecord();
+//	  System.out.println("SCAN: nextdatapage(): Found first record (RID) on the pinned page successfully");
+//        System.out.println("SCAN: nextdatapage(): Current DataPage ID is : " + datapageId);
 	}
 	catch (Exception e) {
 	  e.printStackTrace();
@@ -463,6 +487,7 @@ public class Scan implements GlobalConst{
 
     // unpin the current datapage
     try{
+//        System.out.println("SCAN: nextdatapage(): Unpinning current DirPage");
       unpinPage(datapageId, false /* no dirty */);
         datapage = null;
     }
@@ -474,12 +499,14 @@ public class Scan implements GlobalConst{
     // dirpage is set to NULL at the end of scan. Hence
     
     if (dirpage == null) {
+//        System.out.println("SCAN: nextdatapage(): FAILURE - Directory page is set to null");
       return false;
     }
     
     datapageRid = dirpage.nextRecord(datapageRid);
     
     if (datapageRid == null) {
+//        System.out.println("SCAN: nextdatapage(): next record not found in the page. Hence getting next dir page");
       nextDataPageStatus = false;
       // we have read all datapage records on the current directory page
       
@@ -498,8 +525,9 @@ public class Scan implements GlobalConst{
 	
       }
 		    
-      if (nextDirPageId.pid == INVALID_PAGE)
-	return false;
+      if (nextDirPageId.pid == INVALID_PAGE) {
+          return false;
+      }
       else {
 	// ASSERTION:
 	// - nextDirPageId has correct id of the page which is to get
@@ -515,14 +543,16 @@ public class Scan implements GlobalConst{
 	  
 	}
 	
-	if (dirpage == null)
-	  return false;
-	
+	if (dirpage == null) {
+//        System.out.println("Second directory page error");
+        return false;
+    }
     	try {
 	  datapageRid = dirpage.firstRecord();
 	  nextDataPageStatus = true;
 	}
 	catch (Exception e){
+//        System.out.println("Next datapage exception");
 	  nextDataPageStatus = false;
 	  return false;
 	} 
@@ -538,20 +568,23 @@ public class Scan implements GlobalConst{
   
     // data page is not yet loaded: read its record from the directory page
    	try {
+//   	    System.out.println("SCAN: nextdatapage(): Reading the found record in the DirPage->Datapage->rid");
 	  rectuple = dirpage.getRecord(datapageRid);
 	}
 	
 	catch (Exception e) {
-	  System.err.println("HeapFile: Error in Scan" + e);
+	  System.err.println("SCAN: nextdatapage(): HeapFile: Error in Scan" + e);
 	}
 	
-	if (rectuple.getLength() != DataPageInfo.size)
-	  return false;
-                        
+	if (rectuple.getLength() != DataPageInfo.size) {
+//        System.out.println("SCAN: nextdatapage(): Size mismatch of read records");
+        return false;
+    }
 	dpinfo = new DataPageInfo(rectuple);
 	datapageId.pid = dpinfo.pageId.pid;
 	
  	try {
+// 	    System.out.println("SCAN: nextdatapage(): Pinning a new datapage with the read record with datapage ID: " + datapageId);
 	  datapage = new HFPage();
 	  pinPage(dpinfo.pageId, (Page) datapage, false);
 	}
@@ -571,6 +604,7 @@ public class Scan implements GlobalConst{
      if(userrid == null)
      {
        nextUserStatus = false;
+//       System.out.println("SCAN: nextdatapage(): No records found in the current datapage");
        return false;
      }
   
@@ -579,11 +613,16 @@ public class Scan implements GlobalConst{
 
 
   private boolean peekNext(RID rid) {
-    
-    rid.pageNo.pid = userrid.pageNo.pid;
-    rid.slotNo = userrid.slotNo;
-    return true;
-    
+
+      if (userrid != null) {
+          rid.pageNo.pid = userrid.pageNo.pid;
+          rid.slotNo = userrid.slotNo;
+          return true;
+      }
+      else {
+          rid.slotNo = -1;
+          return false;
+      }
   }
 
 
@@ -597,20 +636,25 @@ public class Scan implements GlobalConst{
     RID nextrid;
     boolean status;
 
-    if (datapage == null)
+    if (datapage == null) {
+//        System.out.println("SCAN: mvNext(): datapage is null");
         return false;
-
-    	nextrid = datapage.nextRecord(rid);
+    }
+    nextrid = datapage.nextRecord(rid);
 	
-	if( nextrid != null ){
-	  userrid.pageNo.pid = nextrid.pageNo.pid;
-	  userrid.slotNo = nextrid.slotNo;
+	if( nextrid != null ) {
+	    userrid.pageNo.pid = nextrid.pageNo.pid;
+	    userrid.slotNo = nextrid.slotNo;
+        rid.pageNo.pid = userrid.pageNo.pid;    //Important NEW ADDITION
+        rid.slotNo = userrid.slotNo;    //Important NEW ADDITION
+//        System.out.println("SCAN: mvNext(): Found next record with PageNo: " + nextrid.pageNo + ", SlotNo: " + nextrid.slotNo);
 	  return true;
 	} else {
-	  
+//        System.out.println("SCAN: mvNext(): Next record read is NULL");
 	  status = nextDataPage();
 
 	  if (status==true){
+//          System.out.println("SCAN: mvNext(): Returning next DataPage");
 	    rid.pageNo.pid = userrid.pageNo.pid;
 	    rid.slotNo = userrid.slotNo;
 	  }
