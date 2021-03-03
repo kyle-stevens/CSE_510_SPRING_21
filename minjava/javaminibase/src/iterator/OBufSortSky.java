@@ -4,6 +4,7 @@ import java.io.IOException;
 
 import global.AttrType;
 import global.GlobalConst;
+import global.PageId;
 import heap.Heapfile;
 import heap.Tuple;
 
@@ -48,7 +49,7 @@ public class OBufSortSky implements GlobalConst{
 		this.flag = flag;
 	}
 
-	public OBufSortSky(AttrType[] in1, short len_in1, short[] t1_str_sizes, Iterator am1, String relationName,
+	public OBufSortSky(AttrType[] in1, short len_in1, short[] t1_str_sizes, byte[][] buf,
 			int[] pref_list, int pref_list_length, int n_pages) throws SortException{
 		
 		this.in1 = in1;
@@ -57,7 +58,7 @@ public class OBufSortSky implements GlobalConst{
 		str_sizes = t1_str_sizes;
 		this.pref_list = pref_list;
 		this.pref_list_length = pref_list_length;
-		
+		_bufs = buf;
 		Tuple t = new Tuple();
 		
 		try {
@@ -69,8 +70,6 @@ public class OBufSortSky implements GlobalConst{
 		_n_pages = n_pages;
 		t_per_pg = MINIBASE_PAGESIZE / t_size;
 		t_in_buf = _n_pages * t_per_pg;
-		System.out.println(t_in_buf+" "+t_per_pg+" "+t_size);
-		_bufs = new byte[_n_pages][];
 		init();
 	}
 
@@ -78,8 +77,6 @@ public class OBufSortSky implements GlobalConst{
 		t_wr_to_pg = 0;
 		t_wr_to_buf = 0;
 		curr_page = 0;
-		for (int k = 0; k < _n_pages; k++)
-			_bufs[k] = new byte[MAX_SPACE];
 	}
 	
 	public boolean checkIfSky(Tuple t) throws Exception {
@@ -118,6 +115,7 @@ public class OBufSortSky implements GlobalConst{
 			flag = true;
 			return buf;
 		}
+		System.out.println(_bufs[curr_page]+" "+copybuf);
 		System.arraycopy(copybuf, 0, _bufs[curr_page], t_wr_to_pg * t_size, t_size);
 		Tuple tuple_ptr = new Tuple(_bufs[curr_page], t_wr_to_pg * t_size, t_size);
 		tuple_ptr.setHdr(col_len, in1, str_sizes);

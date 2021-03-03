@@ -2,6 +2,7 @@ package tests;
 //originally from : joins.C
 
 import iterator.*;
+import iterator.Iterator;
 import heap.*;
 import global.*;
 import index.*;
@@ -122,7 +123,7 @@ class JoinsDriver implements GlobalConst {
     reserves.addElement(new Reserves(35, 3, "05/15/95"));
 
     boolean status = OK;
-    int numsailors = 25;
+    int numsailors = sailors.size();
     int numsailors_attrs = 4;
     int numreserves = 10;
     int numreserves_attrs = 3;
@@ -376,8 +377,10 @@ class JoinsDriver implements GlobalConst {
     Disclaimer();
    // Query1();
     try {
-    Query2();}catch(Exception e) {
-    	
+    	QuerySortSky();
+    	QueryBtreeSky();
+    }catch(Exception e) {
+    	e.printStackTrace();
     }
   //  Query3();
     
@@ -693,6 +696,151 @@ class JoinsDriver implements GlobalConst {
     }
   }
   
+  public void QuerySortSky() throws Exception{
+	  AttrType [] Stypes = {
+		      new AttrType(AttrType.attrInteger), 
+		      new AttrType(AttrType.attrString), 
+		      new AttrType(AttrType.attrInteger), 
+		      new AttrType(AttrType.attrReal)
+		    };
+	  short []   Ssizes = new short[1];
+		    Ssizes[0] = 30;FldSpec [] Sprojection = {
+		    	       new FldSpec(new RelSpec(RelSpec.outer), 1),
+		    	       new FldSpec(new RelSpec(RelSpec.outer), 2),
+		    	        new FldSpec(new RelSpec(RelSpec.outer), 3),
+		    	        new FldSpec(new RelSpec(RelSpec.outer), 4)
+		    	    };int[] pref_list = {3,4};
+		    	    Iterator am1 = new FileScan("sailors.in", Stypes, Ssizes, (short)4, 4, Sprojection, null);
+		    	    Iterator sc = new SortFirstSky(Stypes, (short)4, Ssizes, am1, 
+		    	    		"sailors.in", pref_list, 2, 5);
+		    	    System.out.println(PCounter.rcounter);
+
+		    	    System.out.println(PCounter.wcounter);
+		    	   Tuple t1 = null;
+		    	   try {
+		    	    while((t1 = sc.get_next())!=null) {
+		    	    	System.out.println(TupleUtils.getPrefAttrSum(t1, Stypes, (short)4, pref_list, 2));
+		    	    	t1.print(Stypes);
+		    	    }}catch(Exception e) {e.printStackTrace();}finally {sc.close();}
+		    	   System.out.println(PCounter.rcounter);
+
+		    	    System.out.println(PCounter.wcounter);
+  }
+  public void QueryBtreeSky() throws Exception{
+	  AttrType [] Stypes = {
+		      new AttrType(AttrType.attrInteger), 
+		      new AttrType(AttrType.attrString), 
+		      new AttrType(AttrType.attrInteger), 
+		      new AttrType(AttrType.attrReal)
+		    };
+	  short []   Ssizes = new short[1];
+		    Ssizes[0] = 30;
+		    FldSpec [] Sprojection = {
+		    	       new FldSpec(new RelSpec(RelSpec.outer), 1),
+		    	       new FldSpec(new RelSpec(RelSpec.outer), 2),
+		    	        new FldSpec(new RelSpec(RelSpec.outer), 3),
+		    	        new FldSpec(new RelSpec(RelSpec.outer), 4)
+		    	    };
+		    
+		     Tuple tt = new Tuple();
+		     try {
+		       tt.setHdr((short) 4, Stypes, Ssizes);
+		     }
+		     catch (Exception e) {
+		       e.printStackTrace();
+		     }
+
+		     int sizett = tt.size();
+		     tt = new Tuple(sizett);
+		     try {
+		       tt.setHdr((short) 4, Stypes, Ssizes);
+		     }
+		     catch (Exception e) {
+		       e.printStackTrace();
+		     }
+		     Heapfile        f = null;
+		     try {
+		       f = new Heapfile("sailors.in");
+		     }
+		     catch (Exception e) {
+		       e.printStackTrace();
+		     }
+		     
+		     Scan scan = null;
+		     
+		     try {
+		       scan = new Scan(f);
+		     }
+		     catch (Exception e) {;
+		       Runtime.getRuntime().exit(1);
+		     }
+
+		     // create the index file
+		     BTreeFile btf = null;
+		     try {
+		       btf = new BTreeFile("BTreeIndex", AttrType.attrReal, 4, 1); 
+		     }
+		     catch (Exception e) {
+		       e.printStackTrace();
+		       Runtime.getRuntime().exit(1);
+		     }
+		     
+		     RID rid = new RID();
+		     float key = 0;
+		     Tuple temp = null;
+		     
+		     try {
+		       temp = scan.getNext(rid);
+		     }
+		     catch (Exception e) {
+		       e.printStackTrace();
+		     }
+
+		     int[] pref_list = {3,4};
+		     while ( temp != null) {
+		       tt.tupleCopy(temp);
+		       
+		       try {
+		     	  float tmp = (float)TupleUtils.getPrefAttrSum(tt, Stypes, (short)4, pref_list, 2);
+		     	  
+		     	  key = -tmp;
+		     	  System.out.println("Key: "+key);
+		       }
+		       catch (Exception e) {
+		       }
+		       
+		       try {
+		 	btf.insert(new RealKey(key), rid); 
+		       }
+		       catch (Exception e) {
+		 	e.printStackTrace();
+		       }
+
+		       try {
+		 	temp = scan.getNext(rid);
+		       }
+		       catch (Exception e) {
+		 	e.printStackTrace();
+		       }
+		     }
+		     
+		     // close the file scan
+		     scan.closescan();
+		    Iterator sc = new BTreeSortedSky(Stypes, (short)4, Ssizes, null, 
+		    	    		"sailors.in", pref_list, 2,"BTreeIndex", 5);
+		    	    System.out.println(PCounter.rcounter);
+
+		    	    System.out.println(PCounter.wcounter);
+		    	   Tuple t1 = null;
+		    	   try {
+		    	    while((t1 = sc.get_next())!=null) {
+		    	    	System.out.println(TupleUtils.getPrefAttrSum(t1, Stypes, (short)4, pref_list, 2));
+		    	    	t1.print(Stypes);
+		    	    }}catch(Exception e) {e.printStackTrace();}finally {sc.close();}
+		    	   System.out.println(PCounter.rcounter);
+
+		    	    System.out.println(PCounter.wcounter);
+  }
   public void Query2() throws JoinsException, IndexException, InvalidTupleSizeException, InvalidTypeException, PageNotReadException, TupleUtilsException, PredEvalException, SortException, LowMemException, UnknowAttrType, UnknownKeyTypeException, IOException, Exception {
     System.out.print("**********************Query2 strating *********************\n");
     boolean status = OK;
@@ -925,14 +1073,17 @@ class JoinsDriver implements GlobalConst {
 //      System.err.println (""+e);
 //      Runtime.getRuntime().exit(1);
 //    }
-    BTreeSortedSky sc = new BTreeSortedSky(Stypes, (short)4, Ssizes, null, 
-    		"sailors.in", pref_list, 2, "BTreeIndex", 12);
     
-   Tuple t1 = null;try {
-    while((t1 = sc.get_next())!=null) {
-    	System.out.println(TupleUtils.getPrefAttrSum(t1, Stypes, (short)4, pref_list, 2));
-    	t1.print(Stypes);
-    }}catch(Exception e) {e.printStackTrace();}
+    System.out.println(PCounter.rcounter);
+
+    System.out.println(PCounter.wcounter);
+ 
+   
+   
+   System.out.println(PCounter.rcounter);
+
+System.out.println(PCounter.wcounter);
+
 //    
 //    NestedLoopsJoins nlj = null;
 //    try {
