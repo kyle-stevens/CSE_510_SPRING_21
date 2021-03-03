@@ -49,8 +49,8 @@ public class OBuf implements GlobalConst{
       t_read   = 0L;
       curr_page   = 0;
       rd_curr_page = 0;
-//      total_pg_used = 0;
-//      total_tuples_present = 0;
+      total_pg_used = 0;
+      total_tuples_present = 0;
       buffer_only = buffer;
       is_buf_full = false;
     }
@@ -212,13 +212,12 @@ public class OBuf implements GlobalConst{
             Exception
     {
         // Implement bit map with a 2D boolean array
-        System.out.println("Starting delete of tuple: " + tuple_num);
-        while (tuple_num <= (t_wr_to_buf - 2)) {
+        while (tuple_num < (t_wr_to_buf - 1)) {
             int pg_t = (int) Math.ceil(tuple_num/t_per_pg);
-            int byte_offset_t = (tuple_num - t_per_pg*(pg_t-1));
+            int byte_offset_t = tuple_num % t_per_pg;
             int pg_t2 = (int) Math.ceil((tuple_num+1)/t_per_pg);
-            int byte_offset_t2 = ((tuple_num+1) - t_per_pg*(pg_t-1));
-            System.arraycopy(_bufs[pg_t2],  byte_offset_t2* t_size,
+            int byte_offset_t2 = (tuple_num+1)%t_per_pg;
+            System.arraycopy(_bufs[pg_t2],  byte_offset_t2 * t_size,
                     _bufs[pg_t], byte_offset_t * t_size, t_size);
             tuple_num++;
         }
@@ -238,7 +237,7 @@ public class OBuf implements GlobalConst{
         t_written--;
         t_read--;
 
-        System.out.println("Deletion successful");
+//        System.out.println("Deletion successful");
         return true;
     }
 
@@ -302,19 +301,19 @@ public class OBuf implements GlobalConst{
     t_wr_to_buf,                        // # of tuples written to buffer.
     t_rd_from_pg,                       // # of tuples read from current page
     t_rd_from_buf;                      // # of tuples read from buffer.
-  private  int  curr_page,              // Current page being written to.
-    rd_curr_page;                        // Current page being read from.
+  private  int  curr_page,
+    rd_curr_page;                        // Current page being written to.
   private  byte[][]_bufs;                        // Array of pointers to buffer pages.
   private  int  _n_pages;                        // number of pages in array
   private  int  t_size;                                // Size of a tuple
   private  long t_written,                        // # of tuples written so far.
     t_read;                                         // # of tuples read so far.
   private  int  TEST_temp_fd;                        // fd of a temporary file
-//    private int total_pg_used,
-//    total_tuples_present;
+    private int total_pg_used,
+    total_tuples_present;
   private  Heapfile _temp_fd;
   private  boolean buffer_only;
-  public boolean is_buf_full;               // Flag to indicate if buffer is full
+  public boolean is_buf_full;
 }
 
 
