@@ -193,6 +193,43 @@ public class FileScan extends  Iterator
     }
 
   /**
+   *@param rid Record ID of the record
+   *@return the result tuple
+   *@exception JoinsException some join exception
+   *@exception IOException I/O errors
+   *@exception InvalidTupleSizeException invalid tuple size
+   *@exception InvalidTypeException tuple type not valid
+   *@exception PageNotReadException exception from lower layer
+   *@exception PredEvalException exception from PredEval class
+   *@exception UnknowAttrType attribute type unknown
+   *@exception FieldNumberOutOfBoundException array out of bounds
+   *@exception WrongPermat exception for wrong FldSpec argument
+   */
+  public Tuple get_next(RID rid)
+          throws JoinsException,
+          IOException,
+          InvalidTupleSizeException,
+          InvalidTypeException,
+          PageNotReadException,
+          PredEvalException,
+          UnknowAttrType,
+          FieldNumberOutOfBoundException,
+          WrongPermat
+  {
+    while(true) {
+      if((tuple1 =  scan.getNext(rid)) == null) {
+        return null;
+      }
+
+      tuple1.setHdr(in1_len, _in1, s_sizes);
+      if (PredEval.Eval(OutputFilter, tuple1, null, _in1, null)){
+        Projection.Project(tuple1, _in1,  Jtuple, perm_mat, nOutFlds);
+        return  Jtuple;
+      }
+    }
+  }
+
+  /**
    *implement the abstract method close() from super class Iterator
    *to finish cleaning up
    */
