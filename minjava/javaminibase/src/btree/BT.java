@@ -65,8 +65,6 @@ public class BT  implements GlobalConst{
       }
       
       else {
-    	  System.out.println("Key1 : "+key1);
-    	  System.out.println("Key2 : "+key2);
     	  throw new  KeyNotMatchException(null, "key types do not match");}
     } 
   
@@ -300,7 +298,9 @@ public class BT  implements GlobalConst{
 	  if( keyType==AttrType.attrString) 
 	    System.out.println(i+" (key, pageId):   ("+ 
 			       (StringKey)entry.key + ",  "+(IndexData)entry.data+ " )");
-	  
+	  if( keyType==AttrType.attrReal) 
+		    System.out.println(i+" (key, pageId):   ("+ 
+				       (RealKey)entry.key + ",  "+(IndexData)entry.data+ " )");
 	  i++;    
         }
 	

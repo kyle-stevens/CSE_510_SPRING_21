@@ -9,7 +9,7 @@ public class RealKey  extends KeyClass {
   }
 
   /** Class constructor
-   *  @param     value   the value of the real key to be set 
+   *  @param     value   the value of the integer key to be set 
    */
   public RealKey(Float value) 
   { 
@@ -17,7 +17,7 @@ public class RealKey  extends KeyClass {
   }
 
   /** Class constructor
-   *  @param     value   the value of the real key to be set 
+   *  @param     value   the value of the integer key to be set 
    */
   public RealKey(float value) 
   { 
@@ -26,15 +26,15 @@ public class RealKey  extends KeyClass {
 
 
 
-  /** get a copy of the real key
+  /** get a copy of the integer key
    *  @return the reference of the copy 
    */
   public Float getKey() 
   {
-    return new Float(key.intValue());
+    return new Float(key.floatValue());
   }
 
-  /** set the real key value
+  /** set the integer key value
    */  
   public void setKey(Float value) 
   { 
