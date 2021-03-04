@@ -42,7 +42,8 @@ public class BlockNestedLoopSky extends Iterator
     private int pref_list_length;
     private int n_pages;
     private boolean dominated, first_set,
-            cand_disk_file;     // To indicate un-vetted skyline candidates in disk
+            cand_disk_file,   // To indicate un-vetted skyline candidates in disk
+            is_buf_full;      // To indicate once the buffer window is full in a single outer loop iteration
     PageId[] bufs_pids;
     byte[][] bufs;
     private FileScan  outer_loop_scan;
@@ -79,6 +80,7 @@ public class BlockNestedLoopSky extends Iterator
         dominated = false;
         first_set = true;
         cand_disk_file = false;
+        is_buf_full = false;
         this.pref_list = pref_list;
         this.pref_list_length = pref_list_length;
         this.n_pages = n_pages;
@@ -138,6 +140,7 @@ public class BlockNestedLoopSky extends Iterator
             Exception
     {
 //        System.out.println("Starting get_skyline method");
+        is_buf_full = false;
         RID rid1 = new RID(); // For getting RID of scanned outer loop Tuples
         RID cand_disk_rid = new RID();  // For getting RID of scanned Inner loop Tuples
 //        System.out.println("Check for skyline candidates in disk");
@@ -152,7 +155,10 @@ public class BlockNestedLoopSky extends Iterator
 //                    System.out.println("Positioning scan to last vetted " +
 //                            "candidate disk element: " + cand_disk_rid_mark.pageNo + "-" + cand_disk_rid_mark.slotNo);
 
-                scd.position(cand_disk_rid_mark);
+                if (scd.position(cand_disk_rid_mark)){
+                    System.out.println("\n");
+                }
+                else System.out.println("Candidate Heap Seek Fail");
                 cand_disk_rid_mark.slotNo = -1;
 //                    System.out.println(cand_disk_rid_mark.pageNo.pid);
 //                    System.out.println(cand_disk_rid_mark.slotNo);
@@ -164,7 +170,7 @@ public class BlockNestedLoopSky extends Iterator
                 skyline_disk_candidate.setHdr((short) in1_len, _in1, t1_str_sizescopy);
 //                    System.out.println("Pushing below tuple to buffer. PageNo : "+cand_disk_rid.pageNo.pid);
 //                    skyline_disk_candidate.print(_in1);
-                inner.insert(skyline_disk_candidate);
+                inner.insert(skyline_disk_candidate, false);
                 // Buffer full case while moving disk elements to buffer
                 if (inner.get_buf_status()){
 //                        System.out.println("No more buffer space. Buffer is full with candidate disk elements");
@@ -196,7 +202,7 @@ public class BlockNestedLoopSky extends Iterator
 //                    System.out.println("Seek successful");
             }
             else {
-                System.out.println("Seek Failed");
+                System.out.println("Outer Loop Seek Failed");
             }
             rid2.slotNo = -1; //reset back
         }
@@ -248,7 +254,13 @@ public class BlockNestedLoopSky extends Iterator
                     dominated = true;
                 }
             }
-            if ((inner.get_buf_status()) && (rid2.slotNo==-3)) {
+            if (!is_buf_full) {
+                // set to true once the buffer is full. Even if buffer gets free
+                // space after this point, new skyline candidates will be
+                // inserted only to heap file and not buffer window, for next batch of comparisons
+                is_buf_full = inner.get_buf_status();
+            }
+            if ((is_buf_full) && (rid2.slotNo==-3)) {
                 // Marks and stores the outer loop element rid in buffer-full case to
                 // start the next iteration of outer loop from
                 cand_disk_file = true;
@@ -263,12 +275,19 @@ public class BlockNestedLoopSky extends Iterator
                 // it dominates all the available candidates
 //                System.out.println("***************Insert below tuple into skyline*************");
 //                outer_tuple.print(_in1);
-                inner.insert(outer_tuple);
-                if ((inner.get_buf_status()) && (rid2.slotNo==-2)) {
+                if (is_buf_full) {
+                    // insert to heap
+                    inner.insert(outer_tuple, true);
+                }
+                else {
+                    // insert to buffer window
+                    inner.insert(outer_tuple, false);
+                }
+                if ((is_buf_full) && (rid2.slotNo==-2)) {
                     // Marks when first skyline attribute is stored in heapfile
                     rid2.slotNo=-3;
                 }
-                if ((inner.get_buf_status()) && (rid2.slotNo==-1)) {
+                if ((is_buf_full) && (rid2.slotNo==-1)) {
                     // Marks when buffer is full after inserting last
                     // skyline candidate in current outer loop scan
 //                        System.out.println("Buffer is full. " +
