@@ -105,15 +105,14 @@ public class OBuf implements GlobalConst{
      *@exception IOException  some I/O fault
      *@exception Exception other exceptions
      */
-    public Tuple insert(Tuple buf)
+    public Tuple insert(Tuple buf, boolean insert_heap)
             throws IOException,
             Exception
     {
-        if (t_wr_to_buf == t_in_buf) {
+//        if (t_wr_to_buf == t_in_buf) {
+        if (insert_heap)    {
 //            System.out.println("^^^^^^^^^^^^^Inserting new candidate to heapfile^^^^^^^^^^^^^^^^^");
-            is_buf_full = true;
-            // Heapfile implementation for disk
-            // storage when buffer is full
+            // Heapfile implementation for disk storage when buffer is full
             RID rid = _temp_fd.insertRecord(buf.getTupleByteArray());
         }
 
