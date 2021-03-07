@@ -80,11 +80,27 @@ public class BTreeSky extends Iterator{
 
                  //initialize
                  this.tuplesTempEncountered = new ArrayList<Tuple>();
-                 for(IndexFile file : index_file_list){
 
-                 }
                  //Starting anew
 
+                 /*
 
+                 for tuples in index_file_list[0]:
+                        temp = tuples
+                        common = true
+                        for lists in index_file_list[1:]:
+                                for tuplesInner in  lists:
+
+                                        if temp = tuplesInner:
+                                                pass
+                                        else:
+                                                tuplesEncountered.add(tuplesInner)
+                                                common = false
+                        if common:
+                                dominating tuple is temp
+                                break
+                 */
         }
+
+
 }
