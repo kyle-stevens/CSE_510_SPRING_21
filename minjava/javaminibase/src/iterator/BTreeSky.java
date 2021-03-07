@@ -87,12 +87,13 @@ public class BTreeSky extends Iterator{
 
                  for tuples in index_file_list[0]:
                         temp = tuples
-                        common = true
+                        common = false
                         for lists in index_file_list[1:]:
-                                for tuplesInner in  lists:
+                                common = false
+                                for tuplesInner in  lists and !common:
 
                                         if temp = tuplesInner:
-                                                pass
+                                                common = true
                                         else:
                                                 tuplesEncountered.add(tuplesInner)
                                                 common = false
