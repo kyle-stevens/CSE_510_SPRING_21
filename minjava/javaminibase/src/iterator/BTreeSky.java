@@ -20,15 +20,15 @@ import index.UnknownIndexTypeException;
 
 public class BTreeSky extends Iterator{
         //Input Parameters variable declarations
-        private AttrType[] in1;
-        private int len_in1;
-        private short[] t1_str_sizes;
-        private Iterator am1;
-        private java.lang.String relationName;
-        private int[] pref_list;
-        private int[] pref_list_length;
-        private IndexFile[] index_file_list;
-        private int n_pages;
+        private AttrType[] _in1;
+        private int _len_in1;
+        private short[] _t1_str_sizes;
+        private Iterator _am1;
+        private java.lang.String _relationName;
+        private int[] _pref_list;
+        private int[] _pref_list_length;
+        private IndexFile[] _index_file_list;
+        private int _n_pages;
 
         //Page Id Buffer
         private PageID[] bufPageIds;
@@ -48,6 +48,9 @@ public class BTreeSky extends Iterator{
         //tuples encountered temp list
         private ArrayList<Tuple> tuplesTempEncountered;
 
+        //Iterator for tuples
+        private Iterator iter;
+
         public BTreeSky(AttrType[] in1,
                         int len_in1,
                         short[] t1_str_sizes,
@@ -65,24 +68,25 @@ public class BTreeSky extends Iterator{
                         SortException,
                         IteratorBMException
         {
-                this.in1 = in1;
-                this.len_in1 = len_in1;
+                _in1 = in1;
+                _len_in1 = len_in1;
 
-                 this.in1 = in1;
-                 this.len_in1 = len_in1;
-                 this.t1_str_sizes = str_sizes;
-                 this.am1 = am1;
-                 this.relationName = relationName;
-                 this.pref_list = pref_list;
-                 this.pref_list_length = pref_list_length;
-                 this.index_file_list = index_file_list;
-                 this.n_pages = n_pages;
+                 _in1 = in1;
+                 _len_in1 = len_in1;
+                 _t1_str_sizes = str_sizes;
+                 _am1 = am1;
+                 _relationName = relationName;
+                 _pref_list = pref_list;
+                 _pref_list_length = pref_list_length;
+                 _index_file_list = index_file_list;
+                 _n_pages = n_pages;
 
                  //initialize
                  this.tuplesTempEncountered = new ArrayList<Tuple>();
 
                  //Starting anew
-
+                 //Creating and initializing Iterator
+                 this.iter = new IndexScan(new IndexType(IndexType.B_Index), this.relationName)
                  /*
 
                  for tuples in index_file_list[0]:
