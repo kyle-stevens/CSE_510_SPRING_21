@@ -8,17 +8,17 @@ import global.*;
 /**
  * Contains the enumerated types of state of the scan
  */
-class ScanState 
+class ScanState
 {
-  public static final int NEWSCAN = 0; 
-  public static final int SCANRUNNING = 1; 
-  public static final int SCANCOMPLETE = 2; 
+  public static final int NEWSCAN = 0;
+  public static final int SCANRUNNING = 1;
+  public static final int SCANCOMPLETE = 2;
 }
 
 /**
  * Base class for a index file
  */
-public abstract class IndexFile 
+public abstract class IndexFile
 {
   /**
    * Insert entry into the index file.
@@ -27,7 +27,7 @@ public abstract class IndexFile
    * @exception IOException from lower layers
    * @exception KeyTooLongException the key is too long
    * @exception KeyNotMatchException the keys do not match
-   * @exception LeafInsertRecException  insert record to leaf page failed 
+   * @exception LeafInsertRecException  insert record to leaf page failed
    * @exception IndexInsertRecException insert record to index page failed
    * @exception ConstructPageException  fail to construct a header page
    * @exception UnpinPageException unpin page failed
@@ -36,27 +36,27 @@ public abstract class IndexFile
    * @exception ConvertException conversion failed (from global package)
    * @exception DeleteRecException delete record failed
    * @exception IndexSearchException index search failed
-   * @exception IteratorException  error from iterator 
+   * @exception IteratorException  error from iterator
    * @exception LeafDeleteException delete leaf page failed
    * @exception InsertException insert record failed
    */
   abstract public void insert(final KeyClass data, final RID rid)
-    throws KeyTooLongException, 
-	   KeyNotMatchException, 
-	   LeafInsertRecException,   
+    throws KeyTooLongException,
+	   KeyNotMatchException,
+	   LeafInsertRecException,
 	   IndexInsertRecException,
-	   ConstructPageException, 
+	   ConstructPageException,
 	   UnpinPageException,
-	   PinPageException, 
-	   NodeNotMatchException, 
+	   PinPageException,
+	   NodeNotMatchException,
 	   ConvertException,
 	   DeleteRecException,
 	   IndexSearchException,
-	   IteratorException, 
-	   LeafDeleteException, 
+	   IteratorException,
+	   LeafDeleteException,
 	   InsertException,
 	   IOException;
-  
+
   /**
    * Delete entry from the index file.
    * @param data the key for the entry
@@ -79,22 +79,22 @@ public abstract class IndexFile
    * @exception DeleteRecException delete record failed
    * @exception IndexSearchException  index search failed
    */
-  abstract public boolean Delete(final KeyClass data, final RID rid)  
-    throws  DeleteFashionException, 
+  abstract public boolean Delete(final KeyClass data, final RID rid)
+    throws  DeleteFashionException,
 	    LeafRedistributeException,
 	    RedistributeException,
 	    InsertRecException,
-	    KeyNotMatchException, 
-	    UnpinPageException, 
+	    KeyNotMatchException,
+	    UnpinPageException,
 	    IndexInsertRecException,
-	    FreePageException, 
-	    RecordNotFoundException, 
+	    FreePageException,
+	    RecordNotFoundException,
 	    PinPageException,
-	    IndexFullDeleteException, 
+	    IndexFullDeleteException,
 	    LeafDeleteException,
-	    IteratorException, 
-	    ConstructPageException, 
+	    IteratorException,
+	    ConstructPageException,
 	    DeleteRecException,
-	    IndexSearchException, 
+	    IndexSearchException,
 	    IOException;
 }
