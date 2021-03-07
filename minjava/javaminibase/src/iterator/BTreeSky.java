@@ -1,5 +1,9 @@
 package iterator;
 
+//Until better solution is found
+import java.util.ArrayList;
+import java.util.List;
+
 import java.io.IOException;
 
 import bufmgr.PageNotReadException;
@@ -35,6 +39,15 @@ public class BTreeSky extends Iterator{
         //Sprojection Object declaration
         private FldSpec[] Sprojection;
 
+        //dominating Tuple
+        private Tuple tupleDominates;
+
+        //tuples encountered
+        private Tuple[] tuplesEncountered;
+
+        //tuples encountered temp list
+        private ArrayList<Tuple> tuplesTempEncountered;
+
         public BTreeSky(AttrType[] in1,
                         int len_in1,
                         short[] t1_str_sizes,
@@ -46,7 +59,7 @@ public class BTreeSky extends Iterator{
                         int n_pages)
                         throws IndexException,
 			InvalidTypeException,
-                        InvalidTupleSizeException, 
+                        InvalidTupleSizeException,
                         UnknownIndexTypeException,
                         IOException,
                         SortException,
@@ -64,25 +77,12 @@ public class BTreeSky extends Iterator{
                  this.pref_list_length = pref_list_length;
                  this.index_file_list = index_file_list;
                  this.n_pages = n_pages;
-                /*
-                 //Buffer for Page Ids Initialized to empty array
-                 this.bufPageIds = new PageId[this.n_pages];
 
-                 //Buffer created for operations
-                 this.buffer = new byte[this.n_pages][];
-                 //Grab Buffer Pages for used
-                 get_buffer_pages(this.n_pages, this.bufPageIds,
-                        this.buffer);
+                 //initialize
+                 this.tuplesTempEncountered = new ArrayList<Tuple>();
+                 for(IndexFile file : index_file_list){
 
-                 //Initialize OBufSortSky object for computations
-                 this.opBuf = new OBufSortSky(this.in1, this,len_in1,
-                        this.t1_str_sizes, this.buffer, this.pref_list,
-                        this.pref_list_length, this.n_pages);
-
-                 //Initialize Sprojection
-                 this.Sprojection = new FldSpec[this.len_in1];
-                 */
-
+                 }
                  //Starting anew
 
 
