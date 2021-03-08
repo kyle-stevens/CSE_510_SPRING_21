@@ -16,7 +16,7 @@ import index.UnknownIndexTypeException;
 
 public class BTreeSortedSky extends Iterator {
 
-	
+
 	private AttrType[] in1;
 	private short col_len;
 	private short[] str_sizes;
@@ -90,5 +90,3 @@ public class BTreeSortedSky extends Iterator {
 	}
 
 }
-
-

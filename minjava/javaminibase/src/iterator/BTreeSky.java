@@ -30,6 +30,7 @@ public class BTreeSky extends Iterator{
         private IndexFile[] _index_file_list;
         private int _n_pages;
 
+        private int number_of_run = 0;
         //Page Id Buffer
         private PageID[] bufPageIds;
         //Operations Buffer
@@ -84,6 +85,7 @@ public class BTreeSky extends Iterator{
                 Tuple temp = t;
                 Tuple temp2;
                 boolean common = false;
+                //finds first common element, then will perform BlockNestedLoopSky on encountered tuples
                 while((t=iter[0].get_next()) != null){
                         common = false;
                         temp = t;
@@ -124,6 +126,17 @@ public class BTreeSky extends Iterator{
                                 break
                  */
         }
+
+        @Override
+	public void close() throws IOException, JoinsException, SortException, IndexException {
+		// TODO Auto-generated method stub
+		iter.close();
+		try {
+			new Heapfile(oBuf.getCurr_file() + (number_of_run - 1)).deleteFile();
+		} catch (Exception e) {
+
+		}
+	}
 
 
 }
