@@ -40,7 +40,7 @@ public class BTreeSky extends Iterator{
         private FldSpec[] Sprojection;
 
         //dominating Tuple
-        private Tuple tupleDominates;
+        private Tuple oneTupleToRuleThemAll;
 
         //tuples encountered
         private Tuple[] tuplesEncountered;
@@ -49,8 +49,9 @@ public class BTreeSky extends Iterator{
         private ArrayList<Tuple> tuplesTempEncountered;
 
         //Iterator for tuples
-        private Iterator iter;
+        private Iterator[] iter;
 
+        //Pass in Sorted Index Files Descending Order
         public BTreeSky(AttrType[] in1,
                         int len_in1,
                         short[] t1_str_sizes,
@@ -58,7 +59,7 @@ public class BTreeSky extends Iterator{
                         java.lang.String relationName,
                         int[] pref_list,
                         int[] pref_list_length,
-                        IndexFile[] index_file_list,
+                        String[] index_file_list,
                         int n_pages)
                         throws IndexException,
 			InvalidTypeException,
@@ -68,25 +69,42 @@ public class BTreeSky extends Iterator{
                         SortException,
                         IteratorBMException
         {
-                _in1 = in1;
-                _len_in1 = len_in1;
+                //create index file to pass to oBuf that consists of encountered tuples
+                //and then add tuples to things as we go after the first dominating tuple
 
-                 _in1 = in1;
-                 _len_in1 = len_in1;
-                 _t1_str_sizes = str_sizes;
-                 _am1 = am1;
-                 _relationName = relationName;
-                 _pref_list = pref_list;
-                 _pref_list_length = pref_list_length;
-                 _index_file_list = index_file_list;
-                 _n_pages = n_pages;
+                Tuple t;
+                Sprojection = new FldSpec[len_in1];
+                iter = new Iterator[len_in1];
+                for(int i=0; i<len_in1;i++){
+                        Sprojection[i] = new FldSpec(new RelSpec(RelSpec.outer), i+1);
+                        iter[i] = new IndexScan(new IndexType(IndexType.B_Index), relationName, index_file_list[i], in1[i], t1_str_sizes,len_in1,len_in1,Sprojection, null, 0, false);
+                }
 
-                 //initialize
-                 this.tuplesTempEncountered = new ArrayList<Tuple>();
+                //will get put into @Overrid for get_next():
+                Tuple temp = t;
+                Tuple temp2;
+                boolean common = false;
+                while((t=iter[0].get_next()) != null){
+                        common = false;
+                        temp = t;
 
-                 //Starting anew
-                 //Creating and initializing Iterator
-                 this.iter = new IndexScan(new IndexType(IndexType.B_Index), this.relationName)
+                        for(Iterator index_file : index_file_list){
+                                common = false;
+                                while(((temp2=index_file.get_next())!= null) && !common){
+                                        if (temp == temp2){
+                                                common = true;
+                                        }
+                                        else{
+                                                common = false;
+                                                tuplesTempEncountered.add(temp2);
+                                        }
+                                }
+                                if(common){
+                                        oneTupleToRuleThemAll = temp;
+                                        break; //I know its bad, but I havent thought of a better way yet
+                                }
+                        }
+                }
                  /*
 
                  for tuples in index_file_list[0]:
