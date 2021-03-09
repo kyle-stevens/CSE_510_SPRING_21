@@ -42,6 +42,16 @@ public class PageId{
     {
       Convert.setIntValue ( pid, offset, ary);
     }
+
+    /** Compares two PageID object, i.e, this to the pgid
+     * @param pgid PageId object to be compared to
+     * @return true is they are equal
+     *         false if not.
+     */
+    public boolean equals(PageId pgid) {
+
+        return (this.pid == pgid.pid);
+}
   
   public String toString() {
     return (new Integer(pid)).toString();
