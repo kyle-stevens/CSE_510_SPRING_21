@@ -19,16 +19,8 @@ import index.IndexScan;
 import index.UnknownIndexTypeException;
 
 public class BTreeSky extends Iterator{
-        //Input Parameters variable declarations
-        private AttrType[] _in1;
-        private int _len_in1;
-        private short[] _t1_str_sizes;
-        private Iterator _am1;
-        private java.lang.String _relationName;
-        private int[] _pref_list;
-        private int[] _pref_list_length;
-        private IndexFile[] _index_file_list;
-        private int _n_pages;
+        
+
 
         private int number_of_run = 0;
         //Page Id Buffer
@@ -63,7 +55,7 @@ public class BTreeSky extends Iterator{
                         Iterator am1,
                         java.lang.String relationName,
                         int[] pref_list,
-                        int[] pref_list_length,
+                        int pref_list_length,
                         String[] index_file_list,
                         int n_pages)
                         throws IndexException,
@@ -76,7 +68,7 @@ public class BTreeSky extends Iterator{
         {
                 //create index file to pass to oBuf that consists of encountered tuples
                 //and then add tuples to things as we go after the first dominating tuple
-
+                oBuf = new OBufSortSky(in1, len_in1, t1_str_sizes, buffer, pref_list, pref_list_length, n_pages)
                 Sprojection = new FldSpec[len_in1];
                 iter = new Iterator[len_in1];
                 for(int i=0; i<len_in1;i++){
