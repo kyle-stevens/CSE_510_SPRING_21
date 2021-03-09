@@ -52,6 +52,10 @@ public class BTreeSky extends Iterator{
         //Iterator for tuples
         private Iterator[] iter;
 
+
+        //Obuf creation
+        private OBufSortSky oBuf;
+
         //Pass in Sorted Index Files Descending Order
         public BTreeSky(AttrType[] in1,
                         int len_in1,
@@ -73,7 +77,7 @@ public class BTreeSky extends Iterator{
                 //create index file to pass to oBuf that consists of encountered tuples
                 //and then add tuples to things as we go after the first dominating tuple
 
-                Tuple t;
+
                 Sprojection = new FldSpec[len_in1];
                 iter = new Iterator[len_in1];
                 for(int i=0; i<len_in1;i++){
@@ -81,51 +85,40 @@ public class BTreeSky extends Iterator{
                         iter[i] = new IndexScan(new IndexType(IndexType.B_Index), relationName, index_file_list[i], in1[i], t1_str_sizes,len_in1,len_in1,Sprojection, null, 0, false);
                 }
 
-                //will get put into @Overrid for get_next():
-                Tuple temp = t;
-                Tuple temp2;
-                boolean common = false;
-                //finds first common element, then will perform BlockNestedLoopSky on encountered tuples
-                while((t=iter[0].get_next()) != null){
-                        common = false;
-                        temp = t;
+                
+        }
 
-                        for(Iterator index_file : index_file_list){
-                                common = false;
-                                while(((temp2=index_file.get_next())!= null) && !common){
-                                        if (temp == temp2){
-                                                common = true;
-                                        }
-                                        else{
+        public void runSky() throws IOException, JoinsException, IndexException, InvalidTupleSizeException,
+			InvalidTypeException, PageNotReadException, TupleUtilsException, PredEvalException, SortException,
+			LowMemException, UnknowAttrType, UnknownKeyTypeException, Exception{
+                                //Tuple t;
+                                Tuple temp;
+                                Tuple temp2;
+                                boolean common = false;
+                                //finds first common element, then will perform BlockNestedLoopSky on encountered tuples
+                                while((temp=iter[0].get_next()) != null){
+                                        common = false;
+                                        //temp = t;
+
+                                        for(Iterator index_file : index_file_list){
                                                 common = false;
-                                                tuplesTempEncountered.add(temp2);
+                                                while(((temp2=index_file.get_next())!= null) && !common){
+                                                        if (temp == temp2){
+                                                                common = true;
+                                                        }
+                                                        else{
+                                                                common = false;
+                                                                tuplesTempEncountered.add(temp2);
+                                                        }
+                                                }
+                                                if(common){
+                                                        oneTupleToRuleThemAll = temp;
+                                                        tuplesTempEncountered.add(oneTupleToRuleThemAll);
+                                                        break; //I know its bad, but I havent thought of a better way yet
+                                                }
                                         }
-                                }
-                                if(common){
-                                        oneTupleToRuleThemAll = temp;
-                                        break; //I know its bad, but I havent thought of a better way yet
                                 }
                         }
-                }
-                 /*
-
-                 for tuples in index_file_list[0]:
-                        temp = tuples
-                        common = false
-                        for lists in index_file_list[1:]:
-                                common = false
-                                for tuplesInner in  lists and !common:
-
-                                        if temp = tuplesInner:
-                                                common = true
-                                        else:
-                                                tuplesEncountered.add(tuplesInner)
-                                                common = false
-                        if common:
-                                dominating tuple is temp
-                                break
-                 */
-        }
 
         @Override
 	public void close() throws IOException, JoinsException, SortException, IndexException {
