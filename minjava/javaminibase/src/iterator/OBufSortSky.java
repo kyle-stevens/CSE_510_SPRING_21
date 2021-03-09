@@ -9,7 +9,7 @@ import heap.Heapfile;
 import heap.Tuple;
 
 public class OBufSortSky implements GlobalConst{
-	
+
 	private int t_per_pg, // # of tuples that fit in 1 page
 			t_in_buf; // # of tuples that fit in the buffer
 	private int t_wr_to_pg = 0, // # of tuples written to current page
@@ -27,8 +27,8 @@ public class OBufSortSky implements GlobalConst{
 	final private String curr_file = "curr_file";
 	private int number_of_window_file = 0;
 	private boolean flag = false;
-	
-	
+
+
 	public int getNumber_of_window_file() {
 		return number_of_window_file;
 	}
@@ -51,7 +51,7 @@ public class OBufSortSky implements GlobalConst{
 
 	public OBufSortSky(AttrType[] in1, short len_in1, short[] t1_str_sizes, byte[][] buf,
 			int[] pref_list, int pref_list_length, int n_pages) throws SortException{
-		
+
 		this.in1 = in1;
 		System.out.println("len = "+in1.length);
 		col_len = len_in1;
@@ -60,7 +60,7 @@ public class OBufSortSky implements GlobalConst{
 		this.pref_list_length = pref_list_length;
 		_bufs = buf;
 		Tuple t = new Tuple();
-		
+
 		try {
 			t.setHdr(col_len, this.in1, str_sizes);
 		} catch (Exception e) {
@@ -78,7 +78,7 @@ public class OBufSortSky implements GlobalConst{
 		t_wr_to_buf = 0;
 		curr_page = 0;
 	}
-	
+
 	public boolean checkIfSky(Tuple t) throws Exception {
 
 		for (int count = 0; count <= curr_page; count++) {
@@ -104,8 +104,8 @@ public class OBufSortSky implements GlobalConst{
 
 	public Tuple Put(Tuple buf) throws IOException, Exception {
 
-		
-		
+
+
 		byte[] copybuf;
 		copybuf = buf.getTupleByteArray();
 		if (t_wr_to_buf == t_in_buf) // Buffer full?

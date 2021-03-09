@@ -77,7 +77,6 @@ public class BTreeSky extends Iterator{
                 //create index file to pass to oBuf that consists of encountered tuples
                 //and then add tuples to things as we go after the first dominating tuple
 
-
                 Sprojection = new FldSpec[len_in1];
                 iter = new Iterator[len_in1];
                 for(int i=0; i<len_in1;i++){
@@ -85,7 +84,7 @@ public class BTreeSky extends Iterator{
                         iter[i] = new IndexScan(new IndexType(IndexType.B_Index), relationName, index_file_list[i], in1[i], t1_str_sizes,len_in1,len_in1,Sprojection, null, 0, false);
                 }
 
-                
+
         }
 
         public void runSky() throws IOException, JoinsException, IndexException, InvalidTupleSizeException,
@@ -105,17 +104,26 @@ public class BTreeSky extends Iterator{
                                                 while(((temp2=index_file.get_next())!= null) && !common){
                                                         if (temp == temp2){
                                                                 common = true;
+                                                                //probably going to put iter.put(temp) here
                                                         }
                                                         else{
                                                                 common = false;
                                                                 tuplesTempEncountered.add(temp2);
+                                                                //may replace^^^ with a iter. check if sky and puts
                                                         }
                                                 }
                                                 if(common){
                                                         oneTupleToRuleThemAll = temp;
-                                                        tuplesTempEncountered.add(oneTupleToRuleThemAll);
+
+                                                        //tuplesTempEncountered.add(oneTupleToRuleThemAll);
                                                         break; //I know its bad, but I havent thought of a better way yet
                                                 }
+                                        }
+                                }
+                                //may be deprecated soon
+                                for(Tuple t : tuplesTempEncountered){
+                                        if(oBuf.checkIfSky(t)){
+                                                oBuf.put(t);
                                         }
                                 }
                         }
