@@ -19,7 +19,7 @@ import index.IndexScan;
 import index.UnknownIndexTypeException;
 
 public class BTreeSky extends Iterator{
-        
+
 
 
         private int number_of_run = 0;
@@ -68,7 +68,7 @@ public class BTreeSky extends Iterator{
         {
                 //create index file to pass to oBuf that consists of encountered tuples
                 //and then add tuples to things as we go after the first dominating tuple
-                oBuf = new OBufSortSky(in1, len_in1, t1_str_sizes, buffer, pref_list, pref_list_length, n_pages)
+                oBuf = new OBufSortSky(in1, len_in1, t1_str_sizes, buffer, pref_list, pref_list_length, n_pages);
                 Sprojection = new FldSpec[len_in1];
                 iter = new Iterator[len_in1];
                 for(int i=0; i<len_in1;i++){
