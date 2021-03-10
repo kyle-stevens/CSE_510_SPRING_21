@@ -28,7 +28,7 @@ public class BTreeSky extends Iterator{
         //Operations Buffer
         private byte[] buffer;
         //SkyLine buffer
-        private OBufSortSky opBuf;
+        private OBuf oBuf;
         //Sprojection Object declaration
         private FldSpec[] Sprojection;
 
@@ -47,6 +47,9 @@ public class BTreeSky extends Iterator{
 
         //Obuf creation
         private OBufSortSky oBuf;
+
+        //BlockNestedLoopSky
+        privat BlockNestedLoopSky bNLS;
 
         //Pass in Sorted Index Files Descending Order
         public BTreeSky(AttrType[] in1,
@@ -68,7 +71,7 @@ public class BTreeSky extends Iterator{
         {
                 //create index file to pass to oBuf that consists of encountered tuples
                 //and then add tuples to things as we go after the first dominating tuple
-                oBuf = new OBufSortSky(in1, len_in1, t1_str_sizes, buffer, pref_list, pref_list_length, n_pages);
+                oBuf = new OBuf(in1, len_in1, t1_str_sizes, buffer, pref_list, pref_list_length, n_pages);
                 Sprojection = new FldSpec[len_in1];
                 iter = new Iterator[len_in1];
                 for(int i=0; i<len_in1;i++){
@@ -91,37 +94,36 @@ public class BTreeSky extends Iterator{
                                         common = false;
                                         //temp = t;
 
-                                        for(Iterator index_file : index_file_list){
+                                        for(int i = 1; i < iter.length; i++){
                                                 common = false;
-                                                while(((temp2=index_file.get_next())!= null) && !common){
+                                                while(((temp2=iter[i].get_next())!= null) && !common){
                                                         if (temp == temp2){
                                                                 common = true;
                                                                 //probably going to put iter.put(temp) here
                                                         }
                                                         else{
                                                                 common = false;
-                                                                tuplesTempEncountered.add(temp2);
-                                                                //may replace^^^ with a iter. check if sky and puts
+                                                                oBuf.Put(temp2);
                                                         }
                                                 }
                                                 if(common){
                                                         oneTupleToRuleThemAll = temp;
-
-                                                        //tuplesTempEncountered.add(oneTupleToRuleThemAll);
+                                                        oBuf.Put(oneTupleToRuleThemAll);
                                                         break; //I know its bad, but I havent thought of a better way yet
                                                 }
                                         }
                                 }
-                                //may be deprecated soon
-                                for(Tuple t : tuplesTempEncountered){
-                                        if(oBuf.checkIfSky(t)){
-                                                oBuf.put(t);
-                                        }
-                                }
+
+                                //calling BlockNestedLoopSky on data.
+                                bNLS = new BlockNestedLoopSky(in1, len_in1, t1_str_sizes, am1, relationName, pref_list, pref_list_length, n_pages);
+                                private Vector<Tuple> skyline = bNLS.get_skyline();
+
+                                bNLS.print_skyline(bNLS.inner);
+
                         }
 
         @Override
-	public void close() throws IOException, JoinsException, SortException, IndexException {
+	    public void close() throws IOException, JoinsException, SortException, IndexException {
 		// TODO Auto-generated method stub
 		iter.close();
 		try {
