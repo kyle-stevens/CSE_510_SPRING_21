@@ -95,6 +95,10 @@ public class OBuf implements GlobalConst{
      * False if buffer is not full
      */
     public boolean get_buf_status(){
+        if (t_wr_to_buf == t_in_buf)
+            is_buf_full = true;
+        else
+            is_buf_full = false;
         return is_buf_full;
     }
 
@@ -105,15 +109,13 @@ public class OBuf implements GlobalConst{
      *@exception IOException  some I/O fault
      *@exception Exception other exceptions
      */
-    public Tuple insert(Tuple buf)
+    public Tuple insert(Tuple buf, boolean insert_heap)
             throws IOException,
             Exception
     {
-        if (t_wr_to_buf == t_in_buf) {
-//            System.out.println("^^^^^^^^^^^^^Inserting new candidate to heapfile^^^^^^^^^^^^^^^^^");
-            is_buf_full = true;
-            // Heapfile implementation for disk
-            // storage when buffer is full
+        if (insert_heap)    {
+            //System.out.println("^^^^^^^^^^^^^Inserting new candidate to heapfile^^^^^^^^^^^^^^^^^");
+            // Heapfile implementation for disk storage when buffer is full
             RID rid = _temp_fd.insertRecord(buf.getTupleByteArray());
         }
 
@@ -148,7 +150,7 @@ public class OBuf implements GlobalConst{
         throws IOException,
             Exception
     {
-//        System.out.println("Resetting read to start of the buffer");
+        //System.out.println("Resetting read to start of the buffer");
         t_rd_from_buf = 0;
         t_rd_from_pg = 0;
         rd_curr_page = 0;
@@ -161,7 +163,7 @@ public class OBuf implements GlobalConst{
             throws IOException,
             Exception
     {
-//        System.out.println("Resetting read to start of the buffer");
+        //System.out.println("Resetting read to start of the buffer");
         t_wr_to_buf = 0;
         t_wr_to_pg = 0;
         curr_page = 0;
@@ -180,7 +182,7 @@ public class OBuf implements GlobalConst{
     {
         if (t_rd_from_buf >= t_wr_to_buf)                // End of buffer?
         {
-//            System.out.println("Reached end of the buffer data");
+            //System.out.println("Reached end of the buffer data");
             return null;
 
         }
@@ -237,7 +239,7 @@ public class OBuf implements GlobalConst{
         t_written--;
         t_read--;
 
-//        System.out.println("Deletion successful");
+        // System.out.println("Deletion successful");
         return true;
     }
 
