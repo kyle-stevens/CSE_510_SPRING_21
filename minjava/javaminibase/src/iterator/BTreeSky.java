@@ -22,35 +22,38 @@ public class BTreeSky extends Iterator{
 
 
 
-        private int number_of_run = 0;
-        //Page Id Buffer
-        private PageID[] bufPageIds;
         //Operations Buffer
         private byte[] buffer;
         //SkyLine buffer
         private OBuf oBuf;
         //Sprojection Object declaration
         private FldSpec[] Sprojection;
-
         //dominating Tuple
         private Tuple oneTupleToRuleThemAll;
-
-
-
         //tuples encountered temp list
         private ArrayList<Tuple> tuplesEncountered;
-
         //Iterator for tuples
         private Iterator[] iter;
+        //Heapfile for disk storage
         private Heapfile heap;
-
-        //Obuf creation
+        //Obuf creation for storage in main memory
         private OBufSortSky oBuf;
-
-        //BlockNestedLoopSky
-        privat BlockNestedLoopSky bNLS;
-
+        //BlockNestedLoopSky instance
+        private BlockNestedLoopSky bNLS;
+        //Final Skyline
         private Vector<Tuple> skyline;
+        //HeapFile Scan Object for BNLS
+        private FileScan fScan;
+        //CondExpr for FileScan
+        private CondExpr[] cExpr;
+        private String file_name;
+        private AttrType _in1[];
+        private short _s1_sizes[];
+        private short _len_in1;
+        private int _n_out_flds;
+        private FldSpec[] _proj_list;
+        private CondExpr _outFilter;
+
         //Pass in Sorted Index Files Descending Order
         public BTreeSky(AttrType[] in1,
                         int len_in1,
@@ -69,66 +72,99 @@ public class BTreeSky extends Iterator{
                         SortException,
                         IteratorBMException
         {
-                //create index file to pass to oBuf that consists of encountered tuples
-                //and then add tuples to things as we go after the first dominating tuple
-                heap = new Heapfile("skyline_candidates");
-                oBuf = new OBuf();
-                buffer = new byte[n_pages][];
-                oBuf.init(buffer, n_pages, MINIBASE_PAGESIZE, heap, true);
-                Sprojection = new FldSpec[len_in1];
-                iter = new Iterator[len_in1];
-                bNLS = new BlockNestedLoopSky(in1, len_in1, t1_str_sizes, am1, relationName, pref_list, pref_list_length, n_pages);
+            file_name = "skyline_candidates";
+            //Initialize Heap file to one named 'skyline_candidates'
+            heap = new Heapfile(file_name);
+            //Create new OBuf object for a computation buffer
+            oBuf = new OBuf();
+            //Initialize Buffer
+            buffer = new byte[n_pages][];
+            //Initialize OBuf object to include heapfile storage on flushed
+            oBuf.init(buffer, n_pages, MINIBASE_PAGESIZE, heap, true);
+            //Initialize FldSpec object for use in iteration
+            Sprojection = new FldSpec[len_in1];
+            //Initialize CondExpr array;
+            cExpr = new CondExpr[len_in];
 
-                for(int i=0; i<len_in1;i++){
-                        Sprojection[i] = new FldSpec(new RelSpec(RelSpec.outer), i+1);
-                        iter[i] = new IndexScan(new IndexType(IndexType.B_Index), relationName, index_file_list[i], in1[i], t1_str_sizes,len_in1,len_in1,Sprojection, null, 0, false);
-                }
-
-
+            //Iterate over IndexFiles and create separate iterators and fldspecs
+            for(int i=0; i<len_in1;i++){
+                    Sprojection[i] = new FldSpec(new RelSpec(RelSpec.outer), i+1);
+                    cExpr[i] = new CondExpr();
+                    iter[i] = new IndexScan(new IndexType(IndexType.B_Index), relationName, index_file_list[i], in1[i], t1_str_sizes,len_in1,len_in1,Sprojection, null, 0, false);
+            }
+            _in1 = in1;
+            _s1_sizes = t1_str_sizes;
+            _len_in1 = len_in1;
+            _n_out_flds = pref_list_length;
+            _proj_list = Sprojection;
+            _outFilter = cExpr;
+            //Create iterator array
+            iter = new Iterator[len_in1];
+            //Get Iterator for Heapfile
+            fScan = new FileScan(_file_name, _in1, _s1_sizes, _len_in1, _n_out_flds, _proj_list, _outFilter);
+            //Initialize BNLS object to use heapfile
+            bNLS = new BlockNestedLoopSky(in1, len_in1, t1_str_sizes, fScan, "skyline_candidates", pref_list, pref_list_length, n_pages);
         }
 
+        /**
+        *implement the skyline operations using BlockNestedLoopSky
+        *and perform tuple comparision to find skyline candidates to pass
+        *into the bNLS object.
+        *
+        */
         public Vector<Tuple> runSky() throws IOException, JoinsException, IndexException, InvalidTupleSizeException,
 			InvalidTypeException, PageNotReadException, TupleUtilsException, PredEvalException, SortException,
 			LowMemException, UnknowAttrType, UnknownKeyTypeException, Exception{
-                                //Tuple t;
-                                Tuple temp;
-                                Tuple temp2;
-                                boolean common = false;
-                                //finds first common element, then will perform BlockNestedLoopSky on encountered tuples
-                                while((temp=iter[0].get_next()) != null){
-                                        common = false;
-                                        //temp = t;
+            //Create Tuple Objects for comparisons and manipulation
+            Tuple temp;
+            Tuple temp2;
+            //Set Loop and exit condition
+            boolean common = false;
+            boolean foundDominantTuple = false;
+            //Loop over the tuples of the first index_file ( Tuple Field )
+            while((temp=iter[0].get_next()) != null && !foundDominantTuple){
+                //Reset Loop Conition
+                common = false;
 
-                                        for(int i = 1; i < iter.length; i++){
-                                                common = false;
-                                                while(((temp2=iter[i].get_next())!= null) && !common){
-                                                        if (temp == temp2){
-                                                                common = true;
-                                                                //probably going to put iter.put(temp) here
-                                                        }
-                                                        else if(temp != temp2 && !tuplesEncountered.contains(temp2)){
-                                                                common = false;
-                                                                tuplesEncountered.add(temp2);
-                                                                oBuf.Put(temp2);
-                                                        }
-                                                }
-                                                if(common){
-                                                        oneTupleToRuleThemAll = temp;
-                                                        //oBuf.Put(oneTupleToRuleThemAll);
-                                                        break; //I know its bad, but I havent thought of a better way yet
-                                                }
-                                        }
-                                }
-                                oBuf.flush();
-                                skyline = bNLS.get_skyline();
-                                skyline.add(0, oneTupleToRuleThemAll); //add dominant tuple to beginning of vector.
-                                return skyline;
-                                //calling BlockNestedLoopSky on data.
-
-
-
-
+                //Iterate over all iterators for each index file
+                for(int i = 1; i < iter.length; i++){
+                    //Reset Loop condition
+                    common = false;
+                    //So Long as no common value has been Found
+                    //and there exists some next tuple in the list
+                    while(((temp2=iter[i].get_next())!= null) && !common){
+                        //If we have found a common tuple, end this loop iteration
+                        //via the loop condition
+                        if (temp == temp2){
+                            common = true;
                         }
+                        //If tuples are not equal, and we have not
+                        //already encountered this tuple put in the oBuf
+                        //and store the tuple in a list of encountered tuples
+                        //for duplicate elimination
+                        else if(temp != temp2 && !tuplesEncountered.contains(temp2)){
+                            common = false;
+                            tuplesEncountered.add(temp2);
+                            oBuf.Put(temp2);
+                        }
+                    }
+                    //If the Dominant Tuple has been found, store this tuple
+                    //and set loop exit condition
+                    if(common){
+                        oneTupleToRuleThemAll = temp;
+                        foundDominantTuple = true;
+                    }
+                }
+            }
+            //flush the buffer and store to heapfile
+            oBuf.flush();
+            //retrieve the calculated skyline
+            skyline = bNLS.get_skyline();
+            //add the dominant tuple to the skyline vector
+            skyline.add(0, oneTupleToRuleThemAll);
+            //return calculated skyline
+            return skyline;
+        }
 
         @Override
 	    public void close() throws IOException, JoinsException, SortException, IndexException {
