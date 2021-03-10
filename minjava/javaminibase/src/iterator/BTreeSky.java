@@ -51,6 +51,7 @@ public class BTreeSky extends Iterator{
         //BlockNestedLoopSky
         privat BlockNestedLoopSky bNLS;
 
+        private Vector<Tuple> skyline;
         //Pass in Sorted Index Files Descending Order
         public BTreeSky(AttrType[] in1,
                         int len_in1,
@@ -74,6 +75,8 @@ public class BTreeSky extends Iterator{
                 oBuf = new OBuf(in1, len_in1, t1_str_sizes, buffer, pref_list, pref_list_length, n_pages);
                 Sprojection = new FldSpec[len_in1];
                 iter = new Iterator[len_in1];
+                bNLS = new BlockNestedLoopSky(in1, len_in1, t1_str_sizes, am1, relationName, pref_list, pref_list_length, n_pages);
+
                 for(int i=0; i<len_in1;i++){
                         Sprojection[i] = new FldSpec(new RelSpec(RelSpec.outer), i+1);
                         iter[i] = new IndexScan(new IndexType(IndexType.B_Index), relationName, index_file_list[i], in1[i], t1_str_sizes,len_in1,len_in1,Sprojection, null, 0, false);
@@ -82,7 +85,7 @@ public class BTreeSky extends Iterator{
 
         }
 
-        public void runSky() throws IOException, JoinsException, IndexException, InvalidTupleSizeException,
+        public Vector<Tuple> runSky() throws IOException, JoinsException, IndexException, InvalidTupleSizeException,
 			InvalidTypeException, PageNotReadException, TupleUtilsException, PredEvalException, SortException,
 			LowMemException, UnknowAttrType, UnknownKeyTypeException, Exception{
                                 //Tuple t;
@@ -113,12 +116,12 @@ public class BTreeSky extends Iterator{
                                                 }
                                         }
                                 }
-
+                                skyline = bNLS.get_skyline();
+                                return skyline;
                                 //calling BlockNestedLoopSky on data.
-                                bNLS = new BlockNestedLoopSky(in1, len_in1, t1_str_sizes, am1, relationName, pref_list, pref_list_length, n_pages);
-                                private Vector<Tuple> skyline = bNLS.get_skyline();
 
-                                bNLS.print_skyline(bNLS.inner);
+
+
 
                         }
 
