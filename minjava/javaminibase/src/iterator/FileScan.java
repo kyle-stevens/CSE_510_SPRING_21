@@ -140,6 +140,58 @@ public class FileScan extends  Iterator
       }
     }
 
+    /**
+     *@return the result tuple and the RID is stored in the parameter
+     *@exception JoinsException some join exception
+     *@exception IOException I/O errors
+     *@exception InvalidTupleSizeException invalid tuple size
+     *@exception InvalidTypeException tuple type not valid
+     *@exception PageNotReadException exception from lower layer
+     *@exception PredEvalException exception from PredEval class
+     *@exception UnknowAttrType attribute type unknown
+     *@exception FieldNumberOutOfBoundException array out of bounds
+     *@exception WrongPermat exception for wrong FldSpec argument
+     */
+    public Tuple get_next(RID rid)
+            throws JoinsException,
+            IOException,
+            InvalidTupleSizeException,
+            InvalidTypeException,
+            PageNotReadException,
+            PredEvalException,
+            UnknowAttrType,
+            FieldNumberOutOfBoundException,
+            WrongPermat
+    {
+
+        while(true) {
+            if((tuple1 =  scan.getNext(rid)) == null) {
+                return null;
+            }
+
+            tuple1.setHdr(in1_len, _in1, s_sizes);
+            if (PredEval.Eval(OutputFilter, tuple1, null, _in1, null) == true){
+                Projection.Project(tuple1, _in1,  Jtuple, perm_mat, nOutFlds);
+                return  Jtuple;
+            }
+        }
+    }
+
+    /** Position the scan cursor to the record with the given rid.
+     *
+     * @exception InvalidTupleSizeException Invalid tuple size
+     * @exception IOException I/O errors
+     * @param rid Record ID of the given record
+     * @return 	true if successful,
+     *			false otherwise.
+     */
+    public boolean position(RID rid)
+            throws InvalidTupleSizeException,
+            IOException
+    {
+        return (scan.position(rid));
+    }
+
   /**
    *implement the abstract method close() from super class Iterator
    *to finish cleaning up
