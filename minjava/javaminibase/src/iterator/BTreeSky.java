@@ -35,15 +35,14 @@ public class BTreeSky extends Iterator{
         //dominating Tuple
         private Tuple oneTupleToRuleThemAll;
 
-        //tuples encountered
-        private Tuple[] tuplesEncountered;
+
 
         //tuples encountered temp list
-        private ArrayList<Tuple> tuplesTempEncountered;
+        private ArrayList<Tuple> tuplesEncountered;
 
         //Iterator for tuples
         private Iterator[] iter;
-
+        private Heapfile heap;
 
         //Obuf creation
         private OBufSortSky oBuf;
@@ -72,7 +71,10 @@ public class BTreeSky extends Iterator{
         {
                 //create index file to pass to oBuf that consists of encountered tuples
                 //and then add tuples to things as we go after the first dominating tuple
-                oBuf = new OBuf(in1, len_in1, t1_str_sizes, buffer, pref_list, pref_list_length, n_pages);
+                heap = new Heapfile("skyline_candidates");
+                oBuf = new OBuf();
+                buffer = new byte[n_pages][];
+                oBuf.init(buffer, n_pages, MINIBASE_PAGESIZE, heap, true);
                 Sprojection = new FldSpec[len_in1];
                 iter = new Iterator[len_in1];
                 bNLS = new BlockNestedLoopSky(in1, len_in1, t1_str_sizes, am1, relationName, pref_list, pref_list_length, n_pages);
@@ -104,19 +106,22 @@ public class BTreeSky extends Iterator{
                                                                 common = true;
                                                                 //probably going to put iter.put(temp) here
                                                         }
-                                                        else{
+                                                        else if(temp != temp2 && !tuplesEncountered.contains(temp2)){
                                                                 common = false;
+                                                                tuplesEncountered.add(temp2);
                                                                 oBuf.Put(temp2);
                                                         }
                                                 }
                                                 if(common){
                                                         oneTupleToRuleThemAll = temp;
-                                                        oBuf.Put(oneTupleToRuleThemAll);
+                                                        //oBuf.Put(oneTupleToRuleThemAll);
                                                         break; //I know its bad, but I havent thought of a better way yet
                                                 }
                                         }
                                 }
+                                oBuf.flush();
                                 skyline = bNLS.get_skyline();
+                                skyline.add(0, oneTupleToRuleThemAll); //add dominant tuple to beginning of vector.
                                 return skyline;
                                 //calling BlockNestedLoopSky on data.
 
