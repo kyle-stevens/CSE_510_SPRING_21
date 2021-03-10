@@ -90,7 +90,8 @@ public class BTreeSky extends Iterator{
             for(int i=0; i<len_in1;i++){
                     Sprojection[i] = new FldSpec(new RelSpec(RelSpec.outer), i+1);
                     cExpr[i] = new CondExpr();
-                    iter[i] = new IndexScan(new IndexType(IndexType.B_Index), relationName, index_file_list[i], in1[i], t1_str_sizes,len_in1,len_in1,Sprojection, null, 0, false);
+                    iter[i] = new IndexScan(new IndexType(IndexType.B_Index),
+                    relationName, index_file_list[i], in1[i], t1_str_sizes,len_in1,len_in1,Sprojection, null, 0, false);
             }
             _in1 = in1;
             _s1_sizes = t1_str_sizes;
@@ -103,7 +104,8 @@ public class BTreeSky extends Iterator{
             //Get Iterator for Heapfile
             fScan = new FileScan(_file_name, _in1, _s1_sizes, _len_in1, _n_out_flds, _proj_list, _outFilter);
             //Initialize BNLS object to use heapfile
-            bNLS = new BlockNestedLoopSky(in1, len_in1, t1_str_sizes, fScan, "skyline_candidates", pref_list, pref_list_length, n_pages);
+            bNLS = new BlockNestedLoopSky(in1, len_in1, t1_str_sizes, fScan, "skyline_candidates", pref_list, pref_list_length,
+            n_pages);
         }
 
         /**
