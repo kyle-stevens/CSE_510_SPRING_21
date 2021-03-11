@@ -140,6 +140,7 @@ public class BTreeSky extends Iterator{
                         //If we have found a common tuple, end this loop iteration
                         //via the loop condition
                         if (temp == temp2){
+                            common = true;
                             break;
                         }
                         //If tuples are not equal, and we have not
