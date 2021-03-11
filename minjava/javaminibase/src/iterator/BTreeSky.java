@@ -120,9 +120,11 @@ public class BTreeSky extends Iterator{
             //Create Tuple Objects for comparisons and manipulation
             Tuple temp;
             Tuple temp2;
+            Tuple dup;
             //Set Loop and exit condition
             boolean common = false;
             boolean foundDominantTuple = false;
+            boolean duplicate = false;
             //Loop over the tuples of the first index_file ( Tuple Field )
             while((temp=iter[0].get_next()) != null && !foundDominantTuple){
                 //Reset Loop Conition
@@ -138,7 +140,7 @@ public class BTreeSky extends Iterator{
                         //If we have found a common tuple, end this loop iteration
                         //via the loop condition
                         if (temp == temp2){
-                            common = true;
+                            break;
                         }
                         //If tuples are not equal, and we have not
                         //already encountered this tuple put in the oBuf
@@ -146,6 +148,29 @@ public class BTreeSky extends Iterator{
                         //for duplicate elimination
                         else if(temp != temp2 && !tuplesEncountered.contains(temp2)){
                             common = false;
+                            while((dup = oBuf.Get()) != null){
+                                if(dup == temp2){
+                                    duplicate = true;
+                                }
+                                else{
+                                    duplicate = false;
+                                }
+                                //Need to scan HeapFile
+                                if(oBuf.get_buf_status()){
+                                    Scan scd = heap.openScan();
+                                    Tuple heap_dup;
+                                    RID heap_dup_rid = new RID();
+                                    //iterate over heap file.
+                                    while(heap_dup = scd.getNext(heap_dup_rid) != null){
+                                        if(heap_dup == temp2){
+                                            duplicate = true;
+                                        }
+                                        else{
+                                            duplicate = false;
+                                        }
+                                    }
+                                }
+                            }
                             tuplesEncountered.add(temp2);
                             oBuf.Put(temp2);
                         }
