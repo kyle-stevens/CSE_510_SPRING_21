@@ -117,44 +117,43 @@ public class BTreeSky extends Iterator{
         public Vector<Tuple> runSky() throws IOException, JoinsException, IndexException, InvalidTupleSizeException,
 			InvalidTypeException, PageNotReadException, TupleUtilsException, PredEvalException, SortException,
 			LowMemException, UnknowAttrType, UnknownKeyTypeException, Exception{
-            //Create Tuple Objects for comparisons and manipulation
-            Tuple temp;
-            Tuple temp2;
-            Tuple dup;
-            //Set Loop and exit condition
-            boolean common = false;
-            boolean foundDominantTuple = false;
-            boolean duplicate = false;
-            //Loop over the tuples of the first index_file ( Tuple Field )
-            while((temp=iter[0].get_next()) != null && !foundDominantTuple){
-                //Reset Loop Conition
-                common = false;
-
-                //Iterate over all iterators for each index file
-                for(int i = 1; i < iter.length; i++){
-                    //Reset Loop condition
+                //Create Tuple Objects for comparisons and manipulation
+                Tuple temp;
+                Tuple temp2;
+                Tuple dup;
+                //Set Loop and exit condition
+                boolean common = false;
+                boolean foundDominantTuple = false;
+                boolean duplicate = false;
+                //Loop over the tuples of the first index_file ( Tuple Field )
+                while((temp=iter[0].get_next()) != null && !foundDominantTuple){
+                    //Reset Loop Conition
                     common = false;
-                    //So Long as no common value has been Found
-                    //and there exists some next tuple in the list
-                    while(((temp2=iter[i].get_next())!= null) && !common){
-                        //If we have found a common tuple, end this loop iteration
-                        //via the loop condition
-                        if (temp == temp2){
-                            common = true;
-                            break;
-                        }
-                        //If tuples are not equal, and we have not
-                        //already encountered this tuple put in the oBuf
-                        //and store the tuple in a list of encountered tuples
-                        //for duplicate elimination
-                        else if(temp != temp2 && !tuplesEncountered.contains(temp2)){
-                            common = false;
-                            while((dup = oBuf.Get()) != null){
-                                if(dup == temp2){
-                                    duplicate = true;
-                                }
-                                else{
-                                    duplicate = false;
+
+                    //Iterate over all iterators for each index file
+                    for(int i = 1; i < iter.length; i++){
+                        //Reset Loop condition
+                        common = false;
+                        //So Long as no common value has been Found
+                        //and there exists some next tuple in the list
+                        while(((temp2=iter[i].get_next())!= null) && !common){
+                            //If we have found a common tuple, end this loop iteration
+                            //via the loop condition
+                            if (temp == temp2){
+                                common = true;
+                                break;
+                            }
+                            //If tuples are not equal, and we have not
+                            //already encountered this tuple put in the oBuf
+                            //and store the tuple in a list of encountered tuples
+                            //for duplicate elimination
+                            else if(temp != temp2){
+                                common = false;
+                                while((dup = oBuf.Get()) != null){
+                                    if(dup == temp2){
+                                        duplicate = true;
+                                        break;
+                                    }
                                 }
                                 //Need to scan HeapFile
                                 if(oBuf.get_buf_status()){
@@ -165,15 +164,15 @@ public class BTreeSky extends Iterator{
                                     while(heap_dup = scd.getNext(heap_dup_rid) != null){
                                         if(heap_dup == temp2){
                                             duplicate = true;
-                                        }
-                                        else{
-                                            duplicate = false;
+                                            break;
                                         }
                                     }
+                                    scd.closescan()
                                 }
                             }
-                            tuplesEncountered.add(temp2);
-                            oBuf.Put(temp2);
+                            if(!duplicate){
+                                oBuf.Put(temp2);
+                            }
                         }
                     }
                     //If the Dominant Tuple has been found, store this tuple
