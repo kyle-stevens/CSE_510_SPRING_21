@@ -529,7 +529,9 @@ public class SortPref extends Iterator implements GlobalConst {
 			if (useBM) {
 				freePages(bufs_pids.length);
 			}
-
+			for(int i=0;i<i_buf.length;i++) {
+				i_buf[i].closeScan();
+			}
 			for (int i = 0; i < temp_files.length; i++) {
 				if (temp_files[i] != null) {
 					try {
