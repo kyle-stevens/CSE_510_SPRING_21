@@ -85,7 +85,8 @@ public class BTreeSky extends Iterator{
             Sprojection = new FldSpec[len_in1];
             //Initialize CondExpr array;
             cExpr = new CondExpr[len_in];
-
+            //Create iterator array
+            iter = new Iterator[len_in1];
             //Iterate over IndexFiles and create separate iterators and fldspecs
             for(int i=0; i<len_in1;i++){
                     Sprojection[i] = new FldSpec(new RelSpec(RelSpec.outer), i+1);
@@ -99,8 +100,6 @@ public class BTreeSky extends Iterator{
             _n_out_flds = pref_list_length;
             _proj_list = Sprojection;
             _outFilter = cExpr;
-            //Create iterator array
-            iter = new Iterator[len_in1];
             //Get Iterator for Heapfile
             fScan = new FileScan(_file_name, _in1, _s1_sizes, _len_in1, _n_out_flds, _proj_list, _outFilter);
             //Initialize BNLS object to use heapfile
