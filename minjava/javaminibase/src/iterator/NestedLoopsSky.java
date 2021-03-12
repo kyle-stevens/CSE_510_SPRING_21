@@ -24,7 +24,7 @@ public class NestedLoopsSky extends Iterator {
   private final int pref_list_length;
   private final int n_pages;
 
-  private boolean done, isDominated, skipInnerLoop;
+  private boolean isDone, isDominated, skipInnerLoop;
   private Tuple innerTuple;
   private final Heapfile hf, tempFile;
   private final OBuf dominatedTuples;
@@ -33,6 +33,8 @@ public class NestedLoopsSky extends Iterator {
   private final AttrType[] attrTypesRid;
 
   /**
+   *  constructor
+   *
    * @param in1              Array containing field types of R.
    * @param len_in1          # of columns in R.
    * @param t1_str_sizes     shows the length of the string fields.
@@ -58,7 +60,7 @@ public class NestedLoopsSky extends Iterator {
     outerLoopScanner = (FileScan) am1;
     this.t1_str_sizes = t1_str_sizes;
     innerTuple = new Tuple();
-    done = false;                       //Indicates the completion of skyline computation
+    isDone = false;                       //Indicates the completion of skyline computation
     isDominated = false;
     this.pref_list = pref_list;
     this.pref_list_length = pref_list_length;
@@ -110,7 +112,7 @@ public class NestedLoopsSky extends Iterator {
    */
   public Tuple get_next()
           throws NestedLoopException, Exception {
-    if (done)             //Stop computation
+    if (isDone)             //Stop computation
       return null;
 
     do {
@@ -133,11 +135,10 @@ public class NestedLoopsSky extends Iterator {
       }
 
       if (outerTuple == null) {               //When outer loop is done
-        done = true;
+        isDone = true;
 
         if (innerLoopScanner != null) {
           innerLoopScanner.closescan();
-          innerLoopScanner = null;
         }
 
         return null;
