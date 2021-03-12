@@ -8,6 +8,12 @@ import global.PageId;
 import heap.Heapfile;
 import heap.Tuple;
 
+/***
+ * 
+ * OBufSortSky::Represents the concept of window in skyline operators like BtreeSortedSky and SortFirstSky.
+ *
+ */
+
 public class OBufSortSky implements GlobalConst{
 	
 	private int t_per_pg, // # of tuples that fit in 1 page
@@ -19,13 +25,13 @@ public class OBufSortSky implements GlobalConst{
 	private int _n_pages; // number of pages in array
 	private int t_size; // Size of a tuple
 
-	private AttrType[] in1;
-	private short col_len;
-	private short[] str_sizes;
-	private int[] pref_list;
-	private int pref_list_length;
-	final private String curr_file = "curr_file";
-	private int number_of_window_file = 0;
+	private AttrType[] in1; // Attribute types of the tuple
+	private short col_len;	// No of columns in the tuple
+	private short[] str_sizes; // Sizes of strings in the tuple
+	private int[] pref_list;	// List of preference attributes
+	private int pref_list_length;	// number of preference attributes.
+	final private String curr_file = "curr_file";	//name of the heapfile(to which overflowed tuples get stored)
+	private int number_of_window_file = 0;	//Keep track of number of runs
 	private boolean flag = false;
 	
 	
@@ -49,6 +55,18 @@ public class OBufSortSky implements GlobalConst{
 		this.flag = flag;
 	}
 
+	
+	/***
+	 * Constructor to initialize necessary details
+	 * @param in1			Attribute types for given tuple
+	 * @param len_in1		Number of columns
+	 * @param t1_str_sizes	sizes of string in given tuple
+	 * @param buf			Buffer which will be used to implement the window of n_pages
+	 * @param pref_list		List of preference attributes
+	 * @param pref_list_length		numner of preference attributes
+	 * @param n_pages		Size of the buffer array which represents available pages in the main memory
+	 * @throws SortException
+	 */
 	public OBufSortSky(AttrType[] in1, short len_in1, short[] t1_str_sizes, byte[][] buf,
 			int[] pref_list, int pref_list_length, int n_pages) throws SortException{
 		
@@ -73,12 +91,23 @@ public class OBufSortSky implements GlobalConst{
 		init();
 	}
 
+	
+	/***
+	 * initializing attribute values
+	 */
 	public void init() {
 		t_wr_to_pg = 0;
 		t_wr_to_buf = 0;
 		curr_page = 0;
 	}
 	
+	
+	/***
+	 * checks if tuple can be in the skyline or not by comparing it to each of the tuple in the buffer
+	 * @param t tuple which needs to be checked
+	 * @return	true if tuple can be in the skyline, false otherwise.
+	 * @throws Exception
+	 */
 	public boolean checkIfSky(Tuple t) throws Exception {
 
 		for (int count = 0; count <= curr_page; count++) {
@@ -102,6 +131,14 @@ public class OBufSortSky implements GlobalConst{
 		return true;
 	}
 
+	
+	/***
+	 * inserts a tuple into a buffer, if buffer is full, inserts the tuple into a heapfile
+	 * @param buf tuple which needs to be inserted in the buffer
+	 * @return	copy of the tuple after inserting it. 
+	 * @throws IOException
+	 * @throws Exception
+	 */
 	public Tuple Put(Tuple buf) throws IOException, Exception {
 
 		
@@ -115,19 +152,13 @@ public class OBufSortSky implements GlobalConst{
 			flag = true;
 			return buf;
 		}
-		System.out.println(_bufs[curr_page]+" "+copybuf);
 		System.arraycopy(copybuf, 0, _bufs[curr_page], t_wr_to_pg * t_size, t_size);
 		Tuple tuple_ptr = new Tuple(_bufs[curr_page], t_wr_to_pg * t_size, t_size);
 		tuple_ptr.setHdr(col_len, in1, str_sizes);
 		t_wr_to_pg++;
 		t_wr_to_buf++;
 
-		if (t_wr_to_buf == t_in_buf) // Buffer full?
-		{
-			Heapfile f = new Heapfile(curr_file + number_of_window_file);
-			f.insertRecord(copybuf);
-			flag = true;
-		} else if (t_wr_to_pg == t_per_pg) {
+		if (t_wr_to_pg == t_per_pg) {
 			t_wr_to_pg = 0;
 			curr_page++;
 		}

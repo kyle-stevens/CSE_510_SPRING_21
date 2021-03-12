@@ -63,21 +63,27 @@ public class pnodeSplayPQ extends pnodePQ
 		super.str_sizes = str_sizes;
 	}
 
+  /***
+	 * Inserts pNode into a binary tree according to skyline comparePrefSum function
+	 * @param item element which needs to be inserted
+	 * @throws Exception 
+	 */
 	public void enqPref(pnode item) throws Exception {
 		count++;
 		pnodeSplayNode newnode = new pnodeSplayNode(item);
 		pnodeSplayNode t = root;
 
 		if (t == null) {
-			root = newnode;
+			root = newnode;	//Tree is empty so this node becomes root
 			return;
 		}
 
 
 		boolean done = false;
 
+		//Inserts node at leaf level with correct ordering
 		while (!done) {
-			int comp = pnodeCMPPref(item, t.item);
+			int comp = pnodeCMPPref(item, t.item);	
 			if ((sort_order.tupleOrder == TupleOrder.Ascending && comp < 0)
 					|| (sort_order.tupleOrder == TupleOrder.Descending && comp > 0)) {
 				if (t.lt == null) {
@@ -97,6 +103,8 @@ public class pnodeSplayPQ extends pnodePQ
 		}
 
 	}
+	
+	
   /**
    * Inserts an element into the binary tree.
    * @param item the element to be inserted
@@ -236,7 +244,12 @@ public class pnodeSplayPQ extends pnodePQ
     } 
   }
   
-  public pnode deqPref() {
+  /**
+	 * Removes the minimum (Ascending) or maximum (Descending) element.
+	 * 
+	 * @return the element removed
+	 */
+	public pnode deqPref() {
 		if (root == null)
 			return null;
 
