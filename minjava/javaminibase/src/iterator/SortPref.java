@@ -62,7 +62,7 @@ public class SortPref extends Iterator implements GlobalConst {
 	 */
 	public SortPref(AttrType[] in, short len_in, short[] str_sizes, Iterator am, TupleOrder sort_order,
 			int[] pref_list, int pref_list_len, int n_pages) throws UnknowAttrType, TupleUtilsException, JoinsException, IOException, Exception {
-
+		if(n_pages<3) throw new Exception("Not enough pages to sort the data.");
 		n_cols = len_in;
 		this.pref_list = pref_list;
 		this.pref_list_len = pref_list_len;
@@ -98,11 +98,12 @@ public class SortPref extends Iterator implements GlobalConst {
 		} catch (Exception e) {
 			throw new SortException(e, "Sort.java: Heapfile error");
 		}
+		_n_pages-=2;
+		getBufferPages(_n_pages);
 		
-		getBufferPages(_n_pages-2);
 		o_buf = new OBuf(); // Creating the OBuf object which helps uitilizing the buffer and writing tuples to heap file.
 
-		o_buf.init(bufs, _n_pages-2, tuple_size, temp_files[0], false);
+		o_buf.init(bufs, _n_pages, tuple_size, temp_files[0], false);
 
 		//No of maximum elements the are allowed inside a heap at a time
 		max_elems_in_heap = 200;
@@ -119,15 +120,17 @@ public class SortPref extends Iterator implements GlobalConst {
 		}
 		// generate runs
 		Nruns = generate_runs(max_elems_in_heap);
+
+		freePages(_n_pages);
+		_n_pages = (_n_pages+2)/3;
 		//Now, we know how many runs will be needed to do the sorting, so assign pages to the buffer accordingly
-		if(Nruns>((_n_pages)/3)) {
+		if(Nruns>(_n_pages)) {
 			System.out.println("Required Pages: "+(Nruns*3)+" Available pages: "+(_n_pages));
 			throw new LowMemException("Sort.java: Not enough memory to sort in two passes.");
 		}
 		
-		freePages(_n_pages-2);
 		
-		getBufferPages((_n_pages)/3);
+		getBufferPages(_n_pages);
 		// setup state to perform merge of runs.
 		// Open input buffers for all the input file
 		setup_for_merge(tuple_size, Nruns);

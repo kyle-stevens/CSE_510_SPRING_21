@@ -34,7 +34,7 @@ public class Client {
 	static AttrType[] _in;
 	static FldSpec[] projection;
 	static final String relationName = "relation_name.in";
-	
+	public static boolean flag = false;
 	public static void main(String args[]) {
 		Scanner in = new Scanner(System.in);
 		try {
@@ -49,35 +49,29 @@ public class Client {
 			
 			System.out.println("performBlockNestedSky START::");
 			setupDB();
-			printDiskAccesses();
 			try {
 				performBlockNestedSky(_in, new short[1], projection, pref_list, pref_list_length, relationName, n_pages);
 			}catch(Exception e) {
 				e.printStackTrace();
 			}
-			printDiskAccesses();
 			System.out.println("performBlockNestedSky END::");
 			
 			System.out.println("performSortedSky START::");
 			setupDB();
-			printDiskAccesses();
 			try {
 				performSortedSky(_in, new short[1], projection, pref_list, pref_list_length, relationName, n_pages);
 			}catch(Exception e) {
 				e.printStackTrace();
 			}
-			printDiskAccesses();
 			System.out.println("performSortedSky END::");
 			
 			System.out.println("performBtreeSortedSky START::");
 			setupDB();
-			printDiskAccesses();
 			try {
 				performBtreeSortedSky(_in, new short[1], projection, pref_list, pref_list_length, relationName, n_pages);
 			}catch(Exception e) {
 				e.printStackTrace();
 			}
-			printDiskAccesses();
 			System.out.println("performBtreeSortedSky END::");
 			
 			
@@ -86,7 +80,6 @@ public class Client {
 		}
 		in.close();
 	}
-	
 	static void setupDB() throws NumberFormatException, IOException, FieldNumberOutOfBoundException {
 		String dbpath = "/tmp/"+System.getProperty("user.name")+".minibase.skylineDB"; 
 	    String logpath = "/tmp/"+System.getProperty("user.name")+".skylog";
@@ -105,9 +98,9 @@ public class Client {
 	      System.err.println (""+e);
 	    }
 
-	    new SystemDefs( dbpath, 100000, 500, "Clock" );
+	    new SystemDefs( dbpath, 100000, n_pages, "Clock" );
 	    
-	    File file = new File("/afs/asu.edu/users/j/t/r/jtrada/data.txt");
+	    File file = new File("/afs/asu.edu/users/j/t/r/jtrada/data2.txt");
 		BufferedReader br = new BufferedReader(new FileReader(file));
 		int numberOfCols = Integer.parseInt(br.readLine().trim());
 
@@ -149,7 +142,6 @@ public class Client {
 			System.err.println("*** error in Tuple.setHdr() ***");
 			e.printStackTrace();
 		}
-		
 		while ((str = br.readLine()) != null) {
 			String attrs[] = str.split("\\t");
 			
@@ -158,6 +150,7 @@ public class Client {
 			
 			for (String attr : attrs) {
 				attr = attr.trim();
+				if(attr.equals("")) continue;
 				t.setFloFld(k++, Float.parseFloat(attr));
 			}
 			try {
@@ -180,8 +173,9 @@ public class Client {
 		    	e.printStackTrace();
 		    }
 		    BlockNestedLoopSky sky2 = null;
+		    PCounter.initialize();
 		    try {
-
+		    	//flag = true;
 		        sky2 = new BlockNestedLoopSky(in, in.length, Ssizes,
 		                am2, relationName, pref_list, pref_list_length, n_pages);
 		        System.out.println("**************************************************");
@@ -196,8 +190,8 @@ public class Client {
 		          System.out.println("\n************* SKYLINE BATCH " + batch + " ***************\n");
 		          for (int i = 0; i < skyline.size(); i++) {
 //		            System.out.print((i + 1) + ". ");
-//		            skyline.get(i).print(in);
-		        	  System.out.println(TupleUtils.getPrefAttrSum(skyline.get(i), in, (short) in.length, pref_list, pref_list_length));
+		            skyline.get(i).print(in);
+//		        	  System.out.println(TupleUtils.getPrefAttrSum(skyline.get(i), in, (short) in.length, pref_list, pref_list_length));
 						
 		          }
 		          batch++;
@@ -205,13 +199,15 @@ public class Client {
 		      } catch (Exception e) {
 		        e.printStackTrace();
 		      }
+		    printDiskAccesses();
 	}
 	static void performBtreeSortedSky(AttrType[] in, short[] Ssizes, FldSpec[] projection,int[] pref_list,int pref_list_length,
 			String relationName, int n_pages) throws Exception {
+		if(n_pages<6)throw new Exception("Not enough pages to create index");
 	     // create the index file
 		 BTreeFile btf = null;
 	     try {
-	       btf = new BTreeFile("BTreeIndex", AttrType.attrReal, 4, 1); 
+	      btf = new BTreeFile("BTreeIndex", AttrType.attrReal, 4, 1); 
 	     }
 	     catch (Exception e) {
 	       e.printStackTrace();
@@ -222,7 +218,6 @@ public class Client {
 	     float key = 0;
 	     Tuple temp = null;
 	     Scan scan = new Scan(new Heapfile(relationName));
-	     
 	     try {
 	       temp = scan.getNext(rid);
 	     }
@@ -246,7 +241,6 @@ public class Client {
 	     catch (Exception e) {
 	       e.printStackTrace();
 	     }
-	     
 	     while ( temp != null) {
 	       
 	       try {
@@ -274,16 +268,14 @@ public class Client {
 	 	e.printStackTrace();
 	       }
 	     }
-	     
 	     // close the file scan
 	     scan.closescan();
+	     PCounter.initialize();
 	    Iterator sc = new BTreeSortedSky(in, (short)in.length, Ssizes, null, 
-	    	    		relationName, pref_list, pref_list_length,"BTreeIndex", n_pages);
-	    
-	     Tuple t1 = null;
+	    	    		relationName, pref_list, pref_list_length,"BTreeIndex", n_pages-1);
+	    Tuple t1 = null;
 		try {
 			while ((t1 = sc.get_next()) != null) {
-//				System.out.println(TupleUtils.getPrefAttrSum(t1, in, (short) in.length, pref_list, pref_list_length));
 				t1.print(in);
 			}
 		} catch (Exception e) {
@@ -291,25 +283,25 @@ public class Client {
 		} finally {
 			sc.close();
 		}
+		printDiskAccesses();
 	}
 	static void performSortedSky(AttrType[] in, short[] Ssizes, FldSpec[] projection,int[] pref_list,int pref_list_length,
 			String relationName, int n_pages) throws Exception {
 		
 		Iterator am1 = new FileScan(relationName, in, Ssizes, (short) in.length, in.length, projection, null);
-		Iterator sc = new SortFirstSky(in, (short) in.length, Ssizes, am1, relationName, pref_list, pref_list_length, n_pages);
-
+		PCounter.initialize();
+		Iterator sc = new SortFirstSky(in, (short) in.length, Ssizes, am1, relationName, pref_list, pref_list_length, n_pages-2);
 		Tuple t1 = null;
 		try {
 			while ((t1 = sc.get_next()) != null) {
-				System.out.println(TupleUtils.getPrefAttrSum(t1, in, (short) in.length, pref_list, pref_list_length));
 				t1.print(in);
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
 		} finally {
-			am1.close();
 			sc.close();
 		}
+		printDiskAccesses();
 	}
 	
 	static void printDiskAccesses() {
