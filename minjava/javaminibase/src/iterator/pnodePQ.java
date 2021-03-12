@@ -31,6 +31,7 @@ public abstract class pnodePQ
   protected short[] str_sizes;
   protected int[] pref_list;
   protected int pref_list_length;
+
   /**
    * class constructor, set <code>count</code> to <code>0</code>.
    */
@@ -87,10 +88,18 @@ public abstract class pnodePQ
   }
   
   
+  /***
+   * compares two pnodes based on the sum of their preference attributes.
+   * @param a first node with tuple as data
+   * @param b second node with tuple as data
+   * @return 1 if t1>t2, -1 if t2>t1, 0 otherwise.
+   * @throws Exception
+   */
   public int pnodeCMPPref(pnode a, pnode b) 
 	         throws Exception {
 	    return TupleUtils.CompareTupleWithTuplePref(a.tuple, type, b.tuple, type, len_in, str_sizes, pref_list, pref_list_length);
 	  }
+
   /**
    * tests whether the two elements are equal.
    * @param a one of the element for comparison

@@ -9,6 +9,11 @@ import global.TupleOrder;
 import heap.Heapfile;
 import heap.Tuple;
 
+
+/***
+ * SortPref::This class sorts the tuples with respect to the sum of their preference attributes.
+ * Used for computing the skyline attributes.
+ */
 public class SortPref extends Iterator implements GlobalConst {
 	private static final int ARBIT_RUNS = 10;
 
@@ -39,9 +44,24 @@ public class SortPref extends Iterator implements GlobalConst {
 	private int[] pref_list;
 	private int pref_list_len;
 	
-	
+	/***
+	 * Constructor to initialize the necessary details.
+	 * @param in Attribute types of tuple t1
+	 * @param len_in number of columns in both the tuple
+	 * @param str_sizes sizes of strings types in the tuples
+	 * @param am iterator on the file which needs to be sorted.
+	 * @param sort_order specify if ascending or descending
+	 * @param pref_list preference attributes list
+	 * @param pref_list_length length of the preference list.
+	 * @param n_pages number of pages available for sorting.
+	 * @throws Exception 
+	 * @throws IOException 
+	 * @throws JoinsException 
+	 * @throws TupleUtilsException 
+	 * @throws UnknowAttrType 
+	 */
 	public SortPref(AttrType[] in, short len_in, short[] str_sizes, Iterator am, TupleOrder sort_order,
-			int[] pref_list, int pref_list_len, int n_pages) throws Exception{
+			int[] pref_list, int pref_list_len, int n_pages) throws UnknowAttrType, TupleUtilsException, JoinsException, IOException, Exception {
 
 		n_cols = len_in;
 		this.pref_list = pref_list;
@@ -53,7 +73,7 @@ public class SortPref extends Iterator implements GlobalConst {
 		str_lens = str_sizes.clone();
 
 
-		Tuple t = new Tuple(); // need Tuple.java
+		Tuple t = new Tuple();
 		try {
 			t.setHdr(len_in, _in, str_sizes);
 		} catch (Exception e) {
@@ -62,53 +82,71 @@ public class SortPref extends Iterator implements GlobalConst {
 		tuple_size = t.size();
 
 
-		// this may need change, bufs ??? need io_bufs.java
-		// bufs = get_buffer_pages(_n_pages, bufs_pids, bufs);
-		bufs_pids = new PageId[_n_pages];
-		bufs = new byte[_n_pages][];
-
-		if (useBM) {
-			try {
-				get_buffer_pages(_n_pages, bufs_pids, bufs);
-			} catch (Exception e) {
-				throw new SortException(e, "Sort.java: BUFmgr error");
-			}
-		} else {
-			for (int k = 0; k < _n_pages; k++)
-				bufs[k] = new byte[MAX_SPACE];
-		}
+		
+		
 
 		first_time = true;
 
-		// as a heuristic, we set the number of runs to an arbitrary value
-		// of ARBIT_RUNS
+		//Initial arbitrary number of runs, which can be updated in later stages according to the data
 		temp_files = new Heapfile[ARBIT_RUNS];
 		n_tempfiles = ARBIT_RUNS;
 		n_tuples = new int[ARBIT_RUNS];
 		n_runs = ARBIT_RUNS;
 
 		try {
-			temp_files[0] = new Heapfile(null);
+			temp_files[0] = new Heapfile(null);	// heapfile to store the tuples of specific run
 		} catch (Exception e) {
 			throw new SortException(e, "Sort.java: Heapfile error");
 		}
+		
+		getBufferPages(_n_pages-2);
+		o_buf = new OBuf(); // Creating the OBuf object which helps uitilizing the buffer and writing tuples to heap file.
 
-		o_buf = new OBuf();
+		o_buf.init(bufs, _n_pages-2, tuple_size, temp_files[0], false);
 
-		o_buf.init(bufs, _n_pages, tuple_size, temp_files[0], false);
-		// output_tuple = null;
-
+		//No of maximum elements the are allowed inside a heap at a time
 		max_elems_in_heap = 200;
 
-		Q = new pnodeSplayPQ(order,this.pref_list,this.pref_list_len,_in,n_cols,str_lens);
+		//Creating a priority queue which helps in generating 
+		Q = new pnodeSplayPQ(order,this.pref_list,this.pref_list_len,_in,n_cols,str_lens); 
 
-		op_buf = new Tuple(tuple_size); // need Tuple.java
+		
+		op_buf = new Tuple(tuple_size);
 		try {
-			op_buf.setHdr(n_cols, _in, str_lens);
+			op_buf.setHdr(n_cols, _in, str_lens); 
 		} catch (Exception e) {
 			throw new SortException(e, "Sort.java: op_buf.setHdr() failed");
 		}
+		// generate runs
+		Nruns = generate_runs(max_elems_in_heap);
+		//Now, we know how many runs will be needed to do the sorting, so assign pages to the buffer accordingly
+		if(Nruns>((_n_pages)/3)) {
+			System.out.println("Required Pages: "+(Nruns*3)+" Available pages: "+(_n_pages));
+			throw new LowMemException("Sort.java: Not enough memory to sort in two passes.");
+		}
+		
+		freePages(_n_pages-2);
+		
+		getBufferPages((_n_pages)/3);
+		// setup state to perform merge of runs.
+		// Open input buffers for all the input file
+		setup_for_merge(tuple_size, Nruns);
+	}
 	
+	/***
+	 * Allocates the pages from main buffer
+	 * @param _n_pages
+	 * @throws SortException
+	 */
+	private void getBufferPages(int _n_pages) throws SortException {
+		try {
+			bufs_pids = new PageId[_n_pages]; // keep track of the page Ids of pages inside the buffer
+			bufs = new byte[_n_pages][];	// buffer of size n_pages
+			get_buffer_pages(_n_pages, bufs_pids, bufs); // getting the buffer pages from bufferManager
+		} catch (Exception e) {
+			throw new SortException(e, "Sort.java: BUFmgr error");
+		}
+
 	}
 	/**
 	 * Generate sorted runs. Using heap sort.
@@ -133,11 +171,10 @@ public class SortPref extends Iterator implements GlobalConst {
 		int run_num = 0; // keeps track of the number of runs
 
 		// number of elements in Q
-		// int nelems_Q1 = 0;
-		// int nelems_Q2 = 0;
 		int p_elems_curr_Q = 0;
 		int p_elems_other_Q = 0;
 
+		
 		int comp_res;
 
 		// set the lastElem to be the minimum value for the sort field
@@ -148,7 +185,7 @@ public class SortPref extends Iterator implements GlobalConst {
 		// maintain a fixed maximum number of elements in the heap
 		while ( p_elems_curr_Q  < max_elems) {
 			try {
-				tuple = _am.get_next(); // according to Iterator.java
+				tuple = _am.get_next();
 			} catch (Exception e) {
 				e.printStackTrace();
 				throw new SortException(e, "Sort.java: get_next() failed");
@@ -166,7 +203,7 @@ public class SortPref extends Iterator implements GlobalConst {
 
 		// now the queue is full, starting writing to file while keep trying
 		// to add new tuples to the queue. The ones that does not fit are put
-		// on the other queue temperarily
+		// on the other queue temporarily
 		while (true) {
 			cur_node = pcurr_Q.deqPref();
 			if (cur_node == null)
@@ -270,7 +307,7 @@ public class SortPref extends Iterator implements GlobalConst {
 
 			// Check if we are done
 			if (p_elems_curr_Q == 0) {
-				// current queue empty despite our attemps to fill in
+				// current queue empty despite our attempts to fill in
 				// indicating no more tuples from input
 				if (p_elems_other_Q == 0) {
 					// other queue is also empty, no more tuples to write out, done
@@ -278,7 +315,7 @@ public class SortPref extends Iterator implements GlobalConst {
 				} else {
 					// generate one more run for all tuples in the other queue
 					// close current run and start next run
-					n_tuples[run_num] = (int) o_buf.flush(); // need io_bufs.java
+					n_tuples[run_num] = (int) o_buf.flush(); 
 					run_num++;
 
 					// check to see whether need to expand the array
@@ -304,7 +341,6 @@ public class SortPref extends Iterator implements GlobalConst {
 						throw new SortException(e, "Sort.java: create Heapfile failed");
 					}
 
-					// need io_bufs.java
 					o_buf.init(bufs, _n_pages, tuple_size, temp_files[run_num], false);
 
 					// set the last Elem to be the minimum value for the sort field
@@ -346,20 +382,16 @@ public class SortPref extends Iterator implements GlobalConst {
 	 */
 	private void setup_for_merge(int tuple_size, int n_R_runs)
 			throws IOException, LowMemException, SortException, Exception {
-		// don't know what will happen if n_R_runs > _n_pages
-		if (n_R_runs > _n_pages)
-			throw new LowMemException("Sort.java: Not enough memory to sort in two passes.");
+	
 
 		int i;
-		pnode cur_node; // need pq_defs.java
+		pnode cur_node; 
 
-		i_buf = new SpoofIbuf[n_R_runs]; // need io_bufs.java
+		i_buf = new SpoofIbuf[n_R_runs];
 		for (int j = 0; j < n_R_runs; j++)
 			i_buf[j] = new SpoofIbuf();
 
-		// construct the lists, ignore TEST for now
-		// this is a patch, I am not sure whether it works well -- bingjie 4/20/98
-
+		//Enqueuing first tuple of all the runs into a priority queue to prepare them for sorted access
 		for (i = 0; i < n_R_runs; i++) {
 			byte[][] apage = new byte[1][];
 			apage[0] = bufs[i];
@@ -370,8 +402,7 @@ public class SortPref extends Iterator implements GlobalConst {
 			cur_node = new pnode();
 			cur_node.run_num = i;
 
-			// may need change depending on whether Get() returns the original
-			// or make a copy of the tuple, need io_bufs.java ???
+			
 			Tuple temp_tuple = new Tuple(tuple_size);
 
 			try {
@@ -380,14 +411,13 @@ public class SortPref extends Iterator implements GlobalConst {
 				throw new SortException(e, "Sort.java: Tuple.setHdr() failed");
 			}
 
-			temp_tuple = i_buf[i].Get(temp_tuple); // need io_bufs.java
+			temp_tuple = i_buf[i].Get(temp_tuple);
 
 			if (temp_tuple != null) {
-				/*
-				 * System.out.print("Get tuple from run " + i); temp_tuple.print(_in);
-				 */
-				cur_node.tuple = temp_tuple; // no copy needed
+				
+				cur_node.tuple = temp_tuple; 
 				try {
+					
 					Q.enqPref(cur_node);
 				} catch (UnknowAttrType e) {
 					throw new SortException(e, "Sort.java: UnknowAttrType caught from Q.enqPref()");
@@ -412,14 +442,13 @@ public class SortPref extends Iterator implements GlobalConst {
 
 		cur_node = Q.deqPref();
 		old_tuple = cur_node.tuple;
-		/*
-		 * System.out.print("Get "); old_tuple.print(_in);
-		 */
+		
+		
 		// we just removed one tuple from one run, now we need to put another
 		// tuple of the same run into the queue
 		if (i_buf[cur_node.run_num].empty() != true) {
 			// run not exhausted
-			new_tuple = new Tuple(tuple_size); // need tuple.java??
+			new_tuple = new Tuple(tuple_size);
 
 			try {
 				new_tuple.setHdr(n_cols, _in, str_lens);
@@ -443,7 +472,6 @@ public class SortPref extends Iterator implements GlobalConst {
 
 		}
 
-		// changed to return Tuple instead of return char array ????
 		return old_tuple;
 	}
 	
@@ -465,18 +493,7 @@ public class SortPref extends Iterator implements GlobalConst {
 	@Override
 	public Tuple get_next()
 			throws IOException, SortException, UnknowAttrType, LowMemException, JoinsException, Exception {
-		if (first_time) {
-			// first get_next call to the sort routine
-			first_time = false;
-
-			// generate runs
-			Nruns = generate_runs(max_elems_in_heap);
-			// System.out.println("Generated " + Nruns + " runs");
-
-			// setup state to perform merge of runs.
-			// Open input buffers for all the input file
-			setup_for_merge(tuple_size, Nruns);
-		}
+		
 
 		if (Q.empty()) {
 			// no more tuples availble
@@ -510,13 +527,7 @@ public class SortPref extends Iterator implements GlobalConst {
 			}
 
 			if (useBM) {
-				try {
-					free_buffer_pages(_n_pages, bufs_pids);
-				} catch (Exception e) {
-					throw new SortException(e, "Sort.java: BUFmgr error");
-				}
-				for (int i = 0; i < _n_pages; i++)
-					bufs_pids[i].pid = INVALID_PAGE;
+				freePages(bufs_pids.length);
 			}
 
 			for (int i = 0; i < temp_files.length; i++) {
@@ -532,5 +543,17 @@ public class SortPref extends Iterator implements GlobalConst {
 			closeFlag = true;
 		}
 	}
-
+	
+	/***
+	 * Free the buffer pages
+	 */
+	private void freePages(int _n_pages) {
+		try {
+			free_buffer_pages(_n_pages, bufs_pids);
+		} catch (Exception e) {
+			System.out.println("Failed to free pages");
+		}
+		for (int i = 0; i < _n_pages; i++)
+			bufs_pids[i].pid = INVALID_PAGE;
+	}
 }

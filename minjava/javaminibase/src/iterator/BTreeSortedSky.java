@@ -14,6 +14,11 @@ import index.IndexException;
 import index.IndexScan;
 import index.UnknownIndexTypeException;
 
+/***
+ * BTreeSortedSky::Performs the skyline operation on a combined index file
+ * and returns the result.
+ *
+ */
 public class BTreeSortedSky extends Iterator {
 
 	
@@ -27,11 +32,29 @@ public class BTreeSortedSky extends Iterator {
 	private PageId[] bufs_pids;
 	private byte[][] _bufs;
 
-
+	/***
+	 * Constructor to initialize necessary details.
+	 * @param in1	
+	 * @param len_in1
+	 * @param t1_str_sizes
+	 * @param am1
+	 * @param relationName
+	 * @param pref_list
+	 * @param pref_list_length
+	 * @param index_file
+	 * @param n_pages
+	 * @throws IndexException
+	 * @throws InvalidTypeException
+	 * @throws InvalidTupleSizeException
+	 * @throws UnknownIndexTypeException
+	 * @throws IOException
+	 * @throws SortException
+	 * @throws IteratorBMException
+	 */
 	public BTreeSortedSky(AttrType[] in1, short len_in1, short[] t1_str_sizes, Iterator am1, String relationName,
 			int[] pref_list, int pref_list_length, String index_file, int n_pages) throws IndexException,
 			InvalidTypeException, InvalidTupleSizeException, UnknownIndexTypeException, IOException, SortException, IteratorBMException {
-
+		n_pages-=4; //reserving 2 pages for file scan and 2 pages for getting record from indexscan and creating new heap files
 		this.in1 = in1;
 		col_len = len_in1;
 		str_sizes = t1_str_sizes;

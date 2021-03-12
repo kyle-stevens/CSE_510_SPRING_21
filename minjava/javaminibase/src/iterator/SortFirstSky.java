@@ -29,6 +29,9 @@ public class SortFirstSky extends Iterator {
 			Iterator am1, String
 			relationName, int[] pref_list, int pref_list_length,
 			int n_pages) throws Exception{
+		
+		if(n_pages<2) throw new Exception("Not enough pages to run sortFirstSky");
+		
 		this.in1 = in1;
 		col_len = len_in1;
 		str_sizes = t1_str_sizes;
@@ -39,9 +42,10 @@ public class SortFirstSky extends Iterator {
 		for (int i = 0; i < len_in1; i++) {
 			Sprojection[i] = new FldSpec(new RelSpec(RelSpec.outer), i + 1);
 		}
-		bufs_pids = new PageId[n_pages];
 		
-		spScan = new SortPref(in1, (short)len_in1, t1_str_sizes, _am1, new TupleOrder(TupleOrder.Descending), pref_list, pref_list_length, n_pages);
+		spScan = new SortPref(in1, (short)len_in1, t1_str_sizes, _am1, new TupleOrder(TupleOrder.Descending), pref_list, pref_list_length, n_pages-1);
+		n_pages=1;
+		bufs_pids = new PageId[n_pages];
 		_bufs = new byte[n_pages][];
 		try {
 			get_buffer_pages(n_pages, bufs_pids, _bufs);

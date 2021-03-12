@@ -394,6 +394,21 @@ public class TupleUtils
       } 
       return res_str_sizes;
     }
+  
+  
+  /***
+   * This method checks if tuple t1 dominates tuple t2
+   * @param t1 tuple to check if it dominates
+   * @param type1 Attribute types of tuple t2
+   * @param t2 tuple to check it it gets dominated by tuple t1
+   * @param type2 Attribute types of tuple t1
+   * @param len_in number of columns in both the tuple
+   * @param str_sizes sizes of strings types in the tuples
+   * @param pref_list preference attributes list
+   * @param pref_list_length length of the preference list.
+   * @return true if t1 dominates t2, false otherwise
+   * @throws Exception if field no is not in range or attribute type is other than int, float and string
+   */
   public static boolean Dominates(Tuple t1, AttrType[] type1, Tuple t2, AttrType[] type2, short len_in,
 			short[] str_sizes, int[] pref_list, int pref_list_length) throws Exception {
     
@@ -426,7 +441,7 @@ public class TupleUtils
 				}else if(t1fldStr.compareTo(t2fldStr)==0)count++;
 				break;
 			default:
-				throw new UnknowAttrType("Sort.java: don't know how to handle attrSymbol, attrNull, attrString");
+				throw new UnknowAttrType("Sort.java: don't know how to handle attrSymbol, attrNull");
 			}
 		}
 		if(count==pref_list_length) {
@@ -435,6 +450,20 @@ public class TupleUtils
 		return true;
 	}
 
+  
+  /***
+   * This method compares the sum of the values of pref attributes of tuple t1 and tuple t2
+   * @param t1 first tuple
+   * @param type1 Attribute types of tuple t2
+   * @param t2 second tuple
+   * @param type2 Attribute types of tuple t1
+   * @param len_in number of columns in both the tuple
+   * @param str_sizes sizes of strings types in the tuples
+   * @param pref_list preference attributes list
+   * @param pref_list_length length of the preference list.
+   * @return 1 if t1>t2, -1 if t2>t1, 0 otherwise.
+   * @throws Exception if field no is not in range or attribute type is other than int, float and string
+   */
 	public static int CompareTupleWithTuplePref(Tuple t1, AttrType[] type1, Tuple t2, AttrType[] type2, short len_in,
 			short[] str_sizes, int[] pref_list, int pref_list_length) throws Exception {
 		double sum_t1 = 0;
@@ -470,6 +499,18 @@ public class TupleUtils
 		return -1;
 	}
 
+	
+	/***
+	 * This method compares sum of the values of preferece attributes of tuple t1 and the sum provided in the parameters.
+	 * @param sum the sum to compare with
+	 * @param t1 tuple t1 whose sum needs to be compared.
+	 * @param type1 attribute types of tuple t1
+	 * @param len_in no of columns in tuple t1
+	 * @param pref_list preference attributes list
+	 * @param pref_list_length length of the preference list.
+	 * @return 1 if sum>sum(t1), -1 if sum(t1)>sum, 0 otherwise.
+	 * @throws Exception if field no is not in range or attribute type is other than int, float and string
+	 */
 	public static int CompareTupleWithValuePref(double sum, Tuple t1, AttrType[] type1, short len_in, int[] pref_list,
 			int pref_list_length) throws Exception {
 		double sum_t1 = 0;
@@ -500,6 +541,17 @@ public class TupleUtils
 		return -1;
 	}
 	
+	
+	/***
+	 * this method return the sum of the preference attributes for given tuple
+	 * @param t1 tuple whose sum needs to be return
+	 * @param type1 attribute types of tuple t1
+	 * @param len_in no of columns in tuple t1
+	 * @param pref_list preference attributes list
+	 * @param pref_list_length length of the preference list.
+	 * @return the sum of the preference attributes for tuple t1
+	 * @throws Exception if field no is not in range or attribute type is other than int, float and string
+	 */
 	public static double getPrefAttrSum(Tuple t1, AttrType[] type1, short len_in, int[] pref_list,
 			int pref_list_length) throws Exception {
 		double sum_t1 = 0;
