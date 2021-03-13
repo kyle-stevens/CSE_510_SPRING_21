@@ -982,6 +982,7 @@ class DBHeaderPage implements PageUsedBytes, GlobalConst {
 
     int position = START_FILE_ENTRIES + entryNo * SIZE_OF_FILE_ENTRY;
     pageNo.pid = Convert.getIntValue (position, data);
+    if(pageNo.pid==-1) return "";
     return (Convert.getStrValue (position+4, data, MAX_NAME + 2));
   }
 
