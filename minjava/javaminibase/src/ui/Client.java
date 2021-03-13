@@ -17,14 +17,7 @@ import heap.FieldNumberOutOfBoundException;
 import heap.Heapfile;
 import heap.Scan;
 import heap.Tuple;
-import iterator.BTreeSortedSky;
-import iterator.BlockNestedLoopSky;
-import iterator.FileScan;
-import iterator.FldSpec;
-import iterator.Iterator;
-import iterator.RelSpec;
-import iterator.SortFirstSky;
-import iterator.TupleUtils;
+import iterator.*;
 
 public class Client {
 
@@ -45,8 +38,25 @@ public class Client {
 			System.out.println("Please enter numbers of columns, starting from 1 and separated by space, that could be used as preference list: ");
 			pref_list= new int[pref_list_length];
 			for(int i=0;i<pref_list_length;i++)pref_list[i] = in.nextInt();
-			
-			
+
+			System.out.println("performNestedLoopSkyNaive START::");
+			setupDB();
+			try {
+				performNestedLoopsSkyNaive(_in, new short[1], projection, pref_list, pref_list_length, relationName, n_pages);
+			}catch(Exception e) {
+				e.printStackTrace();
+			}
+			System.out.println("performNestedLoopSkyNaive END::");
+
+			System.out.println("performNestedLoopSky START::");
+			setupDB();
+			try {
+				performNestedLoopsSky(_in, new short[1], projection, pref_list, pref_list_length, relationName, n_pages);
+			}catch(Exception e) {
+				e.printStackTrace();
+			}
+			System.out.println("performNestedLoopSky END::");
+
 			System.out.println("performBlockNestedSky START::");
 			setupDB();
 			try {
@@ -100,7 +110,7 @@ public class Client {
 
 	    new SystemDefs( dbpath, 100000, n_pages, "Clock" );
 	    
-	    File file = new File("/afs/asu.edu/users/j/t/r/jtrada/data2.txt");
+	    File file = new File("/afs/asu.edu/users/s/p/a/spatil23/CSE510/data.txt");
 		BufferedReader br = new BufferedReader(new FileReader(file));
 		int numberOfCols = Integer.parseInt(br.readLine().trim());
 
@@ -161,6 +171,76 @@ public class Client {
 			}
 		}
 		br.close();
+	}
+	static void performNestedLoopsSkyNaive(AttrType[] in, short[] Ssizes, FldSpec[] projection,int[] pref_list,int pref_list_length,
+																				 String relationName, int n_pages) {
+		FileScan nlScan = null;
+		try {
+			nlScan = new FileScan(relationName, in, Ssizes,
+							(short) in.length, (short) in.length,
+							projection, null);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		PCounter.initialize();
+		try {
+			//n_pages - 2 : since FileScan (nlScan) will use 2 buffer pages
+			NestedLoopsSkyNaive nlSky = new NestedLoopsSkyNaive(in, in.length, Ssizes,
+							nlScan, relationName, pref_list, pref_list_length, n_pages-2);
+			System.out.println("**************************************************");
+			System.out.println("\t NESTED LOOP SKYLINE (Naive approach) ");
+			System.out.println("**************************************************");
+
+			Tuple nestedLoopSkyline;
+			int tuple_count = 0;
+			while ((nestedLoopSkyline = nlSky.get_next()) != null) {
+				System.out.println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+				System.out.println("Skyline tuple # "+tuple_count);
+				System.out.println("-----------------------------------");
+				nestedLoopSkyline.print(in);
+				System.out.println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+				tuple_count++;
+			}
+			nlSky.close();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		printDiskAccesses();
+	}
+	static void performNestedLoopsSky(AttrType[] in, short[] Ssizes, FldSpec[] projection,int[] pref_list,int pref_list_length,
+																		String relationName, int n_pages) {
+		FileScan nlScan = null;
+		try {
+			nlScan = new FileScan(relationName, in, Ssizes,
+							(short) in.length, (short) in.length,
+							projection, null);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		PCounter.initialize();
+		try {
+			//n_pages - 2 : since FileScan (nlScan) will use 2 buffer pages
+			NestedLoopsSky nlSky = new NestedLoopsSky(in, in.length, Ssizes,
+							nlScan, relationName, pref_list, pref_list_length, n_pages-2);
+			System.out.println("**************************************************");
+			System.out.println("\t NESTED LOOP SKYLINE (With dominated tuples stored in the buffer)");
+			System.out.println("**************************************************");
+
+			Tuple nestedLoopSkyline;
+			int tuple_count = 0;
+			while ((nestedLoopSkyline = nlSky.get_next()) != null) {
+				System.out.println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+				System.out.println("Skyline tuple # "+tuple_count);
+				System.out.println("-----------------------------------");
+				nestedLoopSkyline.print(in);
+				System.out.println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+				tuple_count++;
+			}
+			nlSky.close();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		printDiskAccesses();
 	}
 	static void performBlockNestedSky(AttrType[] in, short[] Ssizes, FldSpec[] projection,int[] pref_list,int pref_list_length,
 			String relationName, int n_pages) {

@@ -1,5 +1,5 @@
 package iterator;
-   
+
 
 import heap.*;
 import global.*;
@@ -18,7 +18,7 @@ public class FileScan extends  Iterator
 {
   private AttrType[] _in1;
   private short in1_len;
-  private short[] s_sizes; 
+  private short[] s_sizes;
   private Heapfile f;
   private Scan scan;
   private Tuple     tuple1;
@@ -28,7 +28,7 @@ public class FileScan extends  Iterator
   private CondExpr[]  OutputFilter;
   public FldSpec[] perm_mat;
 
- 
+
 
   /**
    *constructor
@@ -45,30 +45,30 @@ public class FileScan extends  Iterator
    *@exception InvalidRelation invalid relation 
    */
   public  FileScan (String  file_name,
-		    AttrType in1[],                
-		    short s1_sizes[], 
-		    short     len_in1,              
+		    AttrType in1[],
+		    short s1_sizes[],
+		    short     len_in1,
 		    int n_out_flds,
 		    FldSpec[] proj_list,
-		    CondExpr[]  outFilter        		    
+		    CondExpr[]  outFilter
 		    )
     throws IOException,
 	   FileScanException,
-	   TupleUtilsException, 
+	   TupleUtilsException,
 	   InvalidRelation
     {
-      _in1 = in1; 
+      _in1 = in1;
       in1_len = len_in1;
       s_sizes = s1_sizes;
-      
+
       Jtuple =  new Tuple();
       AttrType[] Jtypes = new AttrType[n_out_flds];
       short[]    ts_size;
       ts_size = TupleUtils.setup_op_tuple(Jtuple, Jtypes, in1, len_in1, s1_sizes, proj_list, n_out_flds);
-      
+
       OutputFilter = outFilter;
       perm_mat = proj_list;
-      nOutFlds = n_out_flds; 
+      nOutFlds = n_out_flds;
       tuple1 =  new Tuple();
 
       try {
@@ -77,15 +77,15 @@ public class FileScan extends  Iterator
 	throw new FileScanException(e, "setHdr() failed");
       }
       t1_size = tuple1.size();
-      
+
       try {
 	f = new Heapfile(file_name);
-	
+
       }
       catch(Exception e) {
 	throw new FileScanException(e, "Create new heapfile failed");
       }
-      
+
       try {
 	scan = f.openScan();
       }
@@ -93,7 +93,7 @@ public class FileScan extends  Iterator
 	throw new FileScanException(e, "openScan() failed");
       }
     }
-  
+
   /**
    *@return shows what input fields go where in the output tuple
    */
@@ -101,7 +101,7 @@ public class FileScan extends  Iterator
     {
       return perm_mat;
     }
-  
+
   /**
    *@return the result tuple
    *@exception JoinsException some join exception
@@ -119,24 +119,24 @@ public class FileScan extends  Iterator
 	   IOException,
 	   InvalidTupleSizeException,
 	   InvalidTypeException,
-	   PageNotReadException, 
+	   PageNotReadException,
 	   PredEvalException,
 	   UnknowAttrType,
 	   FieldNumberOutOfBoundException,
 	   WrongPermat
-    {     
+    {
       RID rid = new RID();;
-      
+
       while(true) {
 	if((tuple1 =  scan.getNext(rid)) == null) {
 	  return null;
 	}
-	
+
 	tuple1.setHdr(in1_len, _in1, s_sizes);
 	if (PredEval.Eval(OutputFilter, tuple1, null, _in1, null) == true){
-	  Projection.Project(tuple1, _in1,  Jtuple, perm_mat, nOutFlds); 
+	  Projection.Project(tuple1, _in1,  Jtuple, perm_mat, nOutFlds);
 	  return  Jtuple;
-	}        
+	}
       }
     }
 
@@ -196,15 +196,13 @@ public class FileScan extends  Iterator
    *implement the abstract method close() from super class Iterator
    *to finish cleaning up
    */
-  public void close() 
+  public void close()
     {
-     
+
       if (!closeFlag) {
 	scan.closescan();
 	closeFlag = true;
-      } 
+      }
     }
-  
+
 }
-
-
