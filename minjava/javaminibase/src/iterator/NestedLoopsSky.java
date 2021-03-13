@@ -214,12 +214,6 @@ public class NestedLoopsSky extends Iterator {
 
               //If dominated tuple doesn't exist in the set, add it!
               if(!alreadyPresent){
-                temp1 = new Tuple();
-                temp1.setHdr((short) 2, attrTypesRid, t1_str_sizes);
-                temp1.setIntFld(1, ridInner.slotNo);
-                temp1.setIntFld(2, ridInner.pageNo.pid);
-                if (isBufferFull) dominatedTuples.insert_heap(temp1, isBufferFull);
-                else dominatedTuples.insert(temp1);
                 if(bufferIndex==buffer.length){                     //if buffer full
                   Tuple temp1 = new Tuple(tuple_size);
                   temp1.setHdr((short) 1, attrTypesRid, t1_str_sizes);
