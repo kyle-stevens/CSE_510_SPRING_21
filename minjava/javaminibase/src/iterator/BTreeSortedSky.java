@@ -43,21 +43,18 @@ public class BTreeSortedSky extends Iterator {
 	 * @param pref_list_length	length of preference attributes
 	 * @param index_file		Name of the combined index file
 	 * @param n_pages			Number of pages available to us for this operation
-	 * @throws IndexException
-	 * @throws InvalidTypeException
-	 * @throws InvalidTupleSizeException
-	 * @throws UnknownIndexTypeException
-	 * @throws IOException
-	 * @throws SortException
-	 * @throws IteratorBMException
+	 * @throws Exception 
 	 */
 	public BTreeSortedSky(AttrType[] in1, short len_in1, short[] t1_str_sizes, Iterator am1, String relationName,
-			int[] pref_list, int pref_list_length, String index_file, int n_pages) throws IndexException,
-			InvalidTypeException, InvalidTupleSizeException, UnknownIndexTypeException, IOException, SortException, IteratorBMException {
+			int[] pref_list, int pref_list_length, String index_file, int n_pages) throws Exception {
 		n_pages-=4; //reserving 2 pages for file scan and 2 pages for getting record from indexscan and creating new heap files
+		if(n_pages<1)
+			throw new Exception("Not enough pages to compute the skyline");
 		this.in1 = in1;
 		col_len = len_in1;
 		str_sizes = t1_str_sizes;
+		n_pages = Math.min(10,n_pages/2);
+		if(n_pages<1)n_pages=1;
 		bufs_pids = new PageId[n_pages];
 		_bufs = new byte[n_pages][];
 		/***
@@ -86,6 +83,7 @@ public class BTreeSortedSky extends Iterator {
 	/****
 	 * Iterates over sorted tuples and finds one skyline tuple at a time, if there is no more skyline tuple, it will return null
 	 */
+	int i=0;
 	@Override
 	public Tuple get_next() throws IOException, JoinsException, IndexException, InvalidTupleSizeException,
 			InvalidTypeException, PageNotReadException, TupleUtilsException, PredEvalException, SortException,
