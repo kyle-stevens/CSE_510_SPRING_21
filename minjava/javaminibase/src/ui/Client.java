@@ -51,7 +51,7 @@ public class Client {
 			System.out.println("performNestedLoopSky START::");
 			setupDB();
 			try {
-				performNestedLoopsSky(_in, new short[1], projection, pref_list, pref_list_length, relationName, n_pages);
+			//	performNestedLoopsSky(_in, new short[1], projection, pref_list, pref_list_length, relationName, n_pages);
 			}catch(Exception e) {
 				e.printStackTrace();
 			}
@@ -110,7 +110,7 @@ public class Client {
 
 	    new SystemDefs( dbpath, 100000, n_pages, "Clock" );
 	    
-	    File file = new File("/afs/asu.edu/users/s/p/a/spatil23/CSE510/data.txt");
+	    File file = new File("/afs/asu.edu/users/j/t/r/jtrada/data2.txt");
 		BufferedReader br = new BufferedReader(new FileReader(file));
 		int numberOfCols = Integer.parseInt(br.readLine().trim());
 
@@ -194,11 +194,7 @@ public class Client {
 			Tuple nestedLoopSkyline;
 			int tuple_count = 0;
 			while ((nestedLoopSkyline = nlSky.get_next()) != null) {
-				System.out.println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
-				System.out.println("Skyline tuple # "+tuple_count);
-				System.out.println("-----------------------------------");
-				nestedLoopSkyline.print(in);
-				System.out.println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+				printTuple(tuple_count,nestedLoopSkyline);
 				tuple_count++;
 			}
 			nlSky.close();
@@ -206,6 +202,13 @@ public class Client {
 			e.printStackTrace();
 		}
 		printDiskAccesses();
+	}
+	static void printTuple(int tuple_count,Tuple t) throws Exception {
+		System.out.println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+		System.out.println("Skyline tuple # "+tuple_count);
+		System.out.println("-----------------------------------");
+		t.print(_in);
+		System.out.println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
 	}
 	static void performNestedLoopsSky(AttrType[] in, short[] Ssizes, FldSpec[] projection,int[] pref_list,int pref_list_length,
 																		String relationName, int n_pages) {
@@ -229,11 +232,7 @@ public class Client {
 			Tuple nestedLoopSkyline;
 			int tuple_count = 0;
 			while ((nestedLoopSkyline = nlSky.get_next()) != null) {
-				System.out.println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
-				System.out.println("Skyline tuple # "+tuple_count);
-				System.out.println("-----------------------------------");
-				nestedLoopSkyline.print(in);
-				System.out.println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+				printTuple(tuple_count,nestedLoopSkyline);
 				tuple_count++;
 			}
 			nlSky.close();
@@ -265,16 +264,12 @@ public class Client {
 		        System.out.println("**************************************************\n");
 
 		        Vector<Tuple> skyline;
-		        int batch = 1;
+		        int tuple_count = 0;
 		        while ((skyline = sky2.get_skyline()) != null) {
-		          System.out.println("\n************* SKYLINE BATCH " + batch + " ***************\n");
 		          for (int i = 0; i < skyline.size(); i++) {
-//		            System.out.print((i + 1) + ". ");
-		            skyline.get(i).print(in);
-//		        	  System.out.println(TupleUtils.getPrefAttrSum(skyline.get(i), in, (short) in.length, pref_list, pref_list_length));
-						
+		            printTuple(tuple_count,skyline.get(i));
+					tuple_count++;
 		          }
-		          batch++;
 		        }
 		      } catch (Exception e) {
 		        e.printStackTrace();
@@ -354,9 +349,11 @@ public class Client {
 	    Iterator sc = new BTreeSortedSky(in, (short)in.length, Ssizes, null, 
 	    	    		relationName, pref_list, pref_list_length,"BTreeIndex", n_pages-1);
 	    Tuple t1 = null;
+	    int tuple_count = 0;
 		try {
 			while ((t1 = sc.get_next()) != null) {
-				t1.print(in);
+				printTuple(tuple_count,t1);
+				tuple_count++;
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -372,9 +369,11 @@ public class Client {
 		PCounter.initialize();
 		Iterator sc = new SortFirstSky(in, (short) in.length, Ssizes, am1, relationName, pref_list, pref_list_length, n_pages-2);
 		Tuple t1 = null;
+	    int tuple_count = 0;
 		try {
 			while ((t1 = sc.get_next()) != null) {
-				t1.print(in);
+				printTuple(tuple_count,t1);
+				tuple_count++;
 			}
 		} catch (Exception e) {
 			e.printStackTrace();

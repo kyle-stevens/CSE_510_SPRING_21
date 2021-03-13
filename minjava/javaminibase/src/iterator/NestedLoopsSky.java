@@ -66,7 +66,7 @@ public class NestedLoopsSky extends Iterator {
     this.pref_list_length = pref_list_length;
     skipInnerLoop = false;                //Skip inner loop computation if the outer loop element is already dominated
 
-    if(n_pages < 3){
+    if(n_pages < 4){
       System.out.println("NestedLoopsSky: Insufficient buffer pages");
       throw new NestedLoopException("Not enough buffer pages assigned to carry out the operation");
     }
