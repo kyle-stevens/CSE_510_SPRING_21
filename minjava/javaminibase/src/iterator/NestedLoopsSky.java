@@ -1,7 +1,7 @@
 package iterator;
 
 import global.AttrType;
-import global.PageId;
+import global.GlobalConst;
 import global.RID;
 import heap.Heapfile;
 import heap.Scan;
@@ -9,6 +9,7 @@ import heap.Tuple;
 import index.IndexException;
 
 import java.io.IOException;
+import java.util.Arrays;
 
 /**
  * This file contains an implementation of the nested loops skyline
@@ -22,15 +23,15 @@ public class NestedLoopsSky extends Iterator {
   private final FileScan outerLoopScanner;
   private final int[] pref_list;
   private final int pref_list_length;
-  private final int n_pages;
 
   private boolean isDone, isDominated, skipInnerLoop;
-  private Tuple innerTuple;
   private final Heapfile hf, tempFile;
-  private final OBuf dominatedTuples;
-  private final PageId[] bufferPIDs;
-
   private final AttrType[] attrTypesRid;
+  private Tuple placeholder;
+  private int outerIndex, bufferIndex;
+  private final int tuple_size;
+  private final RID temp_rid;
+  private final int[] buffer;
 
   /**
    *  constructor
@@ -59,22 +60,28 @@ public class NestedLoopsSky extends Iterator {
     in1_len = len_in1;
     outerLoopScanner = (FileScan) am1;
     this.t1_str_sizes = t1_str_sizes;
-    innerTuple = new Tuple();
     isDone = false;                       //Indicates the completion of skyline computation
     isDominated = false;
     this.pref_list = pref_list;
     this.pref_list_length = pref_list_length;
     skipInnerLoop = false;                //Skip inner loop computation if the outer loop element is already dominated
+    outerIndex = 0;
+    bufferIndex = 0;
+    temp_rid = new RID();
 
-    if(n_pages < 4){
+    //Check if there is at least one buffer page for computation
+    if(n_pages < 1){
       System.out.println("NestedLoopsSky: Insufficient buffer pages");
       throw new NestedLoopException("Not enough buffer pages assigned to carry out the operation");
     }
-    //since innerLoopScan will need 2 buffer pages.
-    //And, tempFileScan will need 2 buffer pages.
-    this.n_pages = n_pages-4;
-    bufferPIDs = new PageId[this.n_pages];
-    byte[][] buffer = new byte[this.n_pages][];  //n_pages of buffer space
+
+    //calculate how many ints can be stored in the buffer
+    //total size available = pages x pageSize ( in bytes)
+    //here 12 bytes is the array header overhead
+    //and 4 bytes because each int uses 4 bytes of memory
+    int arraySize = ((n_pages * GlobalConst.MINIBASE_PAGESIZE)-12)/4;
+    buffer = new int[arraySize];                                      //Initialize the buffer
+    Arrays.fill(buffer, -1);
 
     try {
       hf = new Heapfile(relationName);      //input data file
@@ -88,26 +95,20 @@ public class NestedLoopsSky extends Iterator {
       throw new NestedLoopException(e, "Heap file error");
     }
 
-    try {
-      get_buffer_pages(this.n_pages, bufferPIDs, buffer);      //allocate buffer pages for skyline operation
-    } catch (Exception e) {
-      throw new NestedLoopException(e, "BUFMgr error");
-    }
-
-    dominatedTuples = new OBuf();
-    Tuple temp = new Tuple();                   //Dummy tuple to initialize buffer
-    attrTypesRid = new AttrType[2];
-    attrTypesRid[0] = new AttrType(AttrType.attrInteger);     //For slot ID
-    attrTypesRid[1] = new AttrType(AttrType.attrInteger);     //For PageId.pid
+    placeholder = new Tuple();                   //Dummy tuple for storing tuple index values in the temp heap file
+    attrTypesRid = new AttrType[1];
+    attrTypesRid[0] = new AttrType(AttrType.attrInteger);     //For tuple index
 
     try {
-      temp.setHdr((short) 2, attrTypesRid, this.t1_str_sizes);
+      placeholder.setHdr((short) 1, attrTypesRid, this.t1_str_sizes);
     } catch (Exception e) {
       throw new NestedLoopException(e, "t.setHdr() failed");
     }
 
-    int tuple_size = temp.size();
-    dominatedTuples.init(buffer, this.n_pages, tuple_size, tempFile, false);   //Initialize the buffer
+    tuple_size = placeholder.size();
+    System.out.println("Initializing NestedLoopsSky operator");
+    System.out.println("Computing skyline using nestedLoops may take a bit longer(a few minutes) " +
+            "if no. of buffer pages are very low (single digit)");
   }
 
   /**
@@ -122,13 +123,12 @@ public class NestedLoopsSky extends Iterator {
     if (isDone)             //Stop computation
       return null;
 
-    do {
+    do {                    //Start the outer loop
       skipInnerLoop = false;
-      RID ridOuter = new RID();
       Tuple outerTuple;
 
       try {
-        outerTuple = outerLoopScanner.get_next(ridOuter);
+        outerTuple = outerLoopScanner.get_next(temp_rid);
       } catch (Exception e) {
         throw new NestedLoopException(e, "reading disk file failed");
       }
@@ -138,30 +138,22 @@ public class NestedLoopsSky extends Iterator {
         return null;
       }
 
-      Tuple temp;
-      dominatedTuples.reset_read();
-      while ((temp = dominatedTuples.Get()) != null) {              //Iterate over tuples in the 'dominated' buffer
-        temp.setHdr((short) 2, attrTypesRid, t1_str_sizes);
-        if (ridOuter.slotNo == temp.getIntFld(1) && ridOuter.pageNo.pid == temp.getIntFld(2)) {    //Outer tuple is dominated?
-          skipInnerLoop = true;
-          break;
-        }
+      if(Arrays.stream(buffer).anyMatch(x -> x == outerIndex)){       //check if the index present in dominated tuples
+        skipInnerLoop = true;
       }
 
       //If outer tuple is not found in buffer and buffer is full,
       //then we will have to check the disk for dominated tuples
-      //and make sure that the outer tuple is not dominated already
-      if (dominatedTuples.get_buf_status() && !skipInnerLoop) {
+      //and make sure that the outer tuple is not found in the buffer already
+      if (buffer[buffer.length -1] != -1 && !skipInnerLoop) {
         Scan scd = tempFile.openScan();
-        Tuple dom_tuple;
-        RID dom_tuple_rid = new RID();
 
         //Iterating over temp heap file (dominated tuples)
-        while ((dom_tuple = scd.getNext(dom_tuple_rid)) != null) {
-          dom_tuple.setHdr((short) 2, attrTypesRid, t1_str_sizes);
+        while ((placeholder = scd.getNext(temp_rid)) != null) {
+          placeholder.setHdr((short) 1, attrTypesRid, t1_str_sizes);
 
           //outer tuple is dominated?
-          if (ridOuter.slotNo == dom_tuple.getIntFld(1) && ridOuter.pageNo.pid == dom_tuple.getIntFld(2)) {
+          if (outerIndex == placeholder.getIntFld(1)) {
             skipInnerLoop = true;
             break;
           }
@@ -172,7 +164,6 @@ public class NestedLoopsSky extends Iterator {
       //If outer tuple is not dominated, go ahead and begin inner loop
       if (!skipInnerLoop) {
         isDominated = false;
-        RID ridInner = new RID();
         boolean begin_inner = false;
 
         Scan innerLoopScanner;
@@ -181,8 +172,9 @@ public class NestedLoopsSky extends Iterator {
         } catch (Exception e) {
           throw new NestedLoopException(e, "openScan failed");
         }
-
-        while ((innerTuple = innerLoopScanner.getNext(ridInner)) != null) {
+        int innerIndex = 0;
+        Tuple innerTuple;
+        while ((innerTuple = innerLoopScanner.getNext(temp_rid)) != null) {
           innerTuple.setHdr((short) in1_len, _in1, t1_str_sizes);
           if (begin_inner) {
             //If inner dominates outer, then outer can never be a skyline attribute -- break! Go to next outer tuple
@@ -195,30 +187,24 @@ public class NestedLoopsSky extends Iterator {
                     pref_list, pref_list_length)) {
               //if outer dominates inner, then inner tuple can never be a skyline attribute
               //-- mark it for future reference. Add it to the buffer. We will skip this tuple in the outer loop.
-              Tuple temp1;
-              dominatedTuples.reset_read();
               boolean alreadyPresent = false;
               //Check if the dominated tuple is already present in the buffer
-              while ((temp1 = dominatedTuples.Get()) != null) {              //Iterate over tuples in the 'dominated' buffer
-                temp1.setHdr((short) 2, attrTypesRid, t1_str_sizes);
-                if (ridInner.slotNo == temp1.getIntFld(1) && ridInner.pageNo.pid == temp1.getIntFld(2)) {
+              for(int i: buffer){
+                if (i == innerIndex) {
                   alreadyPresent = true;
                   break;
                 }
               }
 
-              boolean isBufferFull = dominatedTuples.get_buf_status();
               //If dominated tuple is not present in the buffer then check if it is present in the temp file on disk
-              if (isBufferFull && !alreadyPresent) {
+              if (buffer[buffer.length -1] != -1 && !alreadyPresent) {
                 Scan scd1 = tempFile.openScan();
-                Tuple dom_tuple1;
-                RID dom_tuple_rid1 = new RID();
 
                 //Iterating over temp heap file (dominated tuples)
-                while ((dom_tuple1 = scd1.getNext(dom_tuple_rid1)) != null) {
-                  dom_tuple1.setHdr((short) 2, attrTypesRid, t1_str_sizes);
+                while ((placeholder = scd1.getNext(temp_rid)) != null) {
+                  placeholder.setHdr((short) 1, attrTypesRid, t1_str_sizes);
 
-                  if (ridInner.slotNo == dom_tuple1.getIntFld(1) && ridInner.pageNo.pid == dom_tuple1.getIntFld(2)) {
+                  if (innerIndex == placeholder.getIntFld(1)) {
                     alreadyPresent = true;
                     break;
                   }
@@ -228,26 +214,33 @@ public class NestedLoopsSky extends Iterator {
 
               //If dominated tuple doesn't exist in the set, add it!
               if(!alreadyPresent){
-                temp1 = new Tuple();
-                temp1.setHdr((short) 2, attrTypesRid, t1_str_sizes);
-                temp1.setIntFld(1, ridInner.slotNo);
-                temp1.setIntFld(2, ridInner.pageNo.pid);
-                dominatedTuples.insert(temp1, isBufferFull);
+                if(bufferIndex==buffer.length){                     //if buffer full
+                  Tuple temp1 = new Tuple(tuple_size);
+                  temp1.setHdr((short) 1, attrTypesRid, t1_str_sizes);
+                  temp1.setIntFld(1, innerIndex);
+                  tempFile.insertRecord(temp1.getTupleByteArray());
+                }else {                                             //if buffer not full
+                  buffer[bufferIndex] = innerIndex;
+                  bufferIndex++;
+                }
               }
             }
           }
-          if (ridOuter.equals(ridInner)) {
+          if (outerIndex == innerIndex) {
             //When position of innerScanner equals outerScanner, then start inner loop computation.
             //Reason - All the other tuples are already compared and the results are marked
             begin_inner = true;
           }
+          innerIndex++;
         }
         innerLoopScanner.closescan();
         if (!isDominated) {
+          outerIndex++;
           //If outer tuple is not dominated by any of the other tuples in the data, then it is a skyline tuple
           return outerTuple;
         }
       }
+      outerIndex++;
     } while (true);
   }
 
@@ -266,13 +259,6 @@ public class NestedLoopsSky extends Iterator {
         outerLoopScanner.close();
       } catch (Exception e) {
         throw new IOException("NestLoopSky.java: error in closing iterator.", e);
-      }
-
-      //Free buffer pages
-      try {
-        free_buffer_pages(n_pages, bufferPIDs);
-      } catch (Exception e) {
-        throw new IOException("Buffer Manager error", e);
       }
 
       //Delete temporary heap file
