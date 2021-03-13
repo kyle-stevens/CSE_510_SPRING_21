@@ -192,7 +192,7 @@ public class Client {
 			System.out.println("**************************************************");
 
 			Tuple nestedLoopSkyline;
-			int tuple_count = 0;
+			int tuple_count = 1;
 			while ((nestedLoopSkyline = nlSky.get_next()) != null) {
 				printTuple(tuple_count,nestedLoopSkyline);
 				tuple_count++;
@@ -230,7 +230,7 @@ public class Client {
 			System.out.println("**************************************************");
 
 			Tuple nestedLoopSkyline;
-			int tuple_count = 0;
+			int tuple_count = 1;
 			while ((nestedLoopSkyline = nlSky.get_next()) != null) {
 				printTuple(tuple_count,nestedLoopSkyline);
 				tuple_count++;
@@ -264,7 +264,7 @@ public class Client {
 		        System.out.println("**************************************************\n");
 
 		        Vector<Tuple> skyline;
-		        int tuple_count = 0;
+		        int tuple_count = 1;
 		        while ((skyline = sky2.get_skyline()) != null) {
 		          for (int i = 0; i < skyline.size(); i++) {
 		            printTuple(tuple_count,skyline.get(i));
@@ -349,7 +349,7 @@ public class Client {
 	    Iterator sc = new BTreeSortedSky(in, (short)in.length, Ssizes, null, 
 	    	    		relationName, pref_list, pref_list_length,"BTreeIndex", n_pages-1);
 	    Tuple t1 = null;
-	    int tuple_count = 0;
+	    int tuple_count = 1;
 		try {
 			while ((t1 = sc.get_next()) != null) {
 				printTuple(tuple_count,t1);
@@ -369,7 +369,7 @@ public class Client {
 		PCounter.initialize();
 		Iterator sc = new SortFirstSky(in, (short) in.length, Ssizes, am1, relationName, pref_list, pref_list_length, n_pages-2);
 		Tuple t1 = null;
-	    int tuple_count = 0;
+	    int tuple_count = 1;
 		try {
 			while ((t1 = sc.get_next()) != null) {
 				printTuple(tuple_count,t1);

@@ -125,7 +125,7 @@ public class SortPref extends Iterator implements GlobalConst {
 		_n_pages = (_n_pages+2)/3;
 		//Now, we know how many runs will be needed to do the sorting, so assign pages to the buffer accordingly
 		if(Nruns>(_n_pages)) {
-			System.out.println("Required Pages: "+(Nruns*3)+" Available pages: "+(_n_pages));
+			System.out.println("Required Pages: "+(Nruns*3)+" Available pages: "+(3*_n_pages-1));
 			throw new LowMemException("Sort.java: Not enough memory to sort in two passes.");
 		}
 		
