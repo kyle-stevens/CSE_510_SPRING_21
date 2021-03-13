@@ -147,6 +147,9 @@ public class OBufSortSky implements GlobalConst{
 		copybuf = buf.getTupleByteArray();
 		if (t_wr_to_buf == t_in_buf) // Buffer full?
 		{
+			/***
+			 * if the buffer is full, we insert new records into a heapfile.
+			 */
 			Heapfile f = new Heapfile(curr_file + number_of_window_file);
 			f.insertRecord(copybuf);
 			flag = true;
