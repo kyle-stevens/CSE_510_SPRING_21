@@ -193,15 +193,12 @@ public class BTreeSky extends Iterator{
         }
 
         @Override
-	    public void close() throws IOException, JoinsException, SortException, IndexException {
-		// TODO Auto-generated method stub
-		iter.close();
-		try {
-			new Heapfile(oBuf.getCurr_file() + (number_of_run - 1)).deleteFile();
-		} catch (Exception e) {
-
-		}
-	}
-
-
+        public void close() throws IOException, JoinsException, SortException, IndexException {
+	// TODO Auto-generated method stub
+	       iter.close();
+	       try {
+	           new Heapfile(oBuf.getCurr_file() + (number_of_run - 1)).deleteFile();
+	       } catch (Exception e) {
+               }
+        }
 }
