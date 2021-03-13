@@ -668,7 +668,7 @@ class JoinsDriver implements GlobalConst {
       pref_list1[1] = 4;
 
       NestedLoopsSky sky = new NestedLoopsSky(Stypes, 4, Ssizes,
-              am1, "sailors.in", pref_list1, 2, 1);
+              am1, "sailors.in", pref_list1, 2, 5);
 
       System.out.println("Skyline tuples: ");
 

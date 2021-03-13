@@ -113,8 +113,8 @@ public class NestedLoopsSkyNaive extends Iterator {
         }
       }
 
+      innerLoopScanner.closescan();
       if (!isDominated) {
-        innerLoopScanner.closescan();
         return outerTuple;
       }
     } while (true);

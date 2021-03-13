@@ -64,10 +64,17 @@ public class NestedLoopsSky extends Iterator {
     isDominated = false;
     this.pref_list = pref_list;
     this.pref_list_length = pref_list_length;
-    this.n_pages = n_pages;
-    skipInnerLoop = false;              //Skip inner loop computation if the outer loop element is already dominated
-    bufferPIDs = new PageId[n_pages];
-    byte[][] buffer = new byte[n_pages][];  //n_pages of buffer space
+    skipInnerLoop = false;                //Skip inner loop computation if the outer loop element is already dominated
+
+    if(n_pages < 3){
+      System.out.println("NestedLoopsSky: Insufficient buffer pages");
+      throw new NestedLoopException("Not enough buffer pages assigned to carry out the operation");
+    }
+    //since innerLoopScan will need 2 buffer pages.
+    //And, tempFileScan will need 2 buffer pages.
+    this.n_pages = n_pages-4;
+    bufferPIDs = new PageId[this.n_pages];
+    byte[][] buffer = new byte[this.n_pages][];  //n_pages of buffer space
 
     try {
       hf = new Heapfile(relationName);      //input data file
@@ -76,15 +83,15 @@ public class NestedLoopsSky extends Iterator {
     }
 
     try {
-      get_buffer_pages(n_pages, bufferPIDs, buffer);      //allocate buffer pages for skyline operation
-    } catch (Exception e) {
-      throw new NestedLoopException(e, "BUFMgr error");
-    }
-
-    try {
       tempFile = new Heapfile(null);       //Create a temporary heap file on the disk in case the buffer gets full
     } catch (Exception e) {
       throw new NestedLoopException(e, "Heap file error");
+    }
+
+    try {
+      get_buffer_pages(this.n_pages, bufferPIDs, buffer);      //allocate buffer pages for skyline operation
+    } catch (Exception e) {
+      throw new NestedLoopException(e, "BUFMgr error");
     }
 
     dominatedTuples = new OBuf();
@@ -100,7 +107,7 @@ public class NestedLoopsSky extends Iterator {
     }
 
     int tuple_size = temp.size();
-    dominatedTuples.init(buffer, n_pages, tuple_size, tempFile, false);   //Initialize the buffer
+    dominatedTuples.init(buffer, this.n_pages, tuple_size, tempFile, false);   //Initialize the buffer
   }
 
   /**
@@ -117,14 +124,6 @@ public class NestedLoopsSky extends Iterator {
 
     do {
       skipInnerLoop = false;
-
-      Scan innerLoopScanner;
-      try {
-        innerLoopScanner = hf.openScan();
-      } catch (Exception e) {
-        throw new NestedLoopException(e, "openScan failed");
-      }
-
       RID ridOuter = new RID();
       Tuple outerTuple;
 
@@ -136,11 +135,6 @@ public class NestedLoopsSky extends Iterator {
 
       if (outerTuple == null) {               //When outer loop is done
         isDone = true;
-
-        if (innerLoopScanner != null) {
-          innerLoopScanner.closescan();
-        }
-
         return null;
       }
 
@@ -150,7 +144,6 @@ public class NestedLoopsSky extends Iterator {
         temp.setHdr((short) 2, attrTypesRid, t1_str_sizes);
         if (ridOuter.slotNo == temp.getIntFld(1) && ridOuter.pageNo.pid == temp.getIntFld(2)) {    //Outer tuple is dominated?
           skipInnerLoop = true;
-          innerLoopScanner.closescan();
           break;
         }
       }
@@ -170,7 +163,6 @@ public class NestedLoopsSky extends Iterator {
           //outer tuple is dominated?
           if (ridOuter.slotNo == dom_tuple.getIntFld(1) && ridOuter.pageNo.pid == dom_tuple.getIntFld(2)) {
             skipInnerLoop = true;
-            innerLoopScanner.closescan();
             break;
           }
         }
@@ -182,6 +174,13 @@ public class NestedLoopsSky extends Iterator {
         isDominated = false;
         RID ridInner = new RID();
         boolean begin_inner = false;
+
+        Scan innerLoopScanner;
+        try {
+          innerLoopScanner = hf.openScan();
+        } catch (Exception e) {
+          throw new NestedLoopException(e, "openScan failed");
+        }
 
         while ((innerTuple = innerLoopScanner.getNext(ridInner)) != null) {
           innerTuple.setHdr((short) in1_len, _in1, t1_str_sizes);
