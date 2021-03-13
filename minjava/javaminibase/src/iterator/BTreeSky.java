@@ -166,7 +166,7 @@ public class BTreeSky extends Iterator{
                                             break;
                                         }
                                     }
-                                    scd.closescan()
+                                    scd.closescan();
                                 }
                             }
                             if(!duplicate){
