@@ -109,38 +109,55 @@ public class OBuf implements GlobalConst{
      *@exception IOException  some I/O fault
      *@exception Exception other exceptions
      */
-    public Tuple insert(Tuple buf, boolean insert_heap)
+    public RID insert_heap(Tuple buf, boolean insert_heap)
             throws IOException,
             Exception
     {
-        if (insert_heap)    {
-            //System.out.println("^^^^^^^^^^^^^Inserting new candidate to heapfile^^^^^^^^^^^^^^^^^");
-            // Heapfile implementation for disk storage when buffer is full
-            RID rid = _temp_fd.insertRecord(buf.getTupleByteArray());
-        }
+        // Heapfile implementation for disk storage when buffer is full
+        RID rid = _temp_fd.insertRecord(buf.getTupleByteArray());
+        return rid;
+    }
 
-        else {
-            byte[] copybuf;
-            copybuf = buf.getTupleByteArray();
+    /** Newly developed API
+     * Inserts a tuple to the output buffer
+     *@param buf the tuple written to buffer
+     *@return the position of tuple which is in buffer
+     *@exception IOException  some I/O fault
+     *@exception Exception other exceptions
+     */
+    public Tuple insert(Tuple buf)
+            throws IOException,
+            Exception
+    {
+        byte[] copybuf;
+        copybuf = buf.getTupleByteArray();
+        try {
+
             System.arraycopy(copybuf, 0, _bufs[curr_page], t_wr_to_pg * t_size, t_size);
-            Tuple tuple_ptr = new Tuple(_bufs[curr_page], t_wr_to_pg * t_size, t_size);
-
-            t_written++;
-            t_wr_to_pg++;
-            t_wr_to_buf++;
-            dirty = true;
-
-            if (t_wr_to_pg == t_per_pg) {
-                t_wr_to_pg = 0;
-                curr_page++;
-            }
-            if (t_wr_to_buf == t_in_buf) {
-                is_buf_full = true;
-            }
-
-            return tuple_ptr;
         }
-        return null;
+        catch (ArrayIndexOutOfBoundsException e){
+            System.out.println("\n Curr_Page : " + curr_page);
+            System.out.println("t_wr_to_pg : " + t_wr_to_pg);
+            System.out.println("t_size : " + t_size + "\n");
+            System.err.println(e.toString());
+        }
+        Tuple tuple_ptr = new Tuple(_bufs[curr_page], t_wr_to_pg * t_size, t_size);
+
+        t_written++;
+        t_wr_to_pg++;
+        t_wr_to_buf++;
+        dirty = true;
+
+        if (t_wr_to_pg == t_per_pg) {
+//            System.out.println("\n<<<<<<<<<<<<<<<<<<<<<<<<<<Finished writing Page " + curr_page + "\n");
+            t_wr_to_pg = 0;
+            curr_page++;
+        }
+        if (t_wr_to_buf == t_in_buf) {
+            is_buf_full = true;
+        }
+//            System.out.println("INSERT - T_wr_to_buf : " + t_wr_to_buf);
+        return tuple_ptr;
     }
 
     /** Newly developed API
@@ -150,7 +167,7 @@ public class OBuf implements GlobalConst{
         throws IOException,
             Exception
     {
-        //System.out.println("Resetting read to start of the buffer");
+        // Resetting read pointers to start of the buffer
         t_rd_from_buf = 0;
         t_rd_from_pg = 0;
         rd_curr_page = 0;
@@ -163,11 +180,16 @@ public class OBuf implements GlobalConst{
             throws IOException,
             Exception
     {
-        //System.out.println("Resetting read to start of the buffer");
+        // Resetting write pointers to start of the buffer
         t_wr_to_buf = 0;
         t_wr_to_pg = 0;
         curr_page = 0;
         is_buf_full=false;
+    }
+
+    public int get_t_per_page()
+    {
+        return t_per_pg;
     }
 
     /** Newly developed API
@@ -182,20 +204,29 @@ public class OBuf implements GlobalConst{
     {
         if (t_rd_from_buf >= t_wr_to_buf)                // End of buffer?
         {
-            //System.out.println("Reached end of the buffer data");
+            // Reached end of the buffer data
             return null;
 
         }
 
         byte[] copybuf = new byte[t_size];
-        System.arraycopy(_bufs[rd_curr_page],
-                t_rd_from_pg*t_size, copybuf,0, t_size);
+        try {
+            System.arraycopy(_bufs[rd_curr_page],
+                    t_rd_from_pg * t_size, copybuf, 0, t_size);
+        }
+        catch (ArrayIndexOutOfBoundsException e){
+            System.out.println("\n Curr_Page : " + rd_curr_page);
+            System.out.println("t_rd_from_pg : " + t_rd_from_pg);
+            System.out.println("t_size : " + t_size + "\n");
+            System.err.println(e.toString());
+        }
         Tuple tuple_ptr = new Tuple(copybuf , 0, t_size);
 
         t_read++; t_rd_from_pg++; t_rd_from_buf++;
 
         if (t_rd_from_pg == t_per_pg)
         {
+//            System.out.println("\n@@@@@@@@@@@@@@@@@@@@@@@@Finished Reading Page " + rd_curr_page + "\n");
             t_rd_from_pg = 0;
             rd_curr_page++;
         }
@@ -213,7 +244,6 @@ public class OBuf implements GlobalConst{
             throws IOException,
             Exception
     {
-        // Implement bit map with a 2D boolean array
         while (tuple_num < (t_wr_to_buf - 1)) {
             int pg_t = (int) Math.ceil(tuple_num/t_per_pg);
             int byte_offset_t = tuple_num % t_per_pg;
@@ -226,20 +256,25 @@ public class OBuf implements GlobalConst{
         // Decrement the total tuple delimiters to ignore/remove the last tuple.
         t_wr_to_buf--;
         t_rd_from_buf--;
-        // Take care of deletion of first tuples of a page (Roll back)
-        if ((t_wr_to_pg == 1) &&
-                (t_wr_to_buf > 1)) {
+        // Edge case of pointers during shifting of last tuples of a page (Roll Back)
+        // write pointers
+        if ((t_wr_to_pg == 0) && (curr_page>0)){
             t_wr_to_pg = t_per_pg;
+            curr_page--;
+        }
+        t_wr_to_pg--;
+        // read pointers
+        if ((t_rd_from_pg == 0) && (rd_curr_page>0)){
             t_rd_from_pg = t_per_pg;
+            rd_curr_page--;
         }
-        else {
-            t_wr_to_pg--;
-            t_rd_from_pg--;
-        }
+        t_rd_from_pg--;
         t_written--;
         t_read--;
 
-        // System.out.println("Deletion successful");
+//        System.out.println("Delete succesfull");
+//        System.out.println("T_wr_to_buf : " + t_wr_to_buf + "\n");
+
         return true;
     }
 

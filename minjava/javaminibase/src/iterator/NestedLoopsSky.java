@@ -232,7 +232,8 @@ public class NestedLoopsSky extends Iterator {
                 temp1.setHdr((short) 2, attrTypesRid, t1_str_sizes);
                 temp1.setIntFld(1, ridInner.slotNo);
                 temp1.setIntFld(2, ridInner.pageNo.pid);
-                dominatedTuples.insert(temp1, isBufferFull);
+                if (isBufferFull) dominatedTuples.insert_heap(temp1, isBufferFull);
+                else dominatedTuples.insert(temp1);
               }
             }
           }
