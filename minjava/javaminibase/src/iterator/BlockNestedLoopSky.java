@@ -26,7 +26,6 @@ public class BlockNestedLoopSky extends Iterator
     private String relationName;
     PageId[] bufs_pids;
     byte[][] bufs;
-    FldSpec[] projection;
 
     /**constructor
      *@param in1  Array containing field types of R.
@@ -44,7 +43,7 @@ public class BlockNestedLoopSky extends Iterator
                            String relationName,
                            int   pref_list[],
                            int    pref_list_length,
-                           int n_pages, FldSpec[] projection
+                           int n_pages
     ) throws NestedLoopException, SortException, Exception
     {
         if (n_pages <= 5){
@@ -52,7 +51,7 @@ public class BlockNestedLoopSky extends Iterator
                     "\n Minimum required: 6 \t Available: " + n_pages);
         }
         else {
-            this.n_pages = n_pages - 6;
+            this.n_pages = n_pages - 8;
         }
 
         _in1 = new AttrType[in1.length];
@@ -66,7 +65,6 @@ public class BlockNestedLoopSky extends Iterator
         this.relationName = relationName;
         bufs_pids = new PageId[this.n_pages];
         bufs = new byte[this.n_pages][];
-        this.projection = projection;
 
         try {
             temp_files = new Heapfile("BlockNestedLoop");    // Uses 2 pages, but unpinned immediately after creation
