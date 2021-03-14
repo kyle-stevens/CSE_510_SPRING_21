@@ -149,6 +149,7 @@ public class Client {
 		}
 		
 		t = new Tuple(size);
+		System.out.println(size);
 		try {
 			t.setHdr((short) numberOfCols, _in, null);
 		} catch (Exception e) {
@@ -171,6 +172,7 @@ public class Client {
 			} catch (Exception e) {
 				System.err.println("*** error in Heapfile.insertRecord() ***");
 				e.printStackTrace();
+break;
 			}
 		}
 		br.close();
@@ -259,21 +261,25 @@ public class Client {
 		    try {
 		    	//flag = true;
 		        sky2 = new BlockNestedLoopSky(in, in.length, Ssizes,
-		                am2, relationName, pref_list, pref_list_length, n_pages);
+		                am2, relationName, pref_list, pref_list_length, n_pages,projection);
 		        System.out.println("**************************************************");
 		        System.out.println("**************************************************");
 		        System.out.println("\t\tBLOCK NESTED SKYLINE ");
 		        System.out.println("**************************************************");
 		        System.out.println("**************************************************\n");
 
-		        Vector<Tuple> skyline;
-		        int tuple_count = 1;
-		        while ((skyline = sky2.get_skyline()) != null) {
-		          for (int i = 0; i < skyline.size(); i++) {
-		            printTuple(tuple_count,skyline.get(i));
-					tuple_count++;
-		          }
-		        }
+		        Tuple t1 = null;
+			    int tuple_count = 1;
+				try {
+					while ((t1 = sky2.get_next()) != null) {
+						printTuple(tuple_count,t1);
+						tuple_count++;
+					}
+				} catch (Exception e) {
+					e.printStackTrace();
+				} finally {
+					sky2.close();
+				}
 		      } catch (Exception e) {
 		        e.printStackTrace();
 		      }
