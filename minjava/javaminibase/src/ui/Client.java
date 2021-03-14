@@ -49,15 +49,12 @@ public class Client {
 			System.out.println("performNestedLoopSkyNaive END::");
 
 			System.out.println("performNestedLoopSky START::");
-			int temp = n_pages;
-			n_pages = 6;
 			setupDB();
 			try {
-				performNestedLoopsSky(_in, new short[1], projection, pref_list, pref_list_length, relationName, temp - 6);
+				performNestedLoopsSky(_in, new short[1], projection, pref_list, pref_list_length, relationName, n_pages);
 			}catch(Exception e) {
 				e.printStackTrace();
 			}
-			n_pages = temp;
 			System.out.println("performNestedLoopSky END::");
 
 			System.out.println("performBlockNestedSky START::");
@@ -229,7 +226,7 @@ break;
 		try {
 			//n_pages - 2 : since FileScan (nlScan) will use 2 buffer pages
 			NestedLoopsSky nlSky = new NestedLoopsSky(in, in.length, Ssizes,
-							nlScan, relationName, pref_list, pref_list_length, n_pages);
+							nlScan, relationName, pref_list, pref_list_length, n_pages-2);
 			System.out.println("**************************************************");
 			System.out.println("\t NESTED LOOP SKYLINE (With dominated tuples stored in the buffer)");
 			System.out.println("**************************************************");
@@ -261,7 +258,7 @@ break;
 		    try {
 		    	//flag = true;
 		        sky2 = new BlockNestedLoopSky(in, in.length, Ssizes,
-		                am2, relationName, pref_list, pref_list_length, n_pages,projection);
+		                am2, relationName, pref_list, pref_list_length, n_pages);
 		        System.out.println("**************************************************");
 		        System.out.println("**************************************************");
 		        System.out.println("\t\tBLOCK NESTED SKYLINE ");

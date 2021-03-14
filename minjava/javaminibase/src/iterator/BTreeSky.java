@@ -196,24 +196,12 @@ public class BTreeSky extends Iterator{
             //flush the buffer and store to heapfile
             oBuf.flush();
             //retrieve the calculated skyline
-            skyline = bNLS.get_skyline();
-            //add the dominant tuple to the skyline vector
-            skyline.add(0, oneTupleToRuleThemAll);
-            //return calculated skyline
+            
             return skyline;
         }
         @Override
-        public Tuple get_next(){
-                Tuple t;
-                try{
-                        if((t=scan.get_next()) != null){
-                                return(t);
-                        }
-                }
-                catch(Exception e){
-                        return(null);
-                }
-                return(null);
+        public Tuple get_next() throws Exception{
+                return bNLS.get_next();
 
 
         }
