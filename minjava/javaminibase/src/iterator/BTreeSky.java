@@ -95,7 +95,7 @@ public class BTreeSky extends Iterator{
             iter = new Iterator[len_in1];
             //Iterate over IndexFiles and create separate iterators and fldspecs
             for(int j = 0; j<len_in1;j++){
-		    Sprojection[i] = new FldSpec(new RelSpec(RelSpec.outer), i+1);
+		    Sprojection[j] = new FldSpec(new RelSpec(RelSpec.outer), j+1);
 	    }
 	    for(int i=0; i<len_in1;i++){
                     cExpr[i] = new CondExpr();
