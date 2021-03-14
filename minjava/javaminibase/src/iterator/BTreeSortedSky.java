@@ -12,7 +12,6 @@ import heap.InvalidTypeException;
 import heap.Tuple;
 import index.IndexException;
 import index.IndexScan;
-import index.UnknownIndexTypeException;
 
 /***
  * BTreeSortedSky::Performs the skyline operation on a combined index file
@@ -83,7 +82,6 @@ public class BTreeSortedSky extends Iterator {
 	/****
 	 * Iterates over sorted tuples and finds one skyline tuple at a time, if there is no more skyline tuple, it will return null
 	 */
-	int i=0;
 	@Override
 	public Tuple get_next() throws IOException, JoinsException, IndexException, InvalidTupleSizeException,
 			InvalidTypeException, PageNotReadException, TupleUtilsException, PredEvalException, SortException,
@@ -101,7 +99,11 @@ public class BTreeSortedSky extends Iterator {
 			 * return it.
 			 */
 			if (oBuf.checkIfSky(t)) {
-				return oBuf.Put(t);
+				t = oBuf.Put(t);
+				if(oBuf.isFlag()) {
+					continue;
+				}
+				return t;
 			}
 		}
 		/***

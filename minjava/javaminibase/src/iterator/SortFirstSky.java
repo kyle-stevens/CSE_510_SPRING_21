@@ -102,7 +102,11 @@ public class SortFirstSky extends Iterator {
 			 * return it.
 			 */
 			if (oBuf.checkIfSky(t)) {
-				return oBuf.Put(t);
+				t = oBuf.Put(t);
+				if(oBuf.isFlag()) {
+					continue;
+				}
+				return t;
 			}
 		}
 		/***
