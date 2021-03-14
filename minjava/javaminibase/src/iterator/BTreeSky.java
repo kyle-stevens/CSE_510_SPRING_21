@@ -78,6 +78,7 @@ public class BTreeSky extends Iterator{
                 			 PageNotReadException, TupleUtilsException, PredEvalException, SortException,
                 			LowMemException, UnknowAttrType, UnknownKeyTypeException, Exception
         {
+                this._in1 = in1;
             file_name = "skyline_candidates";
             //Initialize Heap file to one named 'skyline_candidates'
             heap = new Heapfile(file_name);
@@ -94,11 +95,16 @@ public class BTreeSky extends Iterator{
             //Create iterator array
             iter = new Iterator[len_in1];
             //Iterate over IndexFiles and create separate iterators and fldspecs
+//Fill FLDSpec array first
+            for(int j = 0; j<len_in1; j++){
+                    Sprojection[j] = new FldSpec(new RelSpec(RelSpec.outer), j+1);
+            }
+
             for(int i=0; i<len_in1;i++){
-                    Sprojection[i] = new FldSpec(new RelSpec(RelSpec.outer), i+1);
+//                    Sprojection[i] = new FldSpec(new RelSpec(RelSpec.outer), i+1);
                     cExpr[i] = new CondExpr();
                     iter[i] = new IndexScan(new IndexType(IndexType.B_Index),
-                    relationName, index_file_list[i], in1, t1_str_sizes,len_in1,
+                    relationName, index_file_list[i], this._in1, t1_str_sizes,len_in1,
                     len_in1,Sprojection, null, 0, false);
             }
             _in1 = in1;

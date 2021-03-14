@@ -371,7 +371,7 @@ public class Client {
 			Vector<Tuple> t1 = null;
 			int tuple_count = 1;
 			try{
-				t1 = sc.runSky();
+				t1 = ((BTreeSky) sc).runSky();
 				for(int i = 0; i < t1.size(); i++){
 					printTuple(tuple_count, t1.get(i));
 					tuple_count++;

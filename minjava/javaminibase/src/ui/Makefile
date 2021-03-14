@@ -1,5 +1,5 @@
 # modify the paths appropriately
-JDKPATH = /usr/java/jdk1.3.1_02
+JDKPATH = /usr/lib/jvm/java-11-openjdk-amd64
 LIBPATH = .:..
 CLASSPATH = $(LIBPATH)
 BINPATH = $(JDKPATH)/bin
@@ -15,8 +15,8 @@ client: Client
 	$(JAVA) ui.Client
 	
 	
-JDKPATH = /usr
-LIBPATH = /afs/asu.edu/users/j/t/r/jtrada/minjava/javaminibase/construction
+JDKPATH = /usr/lib/jvm/java-11-openjdk-amd64
+LIBPATH = /mnt/c/Users/kyleb/Desktop/GITHUB_REPOS/CSE_510_SPRING_21/minjava/javaminibase/src
 CLASSPATH = $(JDKPATH)/lib/classes.zip:.:..:$(LIBPATH)
 BINPATH = $(JDKPATH)/bin
 JAVAC = $(JDKPATH)/bin/javac -classpath $(CLASSPATH)
