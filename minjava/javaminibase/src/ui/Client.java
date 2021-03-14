@@ -398,7 +398,7 @@ break;
 		}
 		printDiskAccesses();
 	}
-	public void performBtreeSky(AttrType[] in, short[] Ssizes, FldSpec[] projection,int[] pref_list,int pref_list_length,
+	static void performBtreeSky(AttrType[] in, short[] Ssizes, FldSpec[] projection,int[] pref_list,int pref_list_length,
 			String relationName, int n_pages) throws Exception {
 		if(n_pages<20)throw new Exception("Not enough pages to create perform passes");
 		String[] indexFiles = new String[pref_list_length];
