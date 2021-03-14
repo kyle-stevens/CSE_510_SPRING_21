@@ -48,16 +48,6 @@ public class Client {
 			}
 			System.out.println("performNestedLoopSkyNaive END::");
 
-			System.out.println("performNestedLoopSky START::");
-			setupDB();
-			try {
-				performNestedLoopsSky(_in, new short[1], projection, pref_list, pref_list_length, relationName, n_pages);
-			}catch(Exception e) {
-				e.printStackTrace();
-			}
-			System.out.println("performNestedLoopSky END::");
-
-			System.out.println("performBlockNestedSky START::");
 			setupDB();
 			try {
 				performBlockNestedSky(_in, new short[1], projection, pref_list, pref_list_length, relationName, n_pages);
@@ -84,7 +74,27 @@ public class Client {
 			}
 			System.out.println("performBtreeSortedSky END::");
 			
+			System.out.println("performBTreeSky START::");
+			setupDB();
+			try {
+				performNestedLoopsSky(_in, new short[1], projection, pref_list, pref_list_length, relationName, n_pages);
+			}catch(Exception e) {
+				e.printStackTrace();
+			}
+			System.out.println("performBTreeSky END::");
+
+			System.out.println("performBlockNestedSky START::");
 			
+			System.out.println("performNestedLoopSky START::");
+			setupDB();
+			try {
+				performNestedLoopsSky(_in, new short[1], projection, pref_list, pref_list_length, relationName, n_pages);
+			}catch(Exception e) {
+				e.printStackTrace();
+			}
+			System.out.println("performNestedLoopSky END::");
+
+			System.out.println("performBlockNestedSky START::");
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -388,7 +398,94 @@ break;
 		}
 		printDiskAccesses();
 	}
+	public void performBtreeSky(AttrType[] in, short[] Ssizes, FldSpec[] projection,int[] pref_list,int pref_list_length,
+			String relationName, int n_pages) throws Exception {
+		String[] indexFiles = new String[pref_list_length];
+		for(int i=0;i<pref_list_length;i++) {
+			 BTreeFile btf = null;
+		     try {
+		    	 indexFiles[i]  = "BTreeIndex"+i;
+		      btf = new BTreeFile("BTreeIndex"+i, AttrType.attrReal, 4, 1); 
+		     }
+		     catch (Exception e) {
+		       e.printStackTrace();
+		       Runtime.getRuntime().exit(1);
+		     }
+		     
+		     RID rid = new RID();
+		     float key = 0;
+		     Tuple temp = null;
+		     Scan scan = new Scan(new Heapfile(relationName));
+		     try {
+		       temp = scan.getNext(rid);
+		     }
+		     catch (Exception e) {
+		       e.printStackTrace();
+		     }
 	
+		     Tuple tt = new Tuple();
+		     try {
+		       tt.setHdr((short)in.length, in, Ssizes);
+		     }
+		     catch (Exception e) {
+		       e.printStackTrace();
+		     }
+	
+		     int sizett = tt.size();
+		     tt = new Tuple(sizett);
+		     try {
+		       tt.setHdr((short) in.length, in, Ssizes);
+		     }
+		     catch (Exception e) {
+		       e.printStackTrace();
+		     }
+		     while ( temp != null) {
+		       
+		       try {
+		    	   tt.tupleCopy(temp);
+		     	  float tmp = tt.getFloFld(pref_list[i]);
+		     	  
+		     	  key = -tmp;
+		     	//  System.out.println(key);
+		       }
+		       catch (Exception e) {
+		    	   e.printStackTrace();
+		       }
+		       
+		       try {
+		    	   btf.insert(new RealKey(key), rid); 
+		       }
+		       catch (Exception e) {
+		 	e.printStackTrace();
+		       }
+	
+		       try {
+		 	temp = scan.getNext(rid);
+		       }
+		       catch (Exception e) {
+		 	e.printStackTrace();
+		       }
+		     }
+		     // close the file scan
+		     scan.closescan();
+	     }
+		PCounter.initialize();		
+		BTreeSky btScan = new BTreeSky(in,(short)in.length,Ssizes,null,relationName,pref_list,pref_list_length,indexFiles,n_pages);
+		Tuple t1 = null;
+	    int tuple_count = 1;
+		try {
+			while ((t1 = btScan.get_next()) != null) {
+				printTuple(tuple_count,t1);
+				tuple_count++;
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+		} finally {
+			btScan.close();
+		}
+		printDiskAccesses();
+		
+	}
 	static void printDiskAccesses() {
 		System.out.println("Read Count: "+ PCounter.rcounter);
 

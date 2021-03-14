@@ -114,6 +114,7 @@ public class BTreeSky extends Iterator{
             bNLS = new BlockNestedLoopSky(in1, len_in1, t1_str_sizes, fScan,
             "skyline_candidates", pref_list, pref_list_length,
             n_pages);
+            runSky();
         }
 
         /**
@@ -122,7 +123,7 @@ public class BTreeSky extends Iterator{
         *into the bNLS object.
         *
         */
-        public Vector<Tuple> runSky() throws IOException, JoinsException, IndexException, InvalidTupleSizeException,
+        public void runSky() throws IOException, JoinsException, IndexException, InvalidTupleSizeException,
 			InvalidTypeException, PageNotReadException, TupleUtilsException, PredEvalException, SortException,
 			LowMemException, UnknowAttrType, UnknownKeyTypeException, Exception{
                 //Create Tuple Objects for comparisons and manipulation
@@ -195,9 +196,7 @@ public class BTreeSky extends Iterator{
 
             //flush the buffer and store to heapfile
             oBuf.flush();
-            //retrieve the calculated skyline
             
-            return skyline;
         }
         @Override
         public Tuple get_next() throws Exception{
