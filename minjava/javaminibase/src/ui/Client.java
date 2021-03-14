@@ -77,7 +77,7 @@ public class Client {
 			System.out.println("performBTreeSky START::");
 			setupDB();
 			try {
-				performNestedLoopsSky(_in, new short[1], projection, pref_list, pref_list_length, relationName, n_pages);
+				performBtreeSky(_in, new short[1], projection, pref_list, pref_list_length, relationName, n_pages);
 			}catch(Exception e) {
 				e.printStackTrace();
 			}
