@@ -90,7 +90,7 @@ public class Client {
 			System.out.println("performBTreeSky START::");
 			setupDB();
 			try{
-				performBTreeSky();
+				performBTreeSky(_in, new short[1], projection, pref_list, pref_list_length, relationName, n_pages);
 			}catch(Exception e){
 				e.printStackTrace();
 			}
@@ -295,7 +295,7 @@ public class Client {
 	        if(n_pages<6) throw new Exception("Not enough pages to create index");
 
 	        //create index files
-		BTreeFile[] btf = new BTreFile[pref_list_length];
+		BTreeFile[] btf = new BTreeFile[pref_list_length];
 		String[] file_names = new String[pref_list_length];
 		for(int b = 0; b < btf.length; b++){
 			try{
@@ -317,7 +317,7 @@ public class Client {
 			rid = new RID();
 			key = 0;
 			temp = null;
-			scan = new Scan(new HeapFile(relationName));
+			scan = new Scan(new Heapfile(relationName));
 
 			try{
 				temp = scan.getNext(rid);
@@ -372,7 +372,7 @@ public class Client {
 			int tuple_count = 1;
 			try{
 				t1 = sc.runSky();
-				for(int i = 0; t1.size(); i++){
+				for(int i = 0; i < t1.size(); i++){
 					printTuple(tuple_count, t1.get(i));
 					tuple_count++;
 				}
