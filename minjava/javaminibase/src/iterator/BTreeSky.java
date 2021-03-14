@@ -94,8 +94,10 @@ public class BTreeSky extends Iterator{
             //Create iterator array
             iter = new Iterator[len_in1];
             //Iterate over IndexFiles and create separate iterators and fldspecs
-            for(int i=0; i<len_in1;i++){
-                    Sprojection[i] = new FldSpec(new RelSpec(RelSpec.outer), i+1);
+            for(int j = 0; j<len_in1;j++){
+		    Sprojection[i] = new FldSpec(new RelSpec(RelSpec.outer), i+1);
+	    }
+	    for(int i=0; i<len_in1;i++){
                     cExpr[i] = new CondExpr();
                     iter[i] = new IndexScan(new IndexType(IndexType.B_Index),
                     relationName, index_file_list[i], in1, t1_str_sizes,len_in1,
