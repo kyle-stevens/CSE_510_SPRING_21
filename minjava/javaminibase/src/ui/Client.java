@@ -400,6 +400,7 @@ break;
 	}
 	public void performBtreeSky(AttrType[] in, short[] Ssizes, FldSpec[] projection,int[] pref_list,int pref_list_length,
 			String relationName, int n_pages) throws Exception {
+		if(n_pages<20)throw new Exception("Not enough pages to create perform passes");
 		String[] indexFiles = new String[pref_list_length];
 		for(int i=0;i<pref_list_length;i++) {
 			 BTreeFile btf = null;
@@ -470,7 +471,7 @@ break;
 		     scan.closescan();
 	     }
 		PCounter.initialize();		
-		BTreeSky btScan = new BTreeSky(in,(short)in.length,Ssizes,null,relationName,pref_list,pref_list_length,indexFiles,n_pages);
+		BTreeSky btScan = new BTreeSky(in,(short)in.length,Ssizes,null,relationName,pref_list,pref_list_length,indexFiles,n_pages-10);
 		Tuple t1 = null;
 	    int tuple_count = 1;
 		try {
