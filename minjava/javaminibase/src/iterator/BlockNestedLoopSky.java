@@ -48,15 +48,19 @@ public class BlockNestedLoopSky extends Iterator
     ) throws NestedLoopException, SortException, Exception
     {
         if (GlobalConst.MINIBASE_PAGESIZE == 128) {
-            if (n_pages <= 6) {
+            if (n_pages <= 5) {
+                // Scan uses 2 pages
+                // Heap File creation takes 3 pages
                 throw new Exception("Not enough Buffer pages. " +
-                        "\n Minimum required: 7 \t Available: " + n_pages);
+                        "\n Minimum required: 6 \t Available: " + n_pages);
             } else {
-                this.n_pages = n_pages - 6;
+                this.n_pages = n_pages - 5;
             }
         }
         else if (GlobalConst.MINIBASE_PAGESIZE == 1024){
             if (n_pages <= 4) {
+                // Scan uses 2 pages
+                // Heap File creation takes 3 pages
                 throw new Exception("Not enough Buffer pages. " +
                         "\n Minimum required: 5 \t Available: " + n_pages);
             } else {
