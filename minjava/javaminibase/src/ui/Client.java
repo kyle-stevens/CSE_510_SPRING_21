@@ -399,8 +399,11 @@ public class Client {
   // Start BtreeSky
   static void performBtreeSky(AttrType[] in, short[] Ssizes, FldSpec[] projection, int[] pref_list, int pref_list_length,
                               String relationName, int n_pages) throws Exception {
-    if (n_pages < 20) throw new Exception("Not enough pages to create perform passes");
+//checking page limits for computation	  
+    if (n_pages < (6+5*pref_list_length)) throw new Exception("Not enough pages to create files and perform passes");
+//Storage of index file names	  
     String[] indexFiles = new String[pref_list_length];
+//Create BTreeFiles and assign names to indexFiles[]	  
     for (int i = 0; i < pref_list_length; i++) {
       BTreeFile btf = null;
       try {
@@ -410,6 +413,7 @@ public class Client {
         e.printStackTrace();
         Runtime.getRuntime().exit(1);
       }
+//Begin sorting process	    
       RID rid = new RID();
       float key = 0;
       Tuple temp = null;
@@ -439,32 +443,35 @@ public class Client {
         try {
           tt.tupleCopy(temp);
           float tmp = tt.getFloFld(pref_list[i]);
-
+//Use negative key to sort in reverse(descending) order
           key = -tmp;
           //  System.out.println(key);
         } catch (Exception e) {
           e.printStackTrace();
         }
-
+//Add element to BTreeFile
         try {
           btf.insert(new RealKey(key), rid);
         } catch (Exception e) {
           e.printStackTrace();
         }
-
+//Get next element to sort and add
         try {
           temp = scan.getNext(rid);
         } catch (Exception e) {
           e.printStackTrace();
         }
       }
-      // close the file scan
+// close the file scan
       scan.closescan();
     }
+//Set up PCounter	  
     PCounter.initialize();
+//Create BTreeSky iterator and store tuples to buffer
+//Reserves certain pages for file creation and scanners	  
     BTreeSky btScan = new BTreeSky(in, (short) in.length, Ssizes, null, relationName, pref_list, pref_list_length, indexFiles, n_pages - (6 + 5 * pref_list_length));
 
-    // Print Skyline Tuples
+// Print Skyline Tuples
     Tuple t1 = null;
     int tuple_count = 1;
     try {
@@ -477,7 +484,7 @@ public class Client {
     } finally {
       btScan.close();
     }
-    // Print the read / write count on disk
+// Print the read / write count on disk
     printDiskAccesses();
 
   }
