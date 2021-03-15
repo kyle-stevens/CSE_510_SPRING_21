@@ -33,77 +33,81 @@ public class Client {
 		try {
 			System.out.println("Please input no of pages that can be used: ");
 			n_pages = in.nextInt();
-			System.out.println("Please enter the count of preference attributes: ");
-			pref_list_length = in.nextInt();
-			System.out.println("Please enter numbers of columns, starting from 1 and separated by space, that could be used as preference list: ");
-			pref_list= new int[pref_list_length];
-			for(int i=0;i<pref_list_length;i++)pref_list[i] = in.nextInt();
-			
-			// NestedLoopSky
-			System.out.println("performNestedLoopSky START::");
-			setupDB();
-			try {
-				performNestedLoopsSky(_in, new short[1], projection, pref_list, pref_list_length, relationName, n_pages);
-			}catch(Exception e) {
-				e.printStackTrace();
-			}
-			System.out.println("performNestedLoopSky END::");
+			try{
+				if (n_pages > NUMBUF) {
+					throw new Exception("n_pages exceeded the buffer size");
+				}
+				System.out.println("Please enter the count of preference attributes: ");
+				pref_list_length = in.nextInt();
+				System.out.println("Please enter numbers of columns, starting from 1 and separated by space, that could be used as preference list: ");
+				pref_list= new int[pref_list_length];
+				for(int i=0;i<pref_list_length;i++)pref_list[i] = in.nextInt();
 
-			// NestedLoopSkyNaive
-			System.out.println("performNestedLoopSkyNaive START::");
-			setupDB();
-			try {
-				performNestedLoopsSkyNaive(_in, new short[1], projection, pref_list, pref_list_length, relationName, n_pages);
-			}catch(Exception e) {
+				System.out.println("performNestedLoopSkyNaive START::");
+				setupDB();
+				try {
+					performNestedLoopsSkyNaive(_in, new short[1], projection, pref_list, pref_list_length, relationName, n_pages);
+				}catch(Exception e) {
+					e.printStackTrace();
+				}
+				System.out.println("performNestedLoopSkyNaive END::");
+
+				setupDB();
+				try {
+					performBlockNestedSky(_in, new short[1], projection, pref_list, pref_list_length, relationName, n_pages);
+				}catch(Exception e) {
+					e.printStackTrace();
+				}
+				System.out.println("performBlockNestedSky END::");
+
+				System.out.println("performSortedSky START::");
+				setupDB();
+				try {
+					performSortedSky(_in, new short[1], projection, pref_list, pref_list_length, relationName, n_pages);
+				}catch(Exception e) {
+					e.printStackTrace();
+				}
+				System.out.println("performSortedSky END::");
+
+				System.out.println("performBtreeSortedSky START::");
+				setupDB();
+				try {
+					performBtreeSortedSky(_in, new short[1], projection, pref_list, pref_list_length, relationName, n_pages);
+				}catch(Exception e) {
+					e.printStackTrace();
+				}
+				System.out.println("performBtreeSortedSky END::");
+
+				System.out.println("performBTreeSky START::");
+				setupDB();
+				try {
+					performBtreeSky(_in, new short[1], projection, pref_list, pref_list_length, relationName, n_pages);
+				}catch(Exception e) {
+					e.printStackTrace();
+				}
+				System.out.println("performBTreeSky END::");
+
+				System.out.println("performBlockNestedSky START::");
+
+				System.out.println("performNestedLoopSky START::");
+				setupDB();
+				try {
+					performNestedLoopsSky(_in, new short[1], projection, pref_list, pref_list_length, relationName, n_pages);
+				}catch(Exception e) {
+					e.printStackTrace();
+				}
+				System.out.println("performNestedLoopSky END::");
+
+				System.out.println("performBlockNestedSky START::");
+			} catch (Exception e) {
 				e.printStackTrace();
 			}
-			System.out.println("performNestedLoopSkyNaive END::");
-			
-			// BlockNestedLoopSky
-			System.out.println("performBlockNestedSky START::");
-			setupDB();
-			try {
-				performBlockNestedSky(_in, new short[1], projection, pref_list, pref_list_length, relationName, n_pages);
-			}catch(Exception e) {
-				e.printStackTrace();
-			}
-			System.out.println("performBlockNestedSky END::");
-			
-			// SortFirstSky
-			System.out.println("performSortFirstSky START::");
-			setupDB();
-			try {
-				performSortedSky(_in, new short[1], projection, pref_list, pref_list_length, relationName, n_pages);
-			}catch(Exception e) {
-				e.printStackTrace();
-			}
-			System.out.println("performSortFirstSky END::");
-			
-			// BtreeSky
-			System.out.println("performBTreeSky START::");
-			setupDB();
-			try {
-				performBtreeSky(_in, new short[1], projection, pref_list, pref_list_length, relationName, n_pages);
-			}catch(Exception e) {
-				e.printStackTrace();
-			}
-			System.out.println("performBTreeSky END::");
-			
-			
-			// BtreeSortedSky
-			System.out.println("performBtreeSortedSky START::");
-			setupDB();
-			try {
-				performBtreeSortedSky(_in, new short[1], projection, pref_list, pref_list_length, relationName, n_pages);
-			}catch(Exception e) {
-				e.printStackTrace();
-			}
-			System.out.println("performBtreeSortedSky END::");	
-			
-		} catch (Exception e) {
+			in.close();
+		}
+		catch (Exception e)
+		{
 			e.printStackTrace();
 		}
-		in.close();
 	}
 	static void setupDB() throws NumberFormatException, IOException, FieldNumberOutOfBoundException {
 		String dbpath = "/tmp/"+System.getProperty("user.name")+".minibase.skylineDB"; 
