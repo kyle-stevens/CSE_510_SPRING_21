@@ -31,64 +31,25 @@ public class Client {
 	public static void main(String args[]) {
 		Scanner in = new Scanner(System.in);
 		try {
+			// Take the value of n_pages as user input
 			System.out.println("Please input no of pages that can be used: ");
 			n_pages = in.nextInt();
 			try{
+				// Throw exception if n_pages exceeds NUMBUF
 				if (n_pages > NUMBUF) {
 					throw new Exception("n_pages exceeded the buffer size");
 				}
+				
+				// Input the number of Skyline attributes
 				System.out.println("Please enter the count of preference attributes: ");
 				pref_list_length = in.nextInt();
+				
+				// Input Skyline Attributes
 				System.out.println("Please enter numbers of columns, starting from 1 and separated by space, that could be used as preference list: ");
 				pref_list= new int[pref_list_length];
 				for(int i=0;i<pref_list_length;i++)pref_list[i] = in.nextInt();
-
-				System.out.println("performNestedLoopSkyNaive START::");
-				setupDB();
-				try {
-					performNestedLoopsSkyNaive(_in, new short[1], projection, pref_list, pref_list_length, relationName, n_pages);
-				}catch(Exception e) {
-					e.printStackTrace();
-				}
-				System.out.println("performNestedLoopSkyNaive END::");
-
-				setupDB();
-				try {
-					performBlockNestedSky(_in, new short[1], projection, pref_list, pref_list_length, relationName, n_pages);
-				}catch(Exception e) {
-					e.printStackTrace();
-				}
-				System.out.println("performBlockNestedSky END::");
-
-				System.out.println("performSortedSky START::");
-				setupDB();
-				try {
-					performSortedSky(_in, new short[1], projection, pref_list, pref_list_length, relationName, n_pages);
-				}catch(Exception e) {
-					e.printStackTrace();
-				}
-				System.out.println("performSortedSky END::");
-
-				System.out.println("performBtreeSortedSky START::");
-				setupDB();
-				try {
-					performBtreeSortedSky(_in, new short[1], projection, pref_list, pref_list_length, relationName, n_pages);
-				}catch(Exception e) {
-					e.printStackTrace();
-				}
-				System.out.println("performBtreeSortedSky END::");
-
-				System.out.println("performBTreeSky START::");
-				setupDB();
-				try {
-					performBtreeSky(_in, new short[1], projection, pref_list, pref_list_length, relationName, n_pages);
-				}catch(Exception e) {
-					e.printStackTrace();
-				}
-				System.out.println("performBTreeSky END::");
-
-				System.out.println("performBlockNestedSky START::");
-
+				
+				// NestedLoopSky
 				System.out.println("performNestedLoopSky START::");
 				setupDB();
 				try {
@@ -98,7 +59,56 @@ public class Client {
 				}
 				System.out.println("performNestedLoopSky END::");
 
-				System.out.println("performBlockNestedSky START::");
+				// NestedLoopSkyNaive
+				System.out.println("performNestedLoopSkyNaive START::");
+				setupDB();
+				try {
+					performNestedLoopsSkyNaive(_in, new short[1], projection, pref_list, pref_list_length, relationName, n_pages);
+				}catch(Exception e) {
+					e.printStackTrace();
+				}
+				System.out.println("performNestedLoopSkyNaive END::");
+				
+				// BlockNestedLoopSky
+				System.out.println("performBlockNestedLoopSky START::");
+				setupDB();
+				try {
+					performBlockNestedSky(_in, new short[1], projection, pref_list, pref_list_length, relationName, n_pages);
+				}catch(Exception e) {
+					e.printStackTrace();
+				}
+				System.out.println("performBlockNestedLoopSky END::");
+				
+				// SortFirstSky
+				System.out.println("performSortFirstSky START::");
+				setupDB();
+				try {
+					performSortedSky(_in, new short[1], projection, pref_list, pref_list_length, relationName, n_pages);
+				}catch(Exception e) {
+					e.printStackTrace();
+				}
+				System.out.println("performSortFirstSky END::");
+
+				// BTreeSky
+				System.out.println("performBTreeSky START::");
+				setupDB();
+				try {
+					performBtreeSky(_in, new short[1], projection, pref_list, pref_list_length, relationName, n_pages);
+				}catch(Exception e) {
+					e.printStackTrace();
+				}
+				System.out.println("performBTreeSky END::");
+				
+				// BTreeSortedSky
+				System.out.println("performBtreeSortedSky START::");
+				setupDB();
+				try {
+					performBtreeSortedSky(_in, new short[1], projection, pref_list, pref_list_length, relationName, n_pages);
+				}catch(Exception e) {
+					e.printStackTrace();
+				}
+				System.out.println("performBtreeSortedSky END::");
+				
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
@@ -109,6 +119,8 @@ public class Client {
 			e.printStackTrace();
 		}
 	}
+	
+	// Setup database from text file
 	static void setupDB() throws NumberFormatException, IOException, FieldNumberOutOfBoundException {
 		String dbpath = "/tmp/"+System.getProperty("user.name")+".minibase.skylineDB"; 
 	    String logpath = "/tmp/"+System.getProperty("user.name")+".skylog";
@@ -129,6 +141,7 @@ public class Client {
 
 	    new SystemDefs( dbpath, 100000, n_pages, "Clock" );
 	    
+	    // Enter the path for data file
 	    File file = new File("/afs/asu.edu/users/j/t/r/jtrada/data2.txt");
 		BufferedReader br = new BufferedReader(new FileReader(file));
 		int numberOfCols = Integer.parseInt(br.readLine().trim());
@@ -154,8 +167,8 @@ public class Client {
 		}
 
 		int size = t.size();
-
-		// inserting the tuple into file "sailors"
+		
+		// Create heapfile and add the tuples to it
 		Heapfile f = null;
 		try {
 			f = new Heapfile(relationName);
@@ -193,6 +206,8 @@ break;
 		}
 		br.close();
 	}
+	
+	// Start NestedLoopsSkyNaive
 	static void performNestedLoopsSkyNaive(AttrType[] in, short[] Ssizes, FldSpec[] projection,int[] pref_list,int pref_list_length,
 																				 String relationName, int n_pages) {
 		FileScan nlScan = null;
@@ -212,6 +227,7 @@ break;
 			System.out.println("\t NESTED LOOP SKYLINE (Naive approach) ");
 			System.out.println("**************************************************");
 
+			// Print skyline tuples
 			Tuple nestedLoopSkyline;
 			int tuple_count = 1;
 			while ((nestedLoopSkyline = nlSky.get_next()) != null) {
@@ -222,8 +238,11 @@ break;
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
+		// Print the read / write count on disk
 		printDiskAccesses();
 	}
+	
+	// Print Skyline tuples
 	static void printTuple(int tuple_count,Tuple t) throws Exception {
 		System.out.println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
 		System.out.println("Skyline tuple # "+tuple_count);
@@ -231,6 +250,8 @@ break;
 		t.print(_in);
 		System.out.println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
 	}
+	
+	// Start NestedLoopsSky
 	static void performNestedLoopsSky(AttrType[] in, short[] Ssizes, FldSpec[] projection,int[] pref_list,int pref_list_length,
 																		String relationName, int n_pages) {
 		FileScan nlScan = null;
@@ -250,6 +271,7 @@ break;
 			System.out.println("\t NESTED LOOP SKYLINE (With dominated tuples stored in the buffer)");
 			System.out.println("**************************************************");
 
+			// Print skyline tuples
 			Tuple nestedLoopSkyline;
 			int tuple_count = 1;
 			while ((nestedLoopSkyline = nlSky.get_next()) != null) {
@@ -260,8 +282,11 @@ break;
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
+		// Print the read / write count on disk
 		printDiskAccesses();
 	}
+	
+	// Start BlockNestedLoopSky
 	static void performBlockNestedSky(AttrType[] in, short[] Ssizes, FldSpec[] projection,int[] pref_list,int pref_list_length,
 			String relationName, int n_pages) {
 		 FileScan am2 = null;
@@ -284,6 +309,7 @@ break;
 		        System.out.println("**************************************************");
 		        System.out.println("**************************************************\n");
 
+			// Print skyline tuples
 		        Tuple t1 = null;
 			    int tuple_count = 1;
 				try {
@@ -299,8 +325,11 @@ break;
 		      } catch (Exception e) {
 		        e.printStackTrace();
 		      }
+		    // Print the read / write count on disk
 		    printDiskAccesses();
 	}
+	
+	// Start BtreeSortedSky
 	static void performBtreeSortedSky(AttrType[] in, short[] Ssizes, FldSpec[] projection,int[] pref_list,int pref_list_length,
 			String relationName, int n_pages) throws Exception {
 		if(n_pages<6)throw new Exception("Not enough pages to create index");
@@ -385,14 +414,19 @@ break;
 		} finally {
 			sc.close();
 		}
+		// Print the read / write count on disk
 		printDiskAccesses();
 	}
+	
+	// Start SortFistSky
 	static void performSortedSky(AttrType[] in, short[] Ssizes, FldSpec[] projection,int[] pref_list,int pref_list_length,
 			String relationName, int n_pages) throws Exception {
 		
 		Iterator am1 = new FileScan(relationName, in, Ssizes, (short) in.length, in.length, projection, null);
 		PCounter.initialize();
 		Iterator sc = new SortFirstSky(in, (short) in.length, Ssizes, am1, relationName, pref_list, pref_list_length, n_pages-2);
+		
+		// Print Skyline tuples
 		Tuple t1 = null;
 	    int tuple_count = 1;
 		try {
@@ -405,8 +439,11 @@ break;
 		} finally {
 			sc.close();
 		}
+		// Print the read / write count on disk
 		printDiskAccesses();
 	}
+	
+	// Start BtreeSky
 	static void performBtreeSky(AttrType[] in, short[] Ssizes, FldSpec[] projection,int[] pref_list,int pref_list_length,
 			String relationName, int n_pages) throws Exception {
 		if(n_pages<20)throw new Exception("Not enough pages to create perform passes");
@@ -421,7 +458,6 @@ break;
 		       e.printStackTrace();
 		       Runtime.getRuntime().exit(1);
 		     }
-		     
 		     RID rid = new RID();
 		     float key = 0;
 		     Tuple temp = null;
@@ -481,6 +517,8 @@ break;
 	     }
 		PCounter.initialize();		
 		BTreeSky btScan = new BTreeSky(in,(short)in.length,Ssizes,null,relationName,pref_list,pref_list_length,indexFiles,n_pages-10);
+		
+		// Print Skyline Tuples
 		Tuple t1 = null;
 	    int tuple_count = 1;
 		try {
@@ -493,9 +531,12 @@ break;
 		} finally {
 			btScan.close();
 		}
+		// Print the read / write count on disk
 		printDiskAccesses();
 		
 	}
+	
+	// Print read write on disk
 	static void printDiskAccesses() {
 		System.out.println("Read Count: "+ PCounter.rcounter);
 
