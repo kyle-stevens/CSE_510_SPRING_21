@@ -5,6 +5,7 @@ import java.io.IOException;
 import global.AttrType;
 import global.PageId;
 import global.RID;
+import global.GlobalConst;
 import heap.Heapfile;
 import heap.Scan;
 import heap.Tuple;
@@ -46,12 +47,21 @@ public class BlockNestedLoopSky extends Iterator
                            int n_pages
     ) throws NestedLoopException, SortException, Exception
     {
-        if (n_pages <= 5){
-            throw new Exception("Not enough Buffer pages. " +
-                    "\n Minimum required: 6 \t Available: " + n_pages);
+        if (GlobalConst.MINIBASE_PAGESIZE == 128) {
+            if (n_pages <= 6) {
+                throw new Exception("Not enough Buffer pages. " +
+                        "\n Minimum required: 7 \t Available: " + n_pages);
+            } else {
+                this.n_pages = n_pages - 6;
+            }
         }
-        else {
-            this.n_pages = n_pages - 8;
+        else if (GlobalConst.MINIBASE_PAGESIZE == 1024){
+            if (n_pages <= 4) {
+                throw new Exception("Not enough Buffer pages. " +
+                        "\n Minimum required: 5 \t Available: " + n_pages);
+            } else {
+                this.n_pages = n_pages - 4;
+            }
         }
 
         _in1 = new AttrType[in1.length];
@@ -67,44 +77,44 @@ public class BlockNestedLoopSky extends Iterator
         bufs = new byte[this.n_pages][];
 
         try {
-            temp_files = new Heapfile("BlockNestedLoop");    // Uses 2 pages, but unpinned immediately after creation
-            // 2 (scan) + 1 (writing) = 3 pages are reserved for later use
-
-        }
-        catch (Exception e) {
-            throw new SortException(e, "Heapfile error");
-        }
-
-        try {
             get_buffer_pages(this.n_pages, bufs_pids, bufs);    // get this.n_pages buffer pages
         }
         catch (Exception e) {
             throw new SortException(e, "BUFmgr error");
         }
 
-        inner = new BlockNestedBuf(_in1,(short)in1_len,t1_str_sizescopy,bufs,pref_list,pref_list_length,this.n_pages,temp_files);
+        inner = new BlockNestedBuf(_in1,(short)in1_len,t1_str_sizescopy,bufs,pref_list,pref_list_length,this.n_pages);
        
         
     }
+
+    /**
+     * Returns confirmed skyline tuple
+     * @return  Skyline tuple
+     * @throws Exception
+     */
     public Tuple get_next() throws Exception{
     	Tuple t = null;
     	RID rid = new RID();
     	while((t=outer.getNext(rid))!=null) {
     		t.setHdr((short)in1_len, _in1, t1_str_sizescopy);
     		inner.checkIfDominates(t);
-    		
     	}
+
     	t = inner.getSkyTuple();
     	if(t==null) {
     		if(inner.isFlag()) {
-    			outer.closescan();
-    			outer = new Scan(new Heapfile(inner.getCurr_file() + inner.getNumber_of_window_file()));
+    		    // When the buffer is full and no skyline is found
+    			outer.closescan();  // close scan on disk file
+                // Start outer loop on the temp heap file with skyline candidate(s)
+    			outer = new Scan(new Heapfile(inner.getCurr_file() + inner.getNumber_of_window_file()));    // Uses 2 pages
     			if (inner.getNumber_of_window_file() > 0) {
+    			    //  delete last temp heap file
     				new Heapfile(inner.getCurr_file() + (inner.getNumber_of_window_file() - 1)).deleteFile();
     			}
-    			inner.setNumber_of_window_file(inner.getNumber_of_window_file()+1);
+    			inner.setNumber_of_window_file(inner.getNumber_of_window_file()+1); // creates new temp heap file if needed at the time of insertion
     			inner.setFlag(false);
-    			inner.init();
+    			inner.init();   // resets buffer
     			return get_next();
     		}
     	}
@@ -135,13 +145,6 @@ public class BlockNestedLoopSky extends Iterator
             }
             catch (Exception e) {
                 throw new SortException(e, "BUFmgr error");
-            }
-
-            try {
-                temp_files.deleteFile();
-            }
-            catch (Exception e) {
-                throw new SortException(e, "Heapfile error");
             }
             closeFlag = true;
         }
