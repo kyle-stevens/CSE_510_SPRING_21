@@ -462,7 +462,7 @@ public class Client {
       scan.closescan();
     }
     PCounter.initialize();
-    BTreeSky btScan = new BTreeSky(in, (short) in.length, Ssizes, null, relationName, pref_list, pref_list_length, indexFiles, n_pages - 10);
+    BTreeSky btScan = new BTreeSky(in, (short) in.length, Ssizes, null, relationName, pref_list, pref_list_length, indexFiles, n_pages - (6 + 5 * pref_list_length));
 
     // Print Skyline Tuples
     Tuple t1 = null;
