@@ -250,13 +250,13 @@ public class Client {
   static void performBlockNestedSky(AttrType[] in, short[] Ssizes, FldSpec[] projection, int[] pref_list, int pref_list_length,
                                     String relationName, int n_pages) {
     FileScan am2 = null;
-    try {
-      am2 = new FileScan(relationName, in, Ssizes,
-              (short) in.length, (short) in.length,
-              projection, null);
-    } catch (Exception e) {
-      e.printStackTrace();
-    }
+//     try {
+//       am2 = new FileScan(relationName, in, Ssizes,
+//               (short) in.length, (short) in.length,
+//               projection, null);
+//     } catch (Exception e) {
+//       e.printStackTrace();
+//     }
     BlockNestedLoopSky sky2 = null;
     PCounter.initialize();
     try {
