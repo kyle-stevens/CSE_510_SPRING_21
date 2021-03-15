@@ -97,7 +97,6 @@ public class BlockNestedBuf implements GlobalConst{
 		t_size = t.size();
 		t_per_pg = MINIBASE_PAGESIZE / t_size;
 		t_in_buf = _n_pages * t_per_pg;
-		System.out.println(t_per_pg+" "+t_in_buf+" "+t_size);
 		init();
 	}
 
@@ -228,7 +227,7 @@ public class BlockNestedBuf implements GlobalConst{
 		//temp.print(in1);
 		copybuf = temp.getTupleByteArray();
 		if(curr_page==1) {
-			System.out.println(t_wr_to_buf+" "+t_in_buf+" "+t_per_pg+" "+t_wr_to_pg);
+//			System.out.println(t_wr_to_buf+" "+t_in_buf+" "+t_per_pg+" "+t_wr_to_pg);
 		}
 		System.arraycopy(copybuf, 0, _bufs[curr_page], t_wr_to_pg * t_size, t_size);
 		t_wr_to_pg++;

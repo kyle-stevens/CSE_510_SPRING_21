@@ -71,7 +71,6 @@ public class OBufSortSky implements GlobalConst{
 			int[] pref_list, int pref_list_length, int n_pages) throws SortException{
 		
 		this.in1 = in1;
-		System.out.println("len = "+in1.length);
 		col_len = len_in1;
 		str_sizes = t1_str_sizes;
 		this.pref_list = pref_list;
