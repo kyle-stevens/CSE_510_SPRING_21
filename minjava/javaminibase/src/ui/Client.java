@@ -11,6 +11,7 @@ import heap.FieldNumberOutOfBoundException;
 import heap.Heapfile;
 import heap.Scan;
 import heap.Tuple;
+import index.IndexException;
 import iterator.*;
 
 import java.io.BufferedReader;
@@ -47,20 +48,20 @@ public class Client {
 
         // Input Skyline Attributes
         System.out.println("Please enter numbers of columns, starting from 1 and separated by space, that could be used as preference list: ");
+        
         pref_list = new int[pref_list_length];
         for (int i = 0; i < pref_list_length; i++) pref_list[i] = in.nextInt();
-
+        setupDB();
+        
         // NestedLoopSky
         System.out.println("performNestedLoopSky START::");
-				int temp = n_pages;
-				//Reserving 6 pages for fileScans, heapfiles, etc. will be used by nestedLoopSkyline
-				n_pages = 6;
-        setupDB();
-				//subtract 6 reserved pages from n_pages limit
-				n_pages = temp - 6;
+				
+        int temp = n_pages;
+		//subtract 6 reserved pages from n_pages limit
+		n_pages = temp - 6;
         try {
-					//Passing remaining buffer pages that the NestedLoopsSky operator might use to store tuples.
-					performNestedLoopsSky(_in, new short[1], projection, pref_list, pref_list_length, relationName, n_pages);
+			//Passing remaining buffer pages that the NestedLoopsSky operator might use to store tuples.
+			performNestedLoopsSky(_in, new short[1], projection, pref_list, pref_list_length, relationName, n_pages);
         } catch (Exception e) {
           e.printStackTrace();
         }
@@ -68,29 +69,30 @@ public class Client {
 				n_pages = temp;
         System.out.println("performNestedLoopSky END::");
 
+        
         // BlockNestedLoopSky
         System.out.println("performBlockNestedLoopSky START::");
-        setupDB();
         try {
           performBlockNestedSky(_in, new short[1], projection, pref_list, pref_list_length, relationName, n_pages);
         } catch (Exception e) {
           e.printStackTrace();
         }
         System.out.println("performBlockNestedLoopSky END::");
-
+        
+        
         // SortFirstSky
         System.out.println("performSortFirstSky START::");
-        setupDB();
         try {
           performSortedSky(_in, new short[1], projection, pref_list, pref_list_length, relationName, n_pages);
         } catch (Exception e) {
           e.printStackTrace();
         }
         System.out.println("performSortFirstSky END::");
-
+        
+        
         // BTreeSky
-        System.out.println("performBTreeSky START::");
         setupDB();
+        System.out.println("performBTreeSky START::");
         try {
           performBtreeSky(_in, new short[1], projection, pref_list, pref_list_length, relationName, n_pages);
         } catch (Exception e) {
@@ -98,9 +100,9 @@ public class Client {
         }
         System.out.println("performBTreeSky END::");
 
+        
         // BTreeSortedSky
         System.out.println("performBtreeSortedSky START::");
-        setupDB();
         try {
           performBtreeSortedSky(_in, new short[1], projection, pref_list, pref_list_length, relationName, n_pages);
         } catch (Exception e) {
@@ -110,13 +112,14 @@ public class Client {
 
       } catch (Exception e) {
         e.printStackTrace();
+      }finally {
+    	  in.close();
       }
-      in.close();
     } catch (Exception e) {
       e.printStackTrace();
     }
   }
-
+static SystemDefs sys;
   // Setup database from text file
   static void setupDB() throws NumberFormatException, IOException, FieldNumberOutOfBoundException {
     String dbpath = "/tmp/" + System.getProperty("user.name") + ".minibase.skylineDB";
@@ -135,17 +138,17 @@ public class Client {
       System.err.println("" + e);
     }
 
-    new SystemDefs(dbpath, 100000, n_pages, "Clock");
+    sys = new SystemDefs(dbpath, 100000, GlobalConst.NUMBUF, "Clock");
 
     // Enter the path for data file
-    File file = new File("/afs/asu.edu/users/s/p/a/spatil23/CSE510/data.txt");
+    File file = new File("/afs/asu.edu/users/j/t/r/jtrada/data3.txt");
     BufferedReader br = new BufferedReader(new FileReader(file));
     int numberOfCols = Integer.parseInt(br.readLine().trim());
 
     String str = "";
 
     _in = new AttrType[numberOfCols];
-    for (int i = 0; i < numberOfCols; i++)
+    for(int i = 0; i < numberOfCols; i++)
       _in[i] = new AttrType(AttrType.attrReal);
 
     projection = new FldSpec[numberOfCols];
@@ -213,8 +216,10 @@ public class Client {
 
   // Start NestedLoopsSky
   static void performNestedLoopsSky(AttrType[] in, short[] Ssizes, FldSpec[] projection, int[] pref_list, int pref_list_length,
-																		String relationName, int n_pages) {
+																		String relationName, int n_pages) throws IndexException, IOException {
   	//For scanning outer loop
+	    sys.flushBuffer();
+	    PCounter.initialize();
     FileScan nlScan = null;
     try {
       nlScan = new FileScan(relationName, in, Ssizes,
@@ -223,9 +228,9 @@ public class Client {
     } catch (Exception e) {
       e.printStackTrace();
     }
-    PCounter.initialize();
+    NestedLoopsSky nlSky = null;
     try {
-      NestedLoopsSky nlSky = new NestedLoopsSky(in, in.length, Ssizes,
+      nlSky = new NestedLoopsSky(in, in.length, Ssizes,
               nlScan, relationName, pref_list, pref_list_length, n_pages);
       System.out.println("**************************************************");
       System.out.println("\t NESTED LOOP SKYLINE");
@@ -238,9 +243,13 @@ public class Client {
         printTuple(tuple_count, nestedLoopSkyline);
         tuple_count++;
       }
-      nlSky.close();
     } catch (Exception e) {
       e.printStackTrace();
+    }finally {
+    	if(nlScan!=null)
+    	nlScan.close();
+    	if(nlSky!=null)
+        nlSky.close();
     }
     // Print the read / write count on disk
     printDiskAccesses();
@@ -250,14 +259,8 @@ public class Client {
   static void performBlockNestedSky(AttrType[] in, short[] Ssizes, FldSpec[] projection, int[] pref_list, int pref_list_length,
                                     String relationName, int n_pages) {
     FileScan am2 = null;
-//     try {
-//       am2 = new FileScan(relationName, in, Ssizes,
-//               (short) in.length, (short) in.length,
-//               projection, null);
-//     } catch (Exception e) {
-//       e.printStackTrace();
-//     }
     BlockNestedLoopSky sky2 = null;
+    sys.flushBuffer();
     PCounter.initialize();
     try {
       //flag = true;
@@ -292,8 +295,6 @@ public class Client {
   // Start BtreeSortedSky
   static void performBtreeSortedSky(AttrType[] in, short[] Ssizes, FldSpec[] projection, int[] pref_list, int pref_list_length,
                                     String relationName, int n_pages) throws Exception {
-    if (n_pages < 6) throw new Exception("Not enough pages to create index");
-    // create the index file
     BTreeFile btf = null;
     try {
       btf = new BTreeFile("BTreeIndex", AttrType.attrReal, 4, 1);
@@ -351,7 +352,11 @@ public class Client {
       }
     }
     // close the file scan
+    btf.close();
+    
     scan.closescan();
+    sys.flushBuffer();
+    
     PCounter.initialize();
     Iterator sc = new BTreeSortedSky(in, (short) in.length, Ssizes, null,
             relationName, pref_list, pref_list_length, "BTreeIndex", n_pages - 1);
@@ -375,10 +380,17 @@ public class Client {
   static void performSortedSky(AttrType[] in, short[] Ssizes, FldSpec[] projection, int[] pref_list, int pref_list_length,
                                String relationName, int n_pages) throws Exception {
 
+	sys.flushBuffer();
+	PCounter.initialize();
+	
     Iterator am1 = new FileScan(relationName, in, Ssizes, (short) in.length, in.length, projection, null);
-    PCounter.initialize();
-    Iterator sc = new SortFirstSky(in, (short) in.length, Ssizes, am1, relationName, pref_list, pref_list_length, n_pages - 2);
-
+    Iterator sc = null;
+    try {
+    	sc = new SortFirstSky(in, (short) in.length, Ssizes, am1, relationName, pref_list, pref_list_length, n_pages - 2);
+    }catch(Exception e) {
+    	if(am1!=null)am1.close();
+    	throw e;
+    }
     // Print Skyline tuples
     Tuple t1 = null;
     int tuple_count = 1;
@@ -399,16 +411,16 @@ public class Client {
   // Start BtreeSky
   static void performBtreeSky(AttrType[] in, short[] Ssizes, FldSpec[] projection, int[] pref_list, int pref_list_length,
                               String relationName, int n_pages) throws Exception {
-//checking page limits for computation	  
-    if (n_pages < (6+5*pref_list_length)) throw new Exception("Not enough pages to create files and perform passes");
+//////checking page limits for computation	  
+//    if (GlobalConst.NUMBUF < 6) throw new Exception("Not enough pages to create files and perform passes");
 //Storage of index file names	  
     String[] indexFiles = new String[pref_list_length];
+    BTreeFile btf[] = new BTreeFile[pref_list_length];
 //Create BTreeFiles and assign names to indexFiles[]	  
     for (int i = 0; i < pref_list_length; i++) {
-      BTreeFile btf = null;
       try {
         indexFiles[i] = "BTreeIndex" + i;
-        btf = new BTreeFile("BTreeIndex" + i, AttrType.attrReal, 4, 1);
+        btf[i] = new BTreeFile(indexFiles[i], AttrType.attrReal, 4, 1);
       } catch (Exception e) {
         e.printStackTrace();
         Runtime.getRuntime().exit(1);
@@ -451,7 +463,7 @@ public class Client {
         }
 //Add element to BTreeFile
         try {
-          btf.insert(new RealKey(key), rid);
+          btf[i].insert(new RealKey(key), rid);
         } catch (Exception e) {
           e.printStackTrace();
         }
@@ -462,14 +474,17 @@ public class Client {
           e.printStackTrace();
         }
       }
+      btf[i].close();
 // close the file scan
       scan.closescan();
     }
-//Set up PCounter	  
+//Set up PCounter	
+    sys.flushBuffer();
     PCounter.initialize();
 //Create BTreeSky iterator and store tuples to buffer
 //Reserves certain pages for file creation and scanners	  
-    BTreeSky btScan = new BTreeSky(in, (short) in.length, Ssizes, null, relationName, pref_list, pref_list_length, indexFiles, n_pages - (6 + 5 * pref_list_length));
+
+    BTreeSky btScan = new BTreeSky(in, (short) in.length, Ssizes, null, relationName, pref_list, pref_list_length, indexFiles, n_pages-pref_list_length);
 
 // Print Skyline Tuples
     Tuple t1 = null;

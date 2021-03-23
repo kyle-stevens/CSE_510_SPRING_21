@@ -28,6 +28,7 @@ public class SortFirstSky extends Iterator {
 	private Iterator _am1;
 	private PageId[] bufs_pids;
 	private byte[][] _bufs;
+	private int n_pages;
 	
 	
 	/***
@@ -64,6 +65,7 @@ public class SortFirstSky extends Iterator {
 		 */
 		spScan = new SortPref(in1, (short)len_in1, t1_str_sizes, _am1, new TupleOrder(TupleOrder.Descending), pref_list, pref_list_length, n_pages-1);
 		n_pages=1;
+		this.n_pages = n_pages;
 		bufs_pids = new PageId[n_pages];
 		_bufs = new byte[n_pages][];
 		try {
@@ -136,9 +138,11 @@ public class SortFirstSky extends Iterator {
 		// TODO Auto-generated method stub
 		spScan.close();
 		try {
-			new Heapfile(oBuf.getCurr_file() + (number_of_run - 1)).deleteFile();
+			free_buffer_pages(n_pages, bufs_pids);
+			if(number_of_run>0)
+				new Heapfile(oBuf.getCurr_file() + (number_of_run - 1)).deleteFile();
 		} catch (Exception e) {
-
+			e.printStackTrace();
 		}
 	}
 }

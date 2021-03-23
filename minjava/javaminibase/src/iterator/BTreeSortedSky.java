@@ -30,7 +30,7 @@ public class BTreeSortedSky extends Iterator {
 	private int number_of_run = 0;
 	private PageId[] bufs_pids;
 	private byte[][] _bufs;
-
+	private int n_pages;
 	/***
 	 * Constructor to initialize necessary details.
 	 * @param in1				Attribute types for given tuple
@@ -54,6 +54,7 @@ public class BTreeSortedSky extends Iterator {
 		str_sizes = t1_str_sizes;
 		n_pages = Math.min(10,n_pages/2);
 		if(n_pages<1)n_pages=1;
+		this.n_pages = n_pages;
 		bufs_pids = new PageId[n_pages];
 		_bufs = new byte[n_pages][];
 		/***
@@ -74,6 +75,7 @@ public class BTreeSortedSky extends Iterator {
 		 * creating Index scan on already created indexfile, 
 		 * which will give tuples in descending order of the sum of their preference attributes.
 		 */
+
 		scan = new IndexScan(new IndexType(IndexType.B_Index), relationName, index_file, this.in1, str_sizes, col_len,
 				col_len, Sprojection, null, 0, false);
 
@@ -112,7 +114,9 @@ public class BTreeSortedSky extends Iterator {
 		 * our new outer scan.
 		 */
 		if (oBuf.isFlag()) {
+
 			scan.close();
+
 			scan = new FileScan(oBuf.getCurr_file() + number_of_run, in1, str_sizes, col_len, col_len, Sprojection, null);
 			if (number_of_run > 0) {
 				new Heapfile(oBuf.getCurr_file() + (number_of_run - 1)).deleteFile();
@@ -131,11 +135,15 @@ public class BTreeSortedSky extends Iterator {
 	@Override
 	public void close() throws IOException, JoinsException, SortException, IndexException {
 		// TODO Auto-generated method stub
-		scan.close();
-		try {
-			new Heapfile(oBuf.getCurr_file() + (number_of_run - 1)).deleteFile();
-		} catch (Exception e) {
 
+		scan.close();
+
+		try {
+			free_buffer_pages(n_pages, bufs_pids);
+			if(number_of_run>0)
+				new Heapfile(oBuf.getCurr_file() + (number_of_run - 1)).deleteFile();
+		} catch (Exception e) {
+			e.printStackTrace();
 		}
 	}
 
