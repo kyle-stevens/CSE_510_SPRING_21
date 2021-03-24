@@ -46,7 +46,6 @@ public class BTreeSky extends Iterator{
     private FldSpec[] _proj_list;
     private CondExpr[] _outFilter;
     private Iterator scan;
-    private int MINIBASE_PAGESIZE = 1024;
     private PageId[] bufferPIDs;
     private int _n_Pages;
     private AttrType[] _in_1;
@@ -68,17 +67,10 @@ public class BTreeSky extends Iterator{
                         int pref_list_length,
                         String[] index_file_list,
                         int n_pages)
-                        throws IndexException,
-			InvalidTypeException,
-                        InvalidTupleSizeException,
-                        UnknownIndexTypeException,
-                        IOException,
-                        SortException,
-                        IteratorBMException, JoinsException, IndexException, InvalidTupleSizeException,
-                			 PageNotReadException, TupleUtilsException, PredEvalException, SortException,
-                			LowMemException, UnknowAttrType, UnknownKeyTypeException, Exception
+                        throws Exception
         {
-        	n_pages-=3;
+        	n_pages-=4;
+        	if(n_pages<=0) throw new Exception("Not enough pages for BTreeSky");
         	this.relationName = relationName;
             this._len_in1 = len_in1;
             this._in_1 = in1;
@@ -125,7 +117,6 @@ public class BTreeSky extends Iterator{
             runSky();
 
         }
-int j=0;
         /**
         *implement the skyline operations using BlockNestedLoopSky
         *and perform tuple comparision to find skyline candidates to pass
@@ -202,7 +193,6 @@ int j=0;
                                 scd.closescan();
                             }
                             if(!duplicate){
-                            	j++;
                                 oBuf.Put(temp2);
                             }
                 		}
@@ -216,7 +206,7 @@ int j=0;
     		free_buffer_pages(_n_Pages, bufferPIDs);
     		bNLS = new BlockNestedLoopSky(_in_1, _len_in1, _t1_str_sizes, fScan,
         file_name, pref_list, pref_list_length,
-        _n_Pages+3);
+        _n_Pages+4);
         }
 
         @Override
