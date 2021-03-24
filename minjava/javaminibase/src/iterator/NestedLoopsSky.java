@@ -65,9 +65,17 @@ public class NestedLoopsSky extends Iterator {
     temp_rid = new RID();
 
     //Check if there is at least one buffer page for computation
+    n_pages-=6; //reserving 6 pages for 3 scans (inner+outer+temp) and 2 pages for creating new heap files (these are reused)
     if (n_pages < 1) {
       System.out.println("NestedLoopsSky: Insufficient buffer pages");
-      throw new NestedLoopException("Not enough buffer pages assigned to carry out the operation");
+      System.out.println("NestedLoopsSky: At least 7 pages are required for nestedLoopSkyline");
+      throw new NestedLoopException("Not enough buffer pages to compute the skyline");
+    }
+
+    //Until we have <= 10 pages we use them all for the buffer, if more than that, we use 10 + the third of whatever is extra
+    if (n_pages>10){
+      if((n_pages-10)/3 >= 1)
+        n_pages = 10 + (n_pages-10)/3;
     }
 
     //Allocating 2D byte array = size of pages left for use (after reserving 6 pages for other tasks)

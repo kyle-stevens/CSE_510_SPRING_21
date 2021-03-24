@@ -55,10 +55,7 @@ public class Client {
         
         // NestedLoopSky
         System.out.println("performNestedLoopSky START::");
-				
-        int temp = n_pages;
-		//subtract 6 reserved pages from n_pages limit
-		n_pages = temp - 6;
+
         try {
 			//Passing remaining buffer pages that the NestedLoopsSky operator might use to store tuples.
 			performNestedLoopsSky(_in, new short[1], projection, pref_list, pref_list_length, relationName, n_pages);
@@ -66,7 +63,6 @@ public class Client {
           e.printStackTrace();
         }
 				//restore n_pages limit for other operators to use
-				n_pages = temp;
         System.out.println("performNestedLoopSky END::");
 
     //    System.out.println(sys.getUnpinCount());
@@ -140,7 +136,7 @@ static SystemDefs sys;
     sys = new SystemDefs(dbpath, 100000, GlobalConst.NUMBUF, "Clock");
 
     // Enter the path for data file
-    File file = new File("/afs/asu.edu/users/j/t/r/jtrada/data3.txt");
+    File file = new File("/afs/asu.edu/users/s/p/a/spatil23/CSE510/data.txt");
     BufferedReader br = new BufferedReader(new FileReader(file));
     int numberOfCols = Integer.parseInt(br.readLine().trim());
 
