@@ -44,6 +44,9 @@ public class SortPref extends Iterator implements GlobalConst {
 	private int[] pref_list;
 	private int pref_list_len;
 	
+	private PageId[] max_heap_buf_pid;
+	private byte[][] max_heap_buf;
+	
 	/***
 	 * Constructor to initialize the necessary details.
 	 * @param in Attribute types of tuple t1
@@ -98,15 +101,46 @@ public class SortPref extends Iterator implements GlobalConst {
 		} catch (Exception e) {
 			throw new SortException(e, "Sort.java: Heapfile error");
 		}
-		_n_pages-=2;
-		getBufferPages(_n_pages);
 		
+		if(GlobalConst.MAX_SPACE==128) {
+			/***
+			 * reserving 3 pages for creating a heap file which will store sorted run and inserting a record into it.
+			 * and 50 for max heap
+			 */
+			_n_pages-=52;
+			if(_n_pages<1)
+				throw new Exception("Not enough pages to sort");
+			/**
+			 * Reserving this much pages for max heap
+			 */
+			max_heap_buf_pid = new PageId[50];
+			max_heap_buf = new byte[50][];
+			get_buffer_pages(50, max_heap_buf_pid, max_heap_buf);
+		}else if(GlobalConst.MAX_SPACE==1024) {
+			/***
+			 * reserving two pages for creating a heap file which will store sorted run and inserting a record into it.
+			 * and 5 for max heap
+			 */
+			_n_pages-=7;
+			if(_n_pages<1)
+				throw new Exception("Not enough pages to sort");
+			/**
+			 * Reserving this much pages for max heap
+			 */
+			max_heap_buf_pid = new PageId[5];
+			max_heap_buf = new byte[5][];
+			get_buffer_pages(5, max_heap_buf_pid, max_heap_buf);
+		}
+		
+		getBufferPages(_n_pages);
 		o_buf = new OBuf(); // Creating the OBuf object which helps uitilizing the buffer and writing tuples to heap file.
 
 		o_buf.init(bufs, _n_pages, tuple_size, temp_files[0], false);
 
+		
+		
 		//No of maximum elements the are allowed inside a heap at a time
-		max_elems_in_heap = 200;
+		max_elems_in_heap = 150;
 
 		//Creating a priority queue which helps in generating 
 		Q = new pnodeSplayPQ(order,this.pref_list,this.pref_list_len,_in,n_cols,str_lens); 
@@ -120,17 +154,34 @@ public class SortPref extends Iterator implements GlobalConst {
 		}
 		// generate runs
 		Nruns = generate_runs(max_elems_in_heap);
-
 		freePages(_n_pages);
-		_n_pages = (_n_pages+2)/3;
+		/***
+		 * if we have Nruns number of sorted runs, we will open file scans on all of them which will
+		 * require 2*Nruns pages and we need to create Nruns size of buffer for loading one page from
+		 * each of those runs, in short we will need atleast 3*Nruns pages.
+		 */
+		if(GlobalConst.MAX_SPACE==128)
+			_n_pages = (_n_pages+4)/3;//adding +2 because our filescan is closed now. another 2 because we do not need to create any more heapfiles.
+		else if(GlobalConst.MAX_SPACE==1024)
+			_n_pages = (_n_pages+4)/3;//adding +2 because our filescan is closed now. another 2 because we do not need to create any more heapfiles.
+			System.out.println(_n_pages);
 		//Now, we know how many runs will be needed to do the sorting, so assign pages to the buffer accordingly
 		if(Nruns>(_n_pages)) {
-			System.out.println("Required Pages: "+(Nruns*3)+" Available pages: "+(3*_n_pages-1));
+			System.out.println("Number of runs::"+ Nruns);
+			System.out.println("Required Pages: "+(Nruns*3)+" Available pages: "+(_n_pages));
+			try {
+				if(GlobalConst.MAX_SPACE==128)
+					free_buffer_pages(50, max_heap_buf_pid);
+				else if(GlobalConst.MAX_SPACE==1024)
+					free_buffer_pages(5, max_heap_buf_pid);
+			}catch(Exception e) {
+				e.printStackTrace();
+			}
 			throw new LowMemException("Sort.java: Not enough memory to sort in two passes.");
 		}
 		
 		
-		getBufferPages(_n_pages);
+		getBufferPages(Nruns);
 		// setup state to perform merge of runs.
 		// Open input buffers for all the input file
 		setup_for_merge(tuple_size, Nruns);
@@ -531,6 +582,14 @@ public class SortPref extends Iterator implements GlobalConst {
 
 			if (useBM) {
 				freePages(bufs_pids.length);
+				try {
+					if(GlobalConst.MAX_SPACE==128)
+						free_buffer_pages(50, max_heap_buf_pid);
+					else if(GlobalConst.MAX_SPACE==1024)
+						free_buffer_pages(5, max_heap_buf_pid);
+				}catch(Exception e) {
+					e.printStackTrace();
+				}
 			}
 			for(int i=0;i<i_buf.length;i++) {
 				i_buf[i].closeScan();
@@ -555,6 +614,7 @@ public class SortPref extends Iterator implements GlobalConst {
 	private void freePages(int _n_pages) {
 		try {
 			free_buffer_pages(_n_pages, bufs_pids);
+			
 		} catch (Exception e) {
 			System.out.println("Failed to free pages");
 		}

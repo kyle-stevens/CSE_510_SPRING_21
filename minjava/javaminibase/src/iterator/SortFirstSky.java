@@ -4,6 +4,7 @@ import java.io.IOException;
 
 import bufmgr.PageNotReadException;
 import global.AttrType;
+import global.GlobalConst;
 import global.PageId;
 import global.TupleOrder;
 import heap.Heapfile;
@@ -28,6 +29,10 @@ public class SortFirstSky extends Iterator {
 	private Iterator _am1;
 	private PageId[] bufs_pids;
 	private byte[][] _bufs;
+	private int n_pages;
+	private boolean first_time = true;
+	private int[] pref_list;
+	private int pref_list_length;
 	
 	
 	/***
@@ -47,12 +52,12 @@ public class SortFirstSky extends Iterator {
 			relationName, int[] pref_list, int pref_list_length,
 			int n_pages) throws Exception{
 		
-		if(n_pages<2) throw new Exception("Not enough pages to run sortFirstSky");
-		
 		this.in1 = in1;
 		col_len = len_in1;
 		str_sizes = t1_str_sizes;
 		_am1 = am1;
+		this.pref_list = pref_list;
+		this.pref_list_length = pref_list_length;
 		
 		Sprojection = new FldSpec[len_in1];
 
@@ -62,22 +67,28 @@ public class SortFirstSky extends Iterator {
 		/***
 		 * creating sortpref instance, which will give tuples in descending order of the sum of their preference attributes.
 		 */
-		spScan = new SortPref(in1, (short)len_in1, t1_str_sizes, _am1, new TupleOrder(TupleOrder.Descending), pref_list, pref_list_length, n_pages-1);
-		n_pages=1;
-		bufs_pids = new PageId[n_pages];
-		_bufs = new byte[n_pages][];
+		if(GlobalConst.MAX_SPACE==128) {
+			if(n_pages<5) throw new Exception("Not enough pages to run sortFirstSky");
+			spScan = new SortPref(in1, (short)len_in1, t1_str_sizes, _am1, new TupleOrder(TupleOrder.Descending), pref_list, pref_list_length, n_pages-4);
+		}
+		else if(GlobalConst.MAX_SPACE==1024) {
+			if(n_pages<4) throw new Exception("Not enough pages to run sortFirstSky");
+			spScan = new SortPref(in1, (short)len_in1, t1_str_sizes, _am1, new TupleOrder(TupleOrder.Descending), pref_list, pref_list_length, n_pages-3);
+		}
+		bufs_pids = new PageId[1];
+		_bufs = new byte[1][];
 		try {
 			/***
 			 * getting pages from buffermanager
 			 */
-			get_buffer_pages(n_pages, bufs_pids, _bufs);
+			get_buffer_pages(1, bufs_pids, _bufs);
 		}catch(Exception e) {
 			e.printStackTrace();
 		}
 		/***
 		 * creating a window in the form of a buffer
 		 */
-		oBuf = new OBufSortSky(in1, (short)len_in1, t1_str_sizes, _bufs, pref_list, pref_list_length, n_pages);
+		oBuf = new OBufSortSky(in1, (short)len_in1, t1_str_sizes, _bufs, pref_list, pref_list_length, 1);
 	}
 
 	
@@ -116,6 +127,31 @@ public class SortFirstSky extends Iterator {
 		 */
 		if (oBuf.isFlag()) {
 			spScan.close();
+			if(first_time) {
+				if(n_pages>100) {
+					try {
+						/***
+						 * Freeing pages
+						 */
+						free_buffer_pages(1, bufs_pids);
+						
+					}catch(Exception e) {
+						
+					}
+					try {
+						/***
+						 * getting pages from buffermanager
+						 */
+						bufs_pids = new PageId[n_pages/2];
+						_bufs = new byte[n_pages/2][];
+						get_buffer_pages(n_pages/2, bufs_pids, _bufs);
+						oBuf = new OBufSortSky(in1, (short)col_len, str_sizes, _bufs, pref_list, pref_list_length, n_pages/2);
+					}catch(Exception e) {
+						e.printStackTrace();
+					}
+				}
+				first_time = false;
+			}
 			spScan = new FileScan(oBuf.getCurr_file() + number_of_run, in1, str_sizes, (short)col_len, col_len, Sprojection, null);
 			if (number_of_run > 0) {
 				new Heapfile(oBuf.getCurr_file() + (number_of_run - 1)).deleteFile();
@@ -136,9 +172,12 @@ public class SortFirstSky extends Iterator {
 		// TODO Auto-generated method stub
 		spScan.close();
 		try {
-			new Heapfile(oBuf.getCurr_file() + (number_of_run - 1)).deleteFile();
+			if(first_time) n_pages=2;
+			free_buffer_pages(n_pages/2, bufs_pids);
+			if(number_of_run>0)
+				new Heapfile(oBuf.getCurr_file() + (number_of_run - 1)).deleteFile();
 		} catch (Exception e) {
-
+			e.printStackTrace();
 		}
 	}
 }

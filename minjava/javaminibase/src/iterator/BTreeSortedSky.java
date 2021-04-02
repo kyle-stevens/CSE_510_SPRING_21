@@ -4,6 +4,7 @@ import java.io.IOException;
 
 import bufmgr.PageNotReadException;
 import global.AttrType;
+import global.GlobalConst;
 import global.IndexType;
 import global.PageId;
 import heap.Heapfile;
@@ -30,7 +31,7 @@ public class BTreeSortedSky extends Iterator {
 	private int number_of_run = 0;
 	private PageId[] bufs_pids;
 	private byte[][] _bufs;
-
+	private int n_pages;
 	/***
 	 * Constructor to initialize necessary details.
 	 * @param in1				Attribute types for given tuple
@@ -46,14 +47,21 @@ public class BTreeSortedSky extends Iterator {
 	 */
 	public BTreeSortedSky(AttrType[] in1, short len_in1, short[] t1_str_sizes, Iterator am1, String relationName,
 			int[] pref_list, int pref_list_length, String index_file, int n_pages) throws Exception {
-		n_pages-=4; //reserving 2 pages for file scan and 2 pages for getting record from indexscan and creating new heap files
+		
+		if(GlobalConst.MAX_SPACE==128) {
+			n_pages-=5; //reserving 2 pages for index scan and 3 pages for creating new heap files
+		}else if(GlobalConst.MAX_SPACE==1024) {
+			n_pages-=4;	//reserving 2 pages for index scan and 2 pages for creating new heap files
+		}
+		
 		if(n_pages<1)
-			throw new Exception("Not enough pages to compute the skyline");
+			throw new Exception("Not enough pages to compute the skyline::BTreeSortedSky");
 		this.in1 = in1;
 		col_len = len_in1;
 		str_sizes = t1_str_sizes;
 		n_pages = Math.min(10,n_pages/2);
 		if(n_pages<1)n_pages=1;
+		this.n_pages = n_pages;
 		bufs_pids = new PageId[n_pages];
 		_bufs = new byte[n_pages][];
 		/***
@@ -74,6 +82,7 @@ public class BTreeSortedSky extends Iterator {
 		 * creating Index scan on already created indexfile, 
 		 * which will give tuples in descending order of the sum of their preference attributes.
 		 */
+
 		scan = new IndexScan(new IndexType(IndexType.B_Index), relationName, index_file, this.in1, str_sizes, col_len,
 				col_len, Sprojection, null, 0, false);
 
@@ -112,7 +121,9 @@ public class BTreeSortedSky extends Iterator {
 		 * our new outer scan.
 		 */
 		if (oBuf.isFlag()) {
+
 			scan.close();
+
 			scan = new FileScan(oBuf.getCurr_file() + number_of_run, in1, str_sizes, col_len, col_len, Sprojection, null);
 			if (number_of_run > 0) {
 				new Heapfile(oBuf.getCurr_file() + (number_of_run - 1)).deleteFile();
@@ -131,11 +142,15 @@ public class BTreeSortedSky extends Iterator {
 	@Override
 	public void close() throws IOException, JoinsException, SortException, IndexException {
 		// TODO Auto-generated method stub
-		scan.close();
-		try {
-			new Heapfile(oBuf.getCurr_file() + (number_of_run - 1)).deleteFile();
-		} catch (Exception e) {
 
+		scan.close();
+
+		try {
+			free_buffer_pages(n_pages, bufs_pids);
+			if(number_of_run>0)
+				new Heapfile(oBuf.getCurr_file() + (number_of_run - 1)).deleteFile();
+		} catch (Exception e) {
+			e.printStackTrace();
 		}
 	}
 

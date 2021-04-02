@@ -13,7 +13,7 @@ import heap.Tuple;
 
 /***
  * 
- * OBufSortSky::Represents the concept of window in skyline operators like BtreeSortedSky and SortFirstSky.
+ * BlockNestedBuf::Represents the concept of window in BlockNested skyline operators.
  *
  */
 
@@ -72,19 +72,18 @@ public class BlockNestedBuf implements GlobalConst{
 	 * @throws SortException
 	 */
 	public BlockNestedBuf(AttrType[] in1, short len_in1, short[] t1_str_sizes, byte[][] buf,
-			int[] pref_list, int pref_list_length, int n_pages, Heapfile hf) throws SortException{
+			int[] pref_list, int pref_list_length, int n_pages) throws SortException{
 		
-		col_len = (short) (len_in1+1);
+		col_len = (short) (len_in1+1);	// 1 extra attr for marking 'deleted' => (int) 4 bytes of extra space for each tuple in the buffer
 		str_sizes = t1_str_sizes;
 		this.pref_list = pref_list;
 		this.pref_list_length = pref_list_length;
 		_bufs = buf;
 		_n_pages = n_pages;
 		this.in1 = new AttrType[col_len];
-		this.hf = hf;
 		for (int i = 0; i < len_in1; i++)
 			this.in1[i] = in1[i];
-		this.in1[col_len-1] = new AttrType(AttrType.attrInteger);
+		this.in1[col_len-1] = new AttrType(AttrType.attrInteger);	// additional attr for deleted flag is of type int.
 		
 		Tuple t = new Tuple();
 		try {
@@ -97,7 +96,6 @@ public class BlockNestedBuf implements GlobalConst{
 		t_size = t.size();
 		t_per_pg = MINIBASE_PAGESIZE / t_size;
 		t_in_buf = _n_pages * t_per_pg;
-		System.out.println(t_per_pg+" "+t_in_buf+" "+t_size);
 		init();
 	}
 
@@ -131,12 +129,14 @@ public class BlockNestedBuf implements GlobalConst{
 			in2[k++]=attr;
 			if(k==col_len-1)break;
 		}
+		// loop on available pages in the buffer
 		for (int count = 0; count <= curr_page; count++) {
 			int len = t_per_pg;
 
 			if (count == curr_page)
 				len = t_wr_to_pg;
 
+			// loop on available tuples on a buffer page
 			for (int i = 0; i < len; i++) {
 				try {
 					Tuple t2 = new Tuple(_bufs[count], t_size * i, t_size);
@@ -144,16 +144,16 @@ public class BlockNestedBuf implements GlobalConst{
 					if(TupleUtils.Equal(t, t2, in2, in2.length)) {
 						equal = true;
 					}
-					if (t2.getIntFld(col_len)==0)
+					if (t2.getIntFld(col_len)==0)	// Skip tuple if it is marked as deleted.
 					{
 						if(TupleUtils.Dominates(t, in1, t2, in1, col_len, str_sizes, pref_list, pref_list_length)) {
-							
-							t2.setIntFld(col_len, 1);
+
+							t2.setIntFld(col_len, 1);	// mark tuple as deleted
 							byte[] copybuf = t2.getTupleByteArray();
-							System.arraycopy(copybuf, 0, _bufs[count], i * t_size, t_size);
+							System.arraycopy(copybuf, 0, _bufs[count], i * t_size, t_size);	// write updated tuple into buffer
 						}
 						else if(TupleUtils.Dominates(t2, in1, t, in1, col_len, str_sizes, pref_list, pref_list_length)) {
-							
+							//	end comparison if t gets dominated
 							return false;
 						}
 					}
@@ -165,24 +165,27 @@ public class BlockNestedBuf implements GlobalConst{
 		
 		//t.print(in2);
 		if(!equal)
-		blockPut(t);
+		blockPut(t);	// Adds t as skyline candidate
 		return true;
 	}
 	
 	
 	
 	
-	int read_count=0;
+	int read_count=0;	// read page counter
 	int pageLen = t_per_pg;
 	int tuple_count=0;
 	int j=0;
-	
-	
+
+	/***
+	 * Returns skyline tuple
+	 * @return	Tuple if it exists, Null if not.
+	 */
 	public Tuple getSkyTuple(){
 		//if(j++==0)System.out.println(read_count+" "+tuple_count);
 		if(read_count<=curr_page) {
 			if(read_count==curr_page) {
-				pageLen = t_wr_to_pg;
+				pageLen = t_wr_to_pg;	// To indicate end of tuples in the last page
 			}
 			if(tuple_count<pageLen) {
 				try {
@@ -197,7 +200,7 @@ public class BlockNestedBuf implements GlobalConst{
 					}
 					if (t2.getIntFld(col_len)==0)
 					{
-						return createTupleBack(t2);
+						return createTupleBack(t2);	// return tuple with normal header
 					}else return getSkyTuple();
 				} catch (Exception e) {
 					e.printStackTrace();
@@ -206,12 +209,16 @@ public class BlockNestedBuf implements GlobalConst{
 		}
 		return null;
 	}
-	
-	
+
+	/**
+	 * Inserts the passed tuple into buffer if its free or a temporary heap file if its full
+	 * @param buf	Tuple to be added
+	 * @return	added Tuple
+	 * @throws IOException
+	 * @throws Exception
+	 */
 	public Tuple blockPut(Tuple buf) throws IOException, Exception {
 
-		
-		
 		byte[] copybuf;
 		copybuf = buf.getTupleByteArray();
 		if (flag||(t_wr_to_buf == t_in_buf)) // Buffer full?
@@ -220,15 +227,14 @@ public class BlockNestedBuf implements GlobalConst{
 			 * if the buffer is full, we insert new records into a heapfile.
 			 */
 			Heapfile f = new Heapfile(curr_file + number_of_window_file);
-			f.insertRecord(copybuf);
-			flag = true;
+			f.insertRecord(copybuf);	// Uses 2 Pages
+			flag = true;	// Mark buffer as full if not already marked
 			return buf;
 		}
-		Tuple temp = createTuple(buf);
-		//temp.print(in1);
+		Tuple temp = createTuple(buf);	// Temporary tuple with extra attr for 'deleted' flag
 		copybuf = temp.getTupleByteArray();
 		if(curr_page==1) {
-			System.out.println(t_wr_to_buf+" "+t_in_buf+" "+t_per_pg+" "+t_wr_to_pg);
+//			System.out.println(t_wr_to_buf+" "+t_in_buf+" "+t_per_pg+" "+t_wr_to_pg);
 		}
 		System.arraycopy(copybuf, 0, _bufs[curr_page], t_wr_to_pg * t_size, t_size);
 		t_wr_to_pg++;
@@ -240,7 +246,12 @@ public class BlockNestedBuf implements GlobalConst{
 		}
 		return buf;
 	}
-	
+
+	/**
+	 * Creates a new tuple with additional ('deleted') attribute
+	 * @param t1 Tuple to update
+	 * @return Updated tuple with one extra attribute of type int
+	 */
 	private Tuple createTuple(Tuple t1) {
 		
 		Tuple t = new Tuple(t_size);
@@ -273,7 +284,12 @@ public class BlockNestedBuf implements GlobalConst{
 		}
 		return t;
 	}
-	
+
+	/**
+	 * Removes additional ('deleted') attr from the tuple passed
+	 * @param t1 Tuple to revert back
+	 * @return	Tuple without additional attr
+	 */
 	private Tuple createTupleBack(Tuple t1) {
 		AttrType[] in2 = new AttrType[col_len-1];
 		int k=0;

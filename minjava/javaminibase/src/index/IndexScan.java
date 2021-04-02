@@ -123,6 +123,9 @@ public class IndexScan extends Iterator {
     
   }
   
+  
+  
+  
   /**
    * returns the next tuple.
    * if <code>index_only</code>, only returns the key value 
@@ -251,6 +254,36 @@ public class IndexScan extends Iterator {
     return null; 
   }
   
+  public RID getNext() 
+		    throws IndexException, 
+			   UnknownKeyTypeException,
+			   IOException
+		  {
+		    RID rid;
+		    int unused;
+		    KeyDataEntry nextentry = null;
+
+		    try {
+		      nextentry = indScan.get_next();
+		    }
+		    catch (Exception e) {
+		      throw new IndexException(e, "IndexScan.java: BTree error");
+		    }	  
+		    
+		    if(nextentry != null) {
+		      // not index_only, need to return the whole tuple
+		      rid = ((LeafData)nextentry.data).getData();
+		     
+
+		      return rid;
+
+		       
+		    }
+		    
+		    return null; 
+		  }
+  
+  
   /**
    * Cleaning up the index scan, does not remove either the original
    * relation or the index from the database.
@@ -262,6 +295,7 @@ public class IndexScan extends Iterator {
     if (!closeFlag) {
       if (indScan instanceof BTFileScan) {
 	try {
+		((BTreeFile)indFile).close();
 	  ((BTFileScan)indScan).DestroyBTreeFileScan();
 	}
 	catch(Exception e) {
