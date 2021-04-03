@@ -11,6 +11,7 @@ import heap.FieldNumberOutOfBoundException;
 import heap.Heapfile;
 import heap.Scan;
 import heap.Tuple;
+import index.ClusteredBtreeIndex;
 import index.IndexException;
 import iterator.*;
 
@@ -18,7 +19,6 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
-import java.util.Scanner;
 
 public class Client {
 
@@ -31,85 +31,18 @@ public class Client {
   static FldSpec[] projection;
 
   public static void main(String args[]) {
-    Scanner in = new Scanner(System.in);
     try {
-      // Take the value of n_pages as user input
-      System.out.println("Please input no of pages that can be used: ");
-      n_pages = in.nextInt();
-      try {
-				// Throw exception if n_pages exceeds NUMBUF
-        if (n_pages > GlobalConst.NUMBUF) {
-          throw new Exception("n_pages exceeded the buffer size");
-        }
-
-        // Input the number of Skyline attributes
-        System.out.println("Please enter the count of preference attributes: ");
-        pref_list_length = in.nextInt();
-
-        // Input Skyline Attributes
-        System.out.println("Please enter numbers of columns, starting from 1 and separated by space, that could be used as preference list: ");
-        
-        pref_list = new int[pref_list_length];
-        for (int i = 0; i < pref_list_length; i++) pref_list[i] = in.nextInt();
-        setupDB();
-        
-        // NestedLoopSky
-        System.out.println("performNestedLoopSky START::");
-
-        try {
-			//Passing remaining buffer pages that the NestedLoopsSky operator might use to store tuples.
-			performNestedLoopsSky(_in, new short[1], projection, pref_list, pref_list_length, relationName, n_pages);
-        } catch (Exception e) {
-          e.printStackTrace();
-        }
-				//restore n_pages limit for other operators to use
-        System.out.println("performNestedLoopSky END::");
-
-    //    System.out.println(sys.getUnpinCount());
-//        // SortFirstSky
-        System.out.println("performSortFirstSky START::");
-        try {
-          performSortedSky(_in, new short[1], projection, pref_list, pref_list_length, relationName, n_pages);
-        } catch (Exception e) {
-          e.printStackTrace();
-        }
-        System.out.println("performSortFirstSky END::");
- //       System.out.println(sys.getUnpinCount());
-        setupDB();
-
-//        // BTreeSortedSky
-        System.out.println("performBtreeSortedSky START::");
-        try {
-          performBtreeSortedSky(_in, new short[1], projection, pref_list, pref_list_length, relationName, n_pages);
-        } catch (Exception e) {
-          e.printStackTrace();
-        }
-        System.out.println("performBtreeSortedSky END::");
-
-        // BlockNestedLoopSky
-        System.out.println("performBlockNestedLoopSky START::");
-        try {
-          performBlockNestedSky(_in, new short[1], projection, pref_list, pref_list_length, relationName, n_pages);
-        } catch (Exception e) {
-          e.printStackTrace();
-        }
-        System.out.println("performBlockNestedLoopSky END::");
-        
-        // BTreeSky
-        setupDB();
-        System.out.println("performBTreeSky START::");
-        try {
-          performBtreeSky(_in, new short[1], projection, pref_list, pref_list_length, relationName, n_pages);
-        } catch (Exception e) {
-          e.printStackTrace();
-        }
-        System.out.println("performBTreeSky END::");
-        
-      } catch (Exception e) {
-        e.printStackTrace();
-      }finally {
-    	  in.close();
-      }
+      setupDB();
+      FileScan nlScan = null;
+      nlScan = new FileScan(relationName, _in, new short[1],
+              (short) _in.length, (short) _in.length,
+              projection, null);
+      Tuple t = new Tuple();
+      t.setHdr((short) _in.length, _in, null);
+      int size = t.size();
+      ClusteredBtreeIndex btreeIndex = new ClusteredBtreeIndex("sortedFile1", "btreeIndex1",
+              4,1, size, nlScan, _in, null, 1, 200);
+      btreeIndex.printCBtree();
     } catch (Exception e) {
       e.printStackTrace();
     }
@@ -136,7 +69,7 @@ static SystemDefs sys;
     sys = new SystemDefs(dbpath, 100000, GlobalConst.NUMBUF, "Clock");
 
     // Enter the path for data file
-    File file = new File("/afs/asu.edu/users/s/p/a/spatil23/CSE510/data.txt");
+    File file = new File("/afs/asu.edu/users/s/p/a/spatil23/CSE510/pc_inc_2_7000.txt");
     BufferedReader br = new BufferedReader(new FileReader(file));
     int numberOfCols = Integer.parseInt(br.readLine().trim());
 

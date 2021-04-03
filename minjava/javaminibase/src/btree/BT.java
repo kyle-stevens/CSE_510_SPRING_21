@@ -324,7 +324,10 @@ public class BT  implements GlobalConst{
 			       (IntegerKey)entry.key+ ",  "+(LeafData)entry.data+ " )");
 	  if( keyType==AttrType.attrString) 
 	    System.out.println(i+" (key, [pageNo, slotNo]):   ("+ 
-			       (StringKey)entry.key + ",  "+(LeafData)entry.data); 
+			       (StringKey)entry.key + ",  "+(LeafData)entry.data);
+    if( keyType==AttrType.attrReal)
+      System.out.println(i+" (key, [pageNo, slotNo]):   ("+
+              (RealKey)entry.key+ ",  "+(LeafData)entry.data+ " )");
 	  
 	  i++;
         }
