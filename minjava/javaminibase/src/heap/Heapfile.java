@@ -48,6 +48,9 @@ public class Heapfile implements Filetype, GlobalConst {
 	private static int tempfilecount = 0;
 	private boolean isClustered = false;
 
+	public String getName() {
+		return _fileName;
+	}
 	/*
 	 * get a new datapage from the buffer manager and initialize dpinfo
 	 * 
