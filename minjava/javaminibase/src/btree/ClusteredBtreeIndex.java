@@ -36,7 +36,7 @@ public class ClusteredBtreeIndex {
 
     for(int tupleCount = 1; next_tuple != null; next_tuple = sort.get_next(), tupleCount++) {
       RID keyTupleRid = sortedDataFile.insertRecord(next_tuple.returnTupleByteArray(), maxPageCapacity);
-      if (tupleCount % maxPageCapacity == 0) {
+      if (tupleCount % maxPageCapacity == 0) { //reason for this needs to be commented
         bTreeFile.insert(new RealKey(next_tuple.getFloFld(indexAttr)), keyTupleRid);
       }
     }
