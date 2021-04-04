@@ -33,7 +33,7 @@ public class BlockNestedBuf implements GlobalConst{
 	private short[] str_sizes; // Sizes of strings in the tuple
 	private int[] pref_list;	// List of preference attributes
 	private int pref_list_length;	// number of preference attributes.
-	final private String curr_file = "curr_file";	//name of the heapfile(to which overflowed tuples get stored)
+	final private String curr_file = "curr_file_block";	//name of the heapfile(to which overflowed tuples get stored)
 	private int number_of_window_file = 0;	//Keep track of number of runs
 	private boolean flag = false;
 	private Heapfile hf;
@@ -122,7 +122,6 @@ public class BlockNestedBuf implements GlobalConst{
 	 * @throws Exception
 	 */
 	public boolean checkIfDominates(Tuple t) throws Exception {
-		boolean equal = false;
 		AttrType[] in2 = new AttrType[col_len-1];
 		int k=0;
 		for(AttrType attr:in1) {
@@ -141,9 +140,7 @@ public class BlockNestedBuf implements GlobalConst{
 				try {
 					Tuple t2 = new Tuple(_bufs[count], t_size * i, t_size);
 					t2.setHdr(col_len, in1, str_sizes);
-					if(TupleUtils.Equal(t, t2, in2, in2.length)) {
-						equal = true;
-					}
+					
 					if (t2.getIntFld(col_len)==0)	// Skip tuple if it is marked as deleted.
 					{
 						if(TupleUtils.Dominates(t, in1, t2, in1, col_len, str_sizes, pref_list, pref_list_length)) {
@@ -162,9 +159,6 @@ public class BlockNestedBuf implements GlobalConst{
 				}
 			}
 		}
-		
-		//t.print(in2);
-		if(!equal)
 		blockPut(t);	// Adds t as skyline candidate
 		return true;
 	}
