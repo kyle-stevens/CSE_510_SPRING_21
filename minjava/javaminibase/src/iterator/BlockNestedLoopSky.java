@@ -136,21 +136,24 @@ public class BlockNestedLoopSky extends Iterator
      *@exception IndexException index access error
      */
     public void close() throws IOException, IndexException, SortException {
-        if (!closeFlag) {
-
-            try {
+           try {
                 outer.closescan();
             }catch (Exception e) {
                 throw new IOException("BlockNestedLoopSky.java: error in closing iterator and Scan", e);
             }
-
+           if (inner.getNumber_of_window_file() > 0) {
+			    //  delete last temp heap file
+        	   try {
+				new Heapfile(inner.getCurr_file() + (inner.getNumber_of_window_file() - 1)).deleteFile();
+				}catch(Exception e) {
+					
+				}
+			}
             try {
                 free_buffer_pages(this.n_pages, bufs_pids);
             }
             catch (Exception e) {
                 throw new SortException(e, "BUFmgr error");
             }
-            closeFlag = true;
-        }
     }
 }
