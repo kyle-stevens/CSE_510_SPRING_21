@@ -37,7 +37,7 @@ public class ClusteredBtreeIndex {
     for(int tupleCount = 1; next_tuple != null; next_tuple = sort.get_next(), tupleCount++) {
       RID keyTupleRid = sortedDataFile.insertRecord(next_tuple.returnTupleByteArray(), maxPageCapacity);
       if (tupleCount % maxPageCapacity == 0) { //reason for this needs to be commented
-        bTreeFile.insert(new RealKey(next_tuple.getFloFld(indexAttr)), keyTupleRid);
+        /*bTreeFile.*/insert(new RealKey(next_tuple.getFloFld(indexAttr)), keyTupleRid);
       }
     }
   }
@@ -50,4 +50,26 @@ public class ClusteredBtreeIndex {
       e.printStackTrace();
     }
   }
+  //makes our isnertion easeier and cleaner, especially for calls outside of class
+  public void insert(KeyClass key, RID rid){
+      try{
+          bTreeFile.insert(key, rid);
+      }catch(Exception e){
+          e.printStackTrace();
+      }
+  }
+
+  public void close() throws PageUnpinnedException,
+     InvalidFrameNumberException,
+     HashEntryNotFoundException,
+         ReplacerException
+         {
+             try{
+                 bTreeFile.close();
+             }catch(Exception e){
+                 e.printStackTrace();
+             }
+         }
+
+
 }
