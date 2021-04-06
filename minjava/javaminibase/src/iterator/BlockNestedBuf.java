@@ -87,7 +87,7 @@ public class BlockNestedBuf implements GlobalConst{
 		
 		Tuple t = new Tuple();
 		try {
-			t.setHdr((short) col_len, this.in1, null);
+			t.setHdr((short) col_len, this.in1, str_sizes);
 		} catch (Exception e) {
 			System.err.println("*** error in Tuple.setHdr() ***");
 			e.printStackTrace();
@@ -250,14 +250,24 @@ public class BlockNestedBuf implements GlobalConst{
 		
 		Tuple t = new Tuple(t_size);
 		try {
-			t.setHdr((short) col_len, in1, null);
+			t.setHdr((short) col_len, in1, str_sizes);
 		} catch (Exception e) {
 			System.err.println("*** error in Tuple.setHdr() ***");
 			e.printStackTrace();
 		}
 		for(int i=1;i<col_len;i++) {
 			try {
-				t.setFloFld(i, t1.getFloFld(i));
+				switch(in1[i-1].attrType) {
+				case AttrType.attrInteger:
+					t.setIntFld(i, t1.getIntFld(i));
+					break;
+				case AttrType.attrReal:
+					t.setFloFld(i, t1.getFloFld(i));
+					break;
+				case AttrType.attrString:
+					t.setStrFld(i, t1.getStrFld(i));
+					break;
+				}
 				
 			} catch (FieldNumberOutOfBoundException e) {
 				// TODO Auto-generated catch block
@@ -293,22 +303,31 @@ public class BlockNestedBuf implements GlobalConst{
 		}
 		Tuple t = new Tuple();
 		try {
-			t.setHdr((short) (col_len-1), in2, null);
+			t.setHdr((short) (col_len-1), in2, str_sizes);
 		} catch (Exception e) {
 			System.err.println("*** error in Tuple.setHdr() ***");
 			e.printStackTrace();
 		}
 		t = new Tuple(t.size());
 		try {
-			t.setHdr((short) (col_len-1), in2, null);
+			t.setHdr((short) (col_len-1), in2, str_sizes);
 		} catch (Exception e) {
 			System.err.println("*** error in Tuple.setHdr() ***");
 			e.printStackTrace();
 		}
 		for(int i=1;i<col_len;i++) {
 			try {
-				t.setFloFld(i, t1.getFloFld(i));
-				
+				switch(in1[i-1].attrType) {
+				case AttrType.attrInteger:
+					t.setIntFld(i, t1.getIntFld(i));
+					break;
+				case AttrType.attrReal:
+					t.setFloFld(i, t1.getFloFld(i));
+					break;
+				case AttrType.attrString:
+					t.setStrFld(i, t1.getStrFld(i));
+					break;
+				}
 			} catch (FieldNumberOutOfBoundException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
