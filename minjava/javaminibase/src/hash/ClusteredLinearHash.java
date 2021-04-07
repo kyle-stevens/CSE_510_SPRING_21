@@ -115,6 +115,8 @@ public class ClusteredLinearHash {
 		RID rid = new RID();
 		while((t=scan.getNext(rid))!=null) {
 			t.setHdr((short)numberOfCols, _in, strSizes);
+			t = new Tuple(t);
+			t.setHdr((short)numberOfCols, _in, strSizes);
 			t.print(_in);
 			int tmp = calculateHashValueForTuple(t, false);
 			if(tmp<splitPointer)
@@ -151,6 +153,10 @@ public class ClusteredLinearHash {
 				_in[i] = new AttrType(AttrType.attrReal);
 			}
 		}
+
+		strSizes = new short[numStr];
+		Arrays.fill(strSizes, (short) 30);
+		
 		keyPageAttr = new AttrType[keyPageColNum];
 		keyPageAttr[1] = new AttrType(AttrType.attrString);
 		
@@ -159,15 +165,13 @@ public class ClusteredLinearHash {
 
 		if(_in[indexField-1].attrType==AttrType.attrString) {
 			keyPageStrlens = new short[2];
-			keyPageStrlens[0]=30;
+			keyPageStrlens[0]=strSizes[0];
 			keyPageStrlens[1]=GlobalConst.MAX_NAME+2;
 		}else {
 			keyPageStrlens = new short[1];
 			keyPageStrlens[0]=GlobalConst.MAX_NAME+2;
 		}
 		
-		strSizes = new short[numStr];
-		Arrays.fill(strSizes, (short) 30);
 
 //		FldSpec[] projection = new FldSpec[numberOfCols];
 //
