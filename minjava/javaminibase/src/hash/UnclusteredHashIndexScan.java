@@ -106,7 +106,11 @@ public class UnclusteredHashIndexScan extends Iterator {
 				return get_next();
 			}
 			t.setHdr((short)_keyPageAttr.length, _keyPageAttr, null);
-			return relationFile.getRecord(ridFromTuple(t));
+			t = relationFile.getRecord(ridFromTuple(t));
+			t.setHdr((short)_in.length, _in, _sSizes);
+			t = new Tuple(t);
+			t.setHdr((short)_in.length, _in, _sSizes);
+			return t;
 		}else if(curr_key_page_file!=null) {
 			Scan scan = new Scan(new Heapfile(curr_key_page_file));
 			if(curr_key_page_RID!=null){

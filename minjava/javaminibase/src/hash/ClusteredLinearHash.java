@@ -109,22 +109,22 @@ public class ClusteredLinearHash {
 //			}
 //		}
 		createClusteredFile(0,numBuckets);
-		Scan scan = new Scan(new Heapfile(fileName));
-		Tuple t = null;
-		int k=0;
-		RID rid = new RID();
-		while((t=scan.getNext(rid))!=null) {
-			t.setHdr((short)numberOfCols, _in, strSizes);
-			t = new Tuple(t);
-			t.setHdr((short)numberOfCols, _in, strSizes);
-			t.print(_in);
-			int tmp = calculateHashValueForTuple(t, false);
-			if(tmp<splitPointer)
-				tmp = calculateHashValueForTuple(t, true);
-			System.out.println(tmp+" :: "+rid.pageNo.pid);
-			k++;
-		}
-		System.out.println(k);
+//		Scan scan = new Scan(new Heapfile(fileName));
+//		Tuple t = null;
+//		int k=0;
+//		RID rid = new RID();
+//		while((t=scan.getNext(rid))!=null) {
+//			t.setHdr((short)numberOfCols, _in, strSizes);
+//			t = new Tuple(t);
+//			t.setHdr((short)numberOfCols, _in, strSizes);
+//			t.print(_in);
+//			int tmp = calculateHashValueForTuple(t, false);
+//			if(tmp<splitPointer)
+//				tmp = calculateHashValueForTuple(t, true);
+//			System.out.println(tmp+" :: "+rid.pageNo.pid);
+//			k++;
+//		}
+//		System.out.println(k);
 	}
 	
 	private void clusterRecordsFromfile() throws Exception {
@@ -188,7 +188,7 @@ public class ClusteredLinearHash {
 		}
 
 		int size = t.size();
-		t.setHdr(keyPageColNum, keyPageAttr, keyPageStrlens);
+		t.setHdr((short)1, PageAttr, null);
 		number_of_tuples_in_a_page = (GlobalConst.MAX_SPACE - HFPage.DPFIXED) / (t.size() + HFPage.SIZE_OF_SLOT);
 		setTotalTuplesAndThreshold();
 
