@@ -115,6 +115,23 @@ public class IndexScan extends Iterator {
       }
       
       break;
+    case IndexType.CB_Index:
+        //error check select condition
+        //etc
+        try{
+            indFile = new ClusteredBtreeIndex(indName);
+        }catch(Exception e){
+            throw new IndexException(e, "IndexScan.java: ClusteredBtreeIndex exceptions caught from " +
+                    "ClusteredBtreeIndex Constructor.");
+
+        }
+        try{
+            indScan = (BTFileScan) IndexUtils.BTree_scan(selects, indFile); //May be changed pending changes to ClusteredBtreeIndex
+        }catch(Exception e){
+            throw new IndexException(e, "IndexScan.java: ClusteredBtreeIndex exceptions caught from " +
+                    "IndexUtils.CBtree_scan().");
+        }
+        break;
     case IndexType.None:
     default:
       throw new UnknownIndexTypeException("Only BTree index is supported so far");

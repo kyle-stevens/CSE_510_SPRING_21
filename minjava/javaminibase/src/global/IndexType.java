@@ -10,6 +10,7 @@ public class IndexType {
   public static final int None    = 0;
   public static final int B_Index = 1;
   public static final int Hash    = 2;
+  public static final int CB_Index = 3;
 
   public int indexType;
 
@@ -35,12 +36,14 @@ public class IndexType {
     public String toString() {
 
     switch (indexType) {
-    case None:
-      return "None";
-    case B_Index:
-      return "B_Index";
-    case Hash:
-      return "Hash";
+      case None:
+        return "None";
+      case B_Index:
+        return "B_Index";
+      case Hash:
+        return "Hash";
+      case CB_Index:
+        return "CB_Index";
     }
     return ("Unexpected IndexType " + indexType);
   }
