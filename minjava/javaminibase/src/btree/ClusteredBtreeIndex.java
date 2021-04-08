@@ -1,4 +1,4 @@
-package index;
+package btree;
 
 import btree.BT;
 import btree.BTreeFile;
@@ -12,41 +12,50 @@ import heap.Tuple;
 import iterator.Iterator;
 import iterator.Sort;
 
+import java.io.*;
+import diskmgr.*;
+import bufmgr.*;
+import global.*;
+import heap.*;
+import iterator.*;
+
+
 public class ClusteredBtreeIndex {
 
-private final BTreeFile bTreeFile;
+        private static BTreeFile bTreeFile;
 
-private final Heapfile sortedDataFile;
+        private static Heapfile sortedDataFile;
 
-public ClusteredBtreeIndex(String sortedDataFileName, String indexFileName, int keySize,
-        int delete_fashion, int recSize, Iterator scan,
-        AttrType attrTypes[], short[] str_sizes, int indexAttr,
-        int n_pages) throws Exception {
+        public ClusteredBtreeIndex(String sortedDataFileName, String indexFileName, int keySize,
+                int delete_fashion, int recSize, Iterator scan,
+                AttrType attrTypes[], short[] str_sizes, int indexAttr,
+                int n_pages) throws Exception {
 
-                bTreeFile = new BTreeFile(indexFileName, attrTypes[indexAttr].attrType, keySize, delete_fashion);
+                        bTreeFile = new BTreeFile(indexFileName, attrTypes[indexAttr].attrType, keySize, delete_fashion);
 
-                Sort sort = new Sort(attrTypes, (short)attrTypes.length, str_sizes, scan,
-                indexAttr, new TupleOrder(TupleOrder.Ascending), keySize, n_pages);
+                        Sort sort = new Sort(attrTypes, (short)attrTypes.length, str_sizes, scan,
+                        indexAttr, new TupleOrder(TupleOrder.Ascending), keySize, n_pages);
 
-                sortedDataFile = new Heapfile(sortedDataFileName,true);
+                        sortedDataFile = new Heapfile(sortedDataFileName,true);
 
-                int maxPageCapacity = (GlobalConst.MINIBASE_PAGESIZE * GlobalConst.MAX_PAGE_UTILIZATION)/(100* (recSize+4));
+                        int maxPageCapacity = (GlobalConst.MINIBASE_PAGESIZE * GlobalConst.MAX_PAGE_UTILIZATION)/(100* (recSize+4));
 
-                Tuple next_tuple = sort.get_next();
+                        Tuple next_tuple = sort.get_next();
 
-                for(int tupleCount = 1; next_tuple != null; next_tuple = sort.get_next(), tupleCount++) {
-                RID keyTupleRid = sortedDataFile.insertRecord(next_tuple.returnTupleByteArray(), maxPageCapacity);
-                        if (tupleCount % maxPageCapacity == 0) { //reason for this needs to be commented
-                        /*bTreeFile.*/insert(new RealKey(next_tuple.getFloFld(indexAttr)), keyTupleRid);
+                        for(int tupleCount = 1; next_tuple != null; next_tuple = sort.get_next(), tupleCount++) {
+                        RID keyTupleRid = sortedDataFile.insertRecord(next_tuple.returnTupleByteArray(), maxPageCapacity);
+                                if (tupleCount % maxPageCapacity == 0) { //reason for this needs to be commented
+                                /*bTreeFile.*/insert(new RealKey(next_tuple.getFloFld(indexAttr)), keyTupleRid);
+                                }
                         }
                 }
-        }
 
         public BTFileScan new_cluster_scan(KeyClass lo_key, KeyClass hi_key){
                 try{
                         return(bTreeFile.new_scan(lo_key, hi_key));
                 }catch(Exception e){
                         e.printStackTrace();
+                        return null;
                 }
         }
 
@@ -79,9 +88,10 @@ public ClusteredBtreeIndex(String sortedDataFileName, String indexFileName, int 
 
         public boolean Delete(KeyClass key, RID rid){
                 try{
-                        return(bTreeFile.Delete(key, rid);
+                        return(bTreeFile.Delete(key, rid));
                 }catch(Exception e){
                         e.printStackTrace();
+                        return false;
                 }
         }
 
@@ -114,6 +124,7 @@ public ClusteredBtreeIndex(String sortedDataFileName, String indexFileName, int 
                         return (bTreeFile.getHeaderPage());
                 }catch(Exception e){
                         e.printStackTrace();
+                        return null;
                 }
         }
 

@@ -11,7 +11,7 @@ import heap.FieldNumberOutOfBoundException;
 import heap.Heapfile;
 import heap.Scan;
 import heap.Tuple;
-import index.ClusteredBtreeIndex;
+import btree.ClusteredBtreeIndex;
 import index.IndexException;
 import iterator.*;
 
@@ -69,7 +69,7 @@ static SystemDefs sys;
     sys = new SystemDefs(dbpath, 100000, GlobalConst.NUMBUF, "Clock");
 
     // Enter the path for data file
-    File file = new File("/afs/asu.edu/users/s/p/a/spatil23/CSE510/pc_inc_2_7000.txt");
+    File file = new File("/mnt/c/Users/kyleb/Downloads/test_data.txt");
     BufferedReader br = new BufferedReader(new FileReader(file));
     int numberOfCols = Integer.parseInt(br.readLine().trim());
 
@@ -141,7 +141,7 @@ static SystemDefs sys;
     t.print(_in);
     System.out.println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
   }
-
+/*
   // Start NestedLoopsSky
   static void performNestedLoopsSky(AttrType[] in, short[] Ssizes, FldSpec[] projection, int[] pref_list, int pref_list_length,
 																		String relationName, int n_pages) throws IndexException, IOException {
@@ -187,7 +187,7 @@ static SystemDefs sys;
   static void performBlockNestedSky(AttrType[] in, short[] Ssizes, FldSpec[] projection, int[] pref_list, int pref_list_length,
                                     String relationName, int n_pages) {
     FileScan am2 = null;
-    BlockNestedLoopSky sky2 = null;	  
+    BlockNestedLoopSky sky2 = null;
     sys.flushBuffer();
 
     PCounter.initialize();
@@ -284,7 +284,7 @@ static SystemDefs sys;
     }
     // close the file scan
     btf.close();
-    
+
     scan.closescan();
 	  sys.flushBuffer();
 
@@ -313,7 +313,7 @@ static SystemDefs sys;
 	  sys.flushBuffer();
 
 	PCounter.initialize();
-	
+
     Iterator am1 = new FileScan(relationName, in, Ssizes, (short) in.length, in.length, projection, null);
     Iterator sc = null;
     try {
@@ -342,12 +342,12 @@ static SystemDefs sys;
   // Start BtreeSky
   static void performBtreeSky(AttrType[] in, short[] Ssizes, FldSpec[] projection, int[] pref_list, int pref_list_length,
                               String relationName, int n_pages) throws Exception {
-//////checking page limits for construction of index	  
+//////checking page limits for construction of index
     if (sys.getUnpinCount() < 6) throw new Exception("Not enough pages to create index");
-//Storage of index file names	  
+//Storage of index file names
     String[] indexFiles = new String[pref_list_length];
     BTreeFile btf[] = new BTreeFile[pref_list_length];
-//Create BTreeFiles and assign names to indexFiles[]	  
+//Create BTreeFiles and assign names to indexFiles[]
     for (int i = 0; i < pref_list_length; i++) {
       try {
         indexFiles[i] = "BTreeIndex" + i;
@@ -356,7 +356,7 @@ static SystemDefs sys;
         e.printStackTrace();
         Runtime.getRuntime().exit(1);
       }
-//Begin sorting process	    
+//Begin sorting process
       RID rid = new RID();
       float key = 0;
       Tuple temp = null;
@@ -409,12 +409,12 @@ static SystemDefs sys;
 // close the file scan
       scan.closescan();
     }
-//Set up PCounter		  
+//Set up PCounter
     sys.flushBuffer();
 
     PCounter.initialize();
 //Create BTreeSky iterator and store tuples to buffer
-//Reserves certain pages for file creation and scanners	  
+//Reserves certain pages for file creation and scanners
 
     BTreeSky btScan = new BTreeSky(in, (short) in.length, Ssizes, null, relationName, pref_list, pref_list_length, indexFiles, n_pages);
 
@@ -442,4 +442,5 @@ static SystemDefs sys;
 
     System.out.println("Write Count: " + PCounter.wcounter);
   }
+  */
 }
