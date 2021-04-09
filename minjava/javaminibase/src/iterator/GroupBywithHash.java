@@ -303,6 +303,7 @@ public class GroupBywithHash extends Iterator{
 		if(sky2!=null && (t=sky2.get_next())!=null) {
 			t = new Tuple(t);
 			setHdr(t);
+			
 			return createTupleFromTuple(t,curr_tuple);
 			
 		}
@@ -332,8 +333,9 @@ public class GroupBywithHash extends Iterator{
 				nextTuple = new Tuple(nextTuple);
 				setHdr(nextTuple);
 			}
+			System.out.println(hf.getRecCnt()+" Records");
 			sky2 = new BlockNestedLoopSky(_in1, _in1.length, t1_str_sizes,
-		               null, hf.getName(), agg_list, agg_list.length, 5);
+		               null, hf.getName(), agg_list, agg_list.length, 25);
 			skyNextTuple = nextTuple;
 			return getSky();
 		}

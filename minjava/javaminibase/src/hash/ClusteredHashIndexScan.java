@@ -78,7 +78,7 @@ public class ClusteredHashIndexScan extends Iterator{
 	RID curr_key_page_RID = null;
 	RID curr_hash_bucket_RID = null;
 	
-
+int k=0;
 	@Override
 	public Tuple get_next() throws IOException, JoinsException, IndexException, InvalidTupleSizeException,
 			InvalidTypeException, PageNotReadException, TupleUtilsException, PredEvalException, SortException,
@@ -101,6 +101,7 @@ public class ClusteredHashIndexScan extends Iterator{
 			t.setHdr((short)_in.length, _in, _sSizes);
 			t = new Tuple(t);
 			t.setHdr((short)_in.length, _in, _sSizes);
+			if(k++==0)System.out.println(curr_page_RID.slotNo+" "+curr_page_RID.pageNo.pid);
 			return t;
 		}else if(curr_page_file!=null){
 			Heapfile hf = new Heapfile(curr_page_file);
