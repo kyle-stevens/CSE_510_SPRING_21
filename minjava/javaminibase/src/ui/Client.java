@@ -3,21 +3,16 @@ package ui;
 import btree.BTreeFile;
 import btree.RealKey;
 import diskmgr.PCounter;
-import global.AttrType;
-import global.GlobalConst;
-import global.RID;
-import global.SystemDefs;
+import global.*;
 import heap.FieldNumberOutOfBoundException;
 import heap.Heapfile;
 import heap.Scan;
 import heap.Tuple;
-import index.ClusteredBtreeIndex;
+import btree.ClusteredBtreeIndex;
+import index.ClusteredBtreeIndexScan;
 import index.IndexException;
 import iterator.*;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
 
 public class Client {
@@ -33,16 +28,26 @@ public class Client {
   public static void main(String args[]) {
     try {
       setupDB();
-      FileScan nlScan = null;
-      nlScan = new FileScan(relationName, _in, new short[1],
-              (short) _in.length, (short) _in.length,
-              projection, null);
-      Tuple t = new Tuple();
-      t.setHdr((short) _in.length, _in, null);
-      int size = t.size();
-      ClusteredBtreeIndex btreeIndex = new ClusteredBtreeIndex("sortedFile1", "btreeIndex1",
-              4,1, size, nlScan, _in, null, 1, 200);
-      btreeIndex.printCBtree();
+      ClusteredBtreeIndex clusteredBtreeIndex = new ClusteredBtreeIndex("sample1",
+              "/afs/asu.edu/users/s/p/a/spatil23/CSE510/minjava/javaminibase/src/sample.txt","btree", 1);
+      clusteredBtreeIndex.printCBtree();
+      Heapfile temp = new Heapfile("sample1");
+      Scan sc = temp.openScan();
+      RID t = new RID();
+      Tuple tuple;
+      System.out.println("Printing datafile sequentially");
+      while((tuple = sc.getNext(t)) != null) {
+        tuple.setHdr((short)clusteredBtreeIndex.getNumFlds(), clusteredBtreeIndex.getAttrTypes(), clusteredBtreeIndex.getStrSizes());
+        tuple.print(clusteredBtreeIndex.getAttrTypes());
+      }
+      sc.closescan();
+      ClusteredBtreeIndexScan iscan = new ClusteredBtreeIndexScan("btree", clusteredBtreeIndex.getAttrTypes(),
+              clusteredBtreeIndex.getStrSizes(), null);
+      System.out.println("Scanning index");
+      while((tuple = iscan.get_next()) != null) {
+        tuple.setHdr((short)clusteredBtreeIndex.getNumFlds(), clusteredBtreeIndex.getAttrTypes(), clusteredBtreeIndex.getStrSizes());
+        tuple.print(clusteredBtreeIndex.getAttrTypes());
+      }
     } catch (Exception e) {
       e.printStackTrace();
     }
@@ -69,68 +74,68 @@ static SystemDefs sys;
     sys = new SystemDefs(dbpath, 100000, GlobalConst.NUMBUF, "Clock");
 
     // Enter the path for data file
-    File file = new File("/afs/asu.edu/users/s/p/a/spatil23/CSE510/pc_inc_2_7000.txt");
-    BufferedReader br = new BufferedReader(new FileReader(file));
-    int numberOfCols = Integer.parseInt(br.readLine().trim());
-
-    String str = "";
-
-    _in = new AttrType[numberOfCols];
-    for(int i = 0; i < numberOfCols; i++)
-      _in[i] = new AttrType(AttrType.attrReal);
-
-    projection = new FldSpec[numberOfCols];
-
-    for (int i = 0; i < numberOfCols; i++) {
-      projection[i] = new FldSpec(new RelSpec(RelSpec.outer), i + 1);
-    }
-
-    Tuple t = new Tuple();
-    try {
-      t.setHdr((short) numberOfCols, _in, null);
-    } catch (Exception e) {
-      System.err.println("*** error in Tuple.setHdr() ***");
-      e.printStackTrace();
-    }
-
-    int size = t.size();
-
-    // Create heapfile and add the tuples to it
-    Heapfile f = null;
-    try {
-      f = new Heapfile(relationName);
-    } catch (Exception e) {
-      System.err.println("*** error in Heapfile constructor ***");
-      e.printStackTrace();
-    }
-
-    t = new Tuple(size);
-    try {
-      t.setHdr((short) numberOfCols, _in, null);
-    } catch (Exception e) {
-      System.err.println("*** error in Tuple.setHdr() ***");
-      e.printStackTrace();
-    }
-    while ((str = br.readLine()) != null) {
-      String attrs[] = str.split("\\t");
-
-
-      int k = 1;
-
-      for (String attr : attrs) {
-        attr = attr.trim();
-        if (attr.equals("")) continue;
-        t.setFloFld(k++, Float.parseFloat(attr));
-      }
-      try {
-        f.insertRecord(t.returnTupleByteArray());
-      } catch (Exception e) {
-        System.err.println("*** error in Heapfile.insertRecord() ***");
-        e.printStackTrace();
-        break;
-      }
-    }
-    br.close();
+//    File file = new File("/afs/asu.edu/users/s/p/a/spatil23/CSE510/pc_inc_2_7000.txt");
+//    BufferedReader br = new BufferedReader(new FileReader(file));
+//    int numberOfCols = Integer.parseInt(br.readLine().trim());
+//
+//    String str = "";
+//
+//    _in = new AttrType[numberOfCols];
+//    for(int i = 0; i < numberOfCols; i++)
+//      _in[i] = new AttrType(AttrType.attrReal);
+//
+//    projection = new FldSpec[numberOfCols];
+//
+//    for (int i = 0; i < numberOfCols; i++) {
+//      projection[i] = new FldSpec(new RelSpec(RelSpec.outer), i + 1);
+//    }
+//
+//    Tuple t = new Tuple();
+//    try {
+//      t.setHdr((short) numberOfCols, _in, null);
+//    } catch (Exception e) {
+//      System.err.println("*** error in Tuple.setHdr() ***");
+//      e.printStackTrace();
+//    }
+//
+//    int size = t.size();
+//
+//    // Create heapfile and add the tuples to it
+//    Heapfile f = null;
+//    try {
+//      f = new Heapfile(relationName);
+//    } catch (Exception e) {
+//      System.err.println("*** error in Heapfile constructor ***");
+//      e.printStackTrace();
+//    }
+//
+//    t = new Tuple(size);
+//    try {
+//      t.setHdr((short) numberOfCols, _in, null);
+//    } catch (Exception e) {
+//      System.err.println("*** error in Tuple.setHdr() ***");
+//      e.printStackTrace();
+//    }
+//    while ((str = br.readLine()) != null) {
+//      String attrs[] = str.split("\\t");
+//
+//
+//      int k = 1;
+//
+//      for (String attr : attrs) {
+//        attr = attr.trim();
+//        if (attr.equals("")) continue;
+//        t.setFloFld(k++, Float.parseFloat(attr));
+//      }
+//      try {
+//        f.insertRecord(t.returnTupleByteArray());
+//      } catch (Exception e) {
+//        System.err.println("*** error in Heapfile.insertRecord() ***");
+//        e.printStackTrace();
+//        break;
+//      }
+//    }
+//    br.close();
   }
 
   // Print Skyline tuples
