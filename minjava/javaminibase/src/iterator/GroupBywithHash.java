@@ -6,6 +6,8 @@ import java.util.Arrays;
 import global.AggType;
 import global.AttrType;
 import hash.ClusteredHashIndexScan;
+import hash.UnclusteredHashIndexScan;
+import hash.UnclusteredLinearHash;
 import heap.Heapfile;
 import heap.Tuple;
 import index.IndexException;
@@ -50,13 +52,13 @@ public class GroupBywithHash extends Iterator{
 		for (int i = 0; i < len_in1; i++) {
 		     projection[i] = new FldSpec(new RelSpec(RelSpec.outer), i + 1);
 		}
-		int size = 4;
-		if(in1[group_by_attr-1].attrType==AttrType.attrString) {
-			size = t1_str_sizes[0];
+		if (clustered)
+			scan = new ClusteredHashIndexScan(indexFileName, in1, t1_str_sizes, group_by_attr);
+		else {
+			if (!indexExists)
+				new UnclusteredLinearHash(80, relationName, group_by_attr, t1_str_sizes, _in1, indexFileName);
+			scan = new UnclusteredHashIndexScan(indexFileName, _in1, t1_str_sizes, group_by_attr, relationName, false);
 		}
-		Iterator am = new FileScan(relationName,in1,t1_str_sizes,(short)len_in1,len_in1,projection,null);
-		if(indexExists && clustered)
-			scan = new ClusteredHashIndexScan(indexFileName, in1, t1_str_sizes,group_by_attr);
 	}
 
 	@Override
@@ -301,6 +303,7 @@ public class GroupBywithHash extends Iterator{
 		if(sky2!=null && (t=sky2.get_next())!=null) {
 			t = new Tuple(t);
 			setHdr(t);
+			
 			return createTupleFromTuple(t,curr_tuple);
 			
 		}
@@ -330,8 +333,9 @@ public class GroupBywithHash extends Iterator{
 				nextTuple = new Tuple(nextTuple);
 				setHdr(nextTuple);
 			}
+			System.out.println(hf.getRecCnt()+" Records");
 			sky2 = new BlockNestedLoopSky(_in1, _in1.length, t1_str_sizes,
-		               null, hf.getName(), agg_list, agg_list.length, 5);
+		               null, hf.getName(), agg_list, agg_list.length, 25);
 			skyNextTuple = nextTuple;
 			return getSky();
 		}
