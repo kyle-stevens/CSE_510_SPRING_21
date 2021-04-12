@@ -51,6 +51,7 @@ public class Heapfile implements Filetype, GlobalConst {
 	public String getName() {
 		return _fileName;
 	}
+
 	/*
 	 * get a new datapage from the buffer manager and initialize dpinfo
 	 * 
@@ -328,8 +329,48 @@ public class Heapfile implements Filetype, GlobalConst {
 		return answer;
 	} // end of getRecCnt
 
-	
-	
+	public int getPgCnt() throws InvalidSlotNumberException, InvalidTupleSizeException, HFDiskMgrException,
+			HFBufMgrException, IOException
+
+	{
+		int answer = 0;
+		PageId currentDirPageId = new PageId(_firstDirPageId.pid);
+
+		PageId nextDirPageId = new PageId(0);
+
+		HFPage currentDirPage = new HFPage();
+		Page pageinbuffer = new Page();
+
+		while (currentDirPageId.pid != INVALID_PAGE) {
+			pinPage(currentDirPageId, currentDirPage, false);
+
+			RID rid = new RID();
+			Tuple atuple;
+			for (rid = currentDirPage.firstRecord(); rid != null; // rid==NULL means no more record
+					rid = currentDirPage.nextRecord(rid)) {
+				atuple = currentDirPage.getRecord(rid);
+				DataPageInfo dpinfo = new DataPageInfo(atuple);
+
+				answer++;
+			}
+
+			// ASSERTIONS: no more record
+			// - we have read all datapage records on
+			// the current directory page.
+
+			nextDirPageId = currentDirPage.getNextPage();
+			unpinPage(currentDirPageId, false /* undirty */);
+			currentDirPageId.pid = nextDirPageId.pid;
+		}
+
+// ASSERTIONS:
+// - if error, exceptions
+// - if end of heapfile reached: currentDirPageId == INVALID_PAGE
+// - if not yet end of heapfile: currentDirPageId valid
+
+		return answer;
+	}
+
 	public int getRecCnt(PageId pid) throws InvalidSlotNumberException, InvalidTupleSizeException, HFDiskMgrException,
 			HFBufMgrException, IOException
 
@@ -350,7 +391,7 @@ public class Heapfile implements Filetype, GlobalConst {
 					rid = currentDirPage.nextRecord(rid)) {
 				atuple = currentDirPage.getRecord(rid);
 				DataPageInfo dpinfo = new DataPageInfo(atuple);
-				if(dpinfo.pageId.pid==pid.pid) {
+				if (dpinfo.pageId.pid == pid.pid) {
 					return dpinfo.recct;
 				}
 			}
@@ -564,9 +605,9 @@ public class Heapfile implements Filetype, GlobalConst {
 		if ((dpinfo.pageId).pid == INVALID_PAGE) // check error!
 			throw new HFException(null, "invalid PageId");
 
-		if (!(currentDataPage.available_space() >= recLen))
+		if (!(currentDataPage.available_space() >= recLen)) {
 			throw new SpaceNotAvailableException(null, "no available space");
-
+		}
 		if (currentDataPage == null)
 			throw new HFException(null, "can't find Data page");
 
@@ -595,6 +636,7 @@ public class Heapfile implements Filetype, GlobalConst {
 
 	/***
 	 * This method inserts record into the heapfile by considering the utilization
+	 * 
 	 * @param recPtr
 	 * @param maxCapacity
 	 * @return
@@ -812,9 +854,9 @@ public class Heapfile implements Filetype, GlobalConst {
 
 	}
 
-	
 	/***
 	 * This method inserts a record into the heapfile on specific page ID.
+	 * 
 	 * @param recPtr
 	 * @param pid
 	 * @return

@@ -26,7 +26,7 @@ import iterator.TupleUtils;
 
 public class ClusteredLinearHash {
 
-	private  int hash1 = 4;
+	public  int hash1 = 4;
 	private  int hash2 = 8;
 	
 	private  final String STR = "STR";
@@ -37,10 +37,10 @@ public class ClusteredLinearHash {
 	private int current_tuples=0;
 	private int targetUtilization=80;
 	private int tuple_threshold=0;
-	private int splitPointer = 0;
+	public int splitPointer = 0;
 	private int number_of_tuples_in_a_page = 0;
 	private int totalTuples = 0;
-	private int numBuckets=hash1;
+	public int numBuckets=hash1;
 	
 	
 	private AttrType[] _in;
@@ -294,12 +294,15 @@ public class ClusteredLinearHash {
    	    return true;
     }
 	
-	public void insertIntoIndex(Tuple t) throws Exception{
+	public RID insertIntoIndex(Tuple t) throws Exception{
 		int hashValue = calculateHashValueForTuple(t, false);
 		if (hashValue < splitPointer)
 			hashValue = calculateHashValueForTuple(t, true);
 		if (!(hashValue < 0)) {
 			try {
+//				if(new Heapfile(getHashBucketName(hashValue)).getRecCnt()==0) {
+//					
+//				}
 				RID insert_rid = insertIntoPage(t, getHashBucketInnerHeapfileName(t, hashValue));
 				if(insert_rid!=null) {
 					setupDirectory(getHashBucketName(hashValue));
@@ -345,6 +348,7 @@ public class ClusteredLinearHash {
 					setTotalTuplesAndThreshold();
 
 				}
+				return insert_rid;
 			} catch (InvalidSlotNumberException | InvalidTupleSizeException | SpaceNotAvailableException
 					| HFException | HFBufMgrException | HFDiskMgrException | IOException e) {
 				e.printStackTrace();
@@ -352,6 +356,7 @@ public class ClusteredLinearHash {
 		} else {
 			throw new Exception("Problem computing hash value for certain tuple");
 		}
+		return null;
 	}
 	
 	/***
@@ -379,21 +384,30 @@ public class ClusteredLinearHash {
 					scan.closescan();
 					hf.deleteRecord(rid1);
 					//If you want to delete heapfiles in directory pages
-//					if(hf.getRecCnt()==0) {
-//						hf = new Heapfile(getHashBucketName(hash));
-//						scan = new Scan(hf);
-//						t1 = null;
-//						while((t1=scan.getNext(rid1))!=null) {
-//							t1.setHdr(keyPageColNum, keyPageAttr, keyPageStrlens);
-//							String str = t1.getStrFld(2);
-//							if(str.equalsIgnoreCase(keyFile)) {
-//								scan.closescan();
-//								hf.deleteRecord(rid1);
-					//			if(hf.getRecCnt()==0){
-			//					}
-//							}
-//						}
-//					}
+					if(hf.getRecCnt()==0) {
+						hf = new Heapfile(getHashBucketName(hash));
+						scan = new Scan(hf);
+						t1 = null;
+						while((t1=scan.getNext(rid1))!=null) {
+							t1.setHdr(keyPageColNum, keyPageAttr, keyPageStrlens);
+							String str = t1.getStrFld(2);
+							if(str.equalsIgnoreCase(keyFile)) {
+								scan.closescan();
+								hf.deleteRecord(rid1);
+								if(hf.getRecCnt()==0){
+									scan = new Scan(hashDirectory);
+									t1 = null;
+									while((t1=scan.getNext(rid1))!=null) {
+										t1.setHdr(dirColNum, dirAttr, dirStrlens);
+										if(t1.getStrFld(1).equals(getHashBucketName(hash))) {
+											scan.closescan();
+											hf.deleteRecord(rid1);
+										}
+									}
+								}
+							}
+						}
+					}
 				}
 			}
 		}

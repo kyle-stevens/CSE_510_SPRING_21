@@ -6,17 +6,17 @@ import iterator.TupleUtils;
 
 public class UnclusteredLinearHash {
 
-    private int hash1 = 4;
+    public int hash1 = 4;
     private int hash2 = 8;
     private int current_tuples=0;
     private int targetUtilization=80;
     private int tuple_threshold=0;
-    public static String prefix= "unclst_buc_";
+    private String prefix= "unclst_buc_";
     private String key_file_prefix = "unclst_key_";
-    private int splitPointer = 0;
-    public static int number_of_tuples_in_a_page = 0;
+    public int splitPointer = 0;
+    public int number_of_tuples_in_a_page = 0;
     private int totalTuples = 0;
-    private int numBuckets=hash1;
+    public int numBuckets=hash1;
     
     private AttrType[] _in;
     private int indexField;
@@ -43,7 +43,7 @@ public class UnclusteredLinearHash {
     public UnclusteredLinearHash(int utilization, String filename, int attr_num, short[] strSizes, AttrType[] in, String indexfilename) throws Exception {
         
     	this.fileName = filename;
-        this.targetUtilization = utilization;
+        this.targetUtilization = utilization<=0?80:utilization;
         this.indexField = attr_num;
         this.directoryFile = indexfilename;
         
