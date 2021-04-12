@@ -4,9 +4,9 @@
 #the assignment to be generated
 
 JARFILES=bufmgr/*.class diskmgr/*.class global/*.class iterator/*.class\
-         heap/*.class chainexception/*.class  btree/*.class index/*.class tests/*.class
+         heap/*.class chainexception/*.class  btree/*.class index/*.class tests/*.class ui/*.class hash/*.class
 
-JDKPATH = /usr/lib/jvm/java-11-openjdk-amd64
+JDKPATH = /usr
 LIBPATH = .:..
 CLASSPATH = $(LIBPATH)
 BINPATH = $(JDKPATH)/bin
@@ -17,7 +17,7 @@ DOCFILES=bufmgr diskmgr global chainexception heap btree iterator index
 
 ##############  update the above for each assignment in making
 
-ASSIGN=/home/candan/Courses/CSE510spr02/minjava/javaminibase/src
+ASSIGN=/afs/asu.edu/users/j/t/r/jtrada/minjava/javaminibase/src
 LIBDIR=$(ASSIGN)/lib
 KEY=$(ASSIGN)/key
 SRC=$(ASSIGN)/src
@@ -37,6 +37,7 @@ db:
 	make -C heap
 	make -C index
 	make -C iterator
+	make -C hash
 	
 doc:
 	$(JAVADOC) $(DOCFILES)
