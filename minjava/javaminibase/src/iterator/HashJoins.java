@@ -25,6 +25,8 @@ public class HashJoins extends Iterator{
 	private int hash1=4;
 	Heapfile outer;
 	Heapfile inner;
+	Heapfile innerHash = new Heapfile("tmp_inner_hash");
+	Heapfile outerHash = new Heapfile("tmp_outer_hash");
 	
 	AttrType[] _outer_in;
 	short[] _outer_str_lens;
@@ -98,31 +100,8 @@ public class HashJoins extends Iterator{
 		}
 		
 		hashPartition(true);
-		for(int hs:list) {
-			Heapfile hj = new Heapfile(getHashBucketName(true, hs));
-			Scan scan = new Scan(hj);
-			Tuple k = null;
-			System.out.println("===="+getHashBucketName(true, hs)+"====");
-			while((k=scan.getNext(new RID()))!=null) {
-				k.setHdr((short)_outer_in.length, _outer_in, _outer_str_lens);
-				k.print(_outer_in);
-			}
-			scan.closescan();
-		}
-		list = new HashSet<>();
 		hashPartition(false);
-		for(int hs:list) {
-			Heapfile hj = new Heapfile(getHashBucketName(false, hs));
-			Scan scan = new Scan(hj);
-			Tuple k = null;
-			System.out.println("===="+getHashBucketName(false, hs)+"====");
-			while((k=scan.getNext(new RID()))!=null) {
-				k.setHdr((short)_inner_in.length, _inner_in, _inner_str_lens);
-				k.print(_inner_in);
-			}
-			scan.closescan();
-		}
-		scan = new Scan(outer);
+		scan = new Scan(outerHash);
 	}
 	
 	Iterator joinScan = null;
@@ -138,7 +117,42 @@ public class HashJoins extends Iterator{
 			else t.setHdr((short)_inner_in.length, _inner_in, _inner_str_lens);
 			int hash = outer?calculateHashValueForTuple(t, outer_join_field, _outer_in):calculateHashValueForTuple(t, inner_join_field, _inner_in);
 			new Heapfile(getHashBucketName(outer, hash)).insertRecord(t.getTupleByteArray());
-			list.add(hash);
+			Tuple tmp = new Tuple();
+			AttrType[] types = {new AttrType(AttrType.attrInteger)};
+			tmp.setHdr((short)1, types, null);
+			tmp = new Tuple(tmp.size());
+			tmp.setHdr((short)1, types, null);
+			tmp.setIntFld(1, hash);
+			if(outer) {
+				Scan tmp_scan = new Scan(outerHash);
+				Tuple tt = null;
+				boolean flag = false;
+				while((tt=tmp_scan.getNext(new RID()))!=null) {
+					tt.setHdr((short)1, types, null);
+					if(tt.getIntFld(1)==hash) {
+						tmp_scan.closescan();
+						flag = true;
+						break;
+					}
+				}
+				if(flag) continue;
+				outerHash.insertRecord(tmp.getTupleByteArray());
+			}else {
+				Scan tmp_scan = new Scan(innerHash);
+				Tuple tt = null;
+				boolean flag = false;
+				while((tt=tmp_scan.getNext(new RID()))!=null) {
+					tt.setHdr((short)1, types, null);
+					if(tt.getIntFld(1)==hash) {
+						tmp_scan.closescan();
+						flag = true;
+						break;
+					}
+				}
+				if(flag) continue;
+				innerHash.insertRecord(tmp.getTupleByteArray());
+			}
+//			list.add(hash);
 		}
 		scan.closescan();
 	}
@@ -147,8 +161,6 @@ public class HashJoins extends Iterator{
 		return outer?oBucket_prefix+hash:iBucket_prefix+hash;
 	}
 
-	Heapfile currfile_outer;
-	Heapfile currfile_inner;
 	
 	@Override
 	public Tuple get_next() throws IOException, JoinsException, IndexException, InvalidTupleSizeException,
@@ -162,37 +174,41 @@ public class HashJoins extends Iterator{
 			}
 			joinScan.close();
 		}
-		if(currfile_inner!=null) {
-			currfile_inner.deleteFile();
-		}
-		if(currfile_outer!=null) {
-			currfile_outer.deleteFile();
-		}
 		Tuple t = null;
 		while((t = scan.getNext(new RID()))!=null) {
-			t.setHdr((short)_outer_in.length, _outer_in, _outer_str_lens);
-			int hash = calculateHashValueForTuple(t, outer_join_field, _outer_in);
-			currfile_outer = new Heapfile(getHashBucketName(true, hash));
-			currfile_inner = new Heapfile(getHashBucketName(false, hash));
-			
+			AttrType[] types = {new AttrType(AttrType.attrInteger)};
+			t.setHdr((short)1, types, null);
+			int hash = t.getIntFld(1);
 			joinScan = new NestedLoopsJoins(_outer_in, _outer_in.length, _outer_str_lens, _inner_in, _inner_in.length, _inner_str_lens, 5, 
 					new FileScan(getHashBucketName(true, hash),_outer_in,_outer_str_lens,(short)_outer_in.length,_outer_in.length,outer_proj_list,null), 
 					getHashBucketName(false, hash), outFilter, rightFilter, proj_list, n_out_fields);
 			return get_next();
 		}
-		scan.closescan();
 		return null;
 	}
 
 	@Override
 	public void close() throws IOException, JoinsException, SortException, IndexException {
 		try {
-		if (currfile_inner != null) {
-			currfile_inner.deleteFile();
-		}
-		if (currfile_outer != null) {
-			currfile_outer.deleteFile();
-		}
+			scan.closescan();
+			scan = new Scan(innerHash);
+			Tuple t = null;
+			AttrType[] types = {new AttrType(AttrType.attrInteger)};
+
+			while((t=scan.getNext(new RID()))!=null) {
+				t.setHdr((short)1, types, null);
+				new Heapfile(getHashBucketName(false, t.getIntFld(1))).deleteFile();
+			}
+			scan.closescan();
+			innerHash.deleteFile();
+
+			scan = new Scan(outerHash);
+			while((t=scan.getNext(new RID()))!=null) {
+				t.setHdr((short)1, types, null);
+				new Heapfile(getHashBucketName(true, t.getIntFld(1))).deleteFile();
+			}
+			scan.closescan();
+			outerHash.deleteFile();
 		}catch(Exception e) {
 			System.out.println("Error deleting heapfiles");
 		}

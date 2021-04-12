@@ -21,7 +21,6 @@ import global.RID;
 import global.SystemDefs;
 import hash.ClusteredLinearHash;
 import hash.UnclusteredLinearHash;
-import heap.FieldNumberOutOfBoundException;
 import heap.Heapfile;
 import heap.Scan;
 import heap.Tuple;
@@ -37,6 +36,7 @@ import iterator.Iterator;
 import iterator.NestedLoopsSky;
 import iterator.RelSpec;
 import iterator.SortFirstSky;
+import iterator.TopK_HashJoin;
 import iterator.TupleUtils;
 
 public class Client {
@@ -230,6 +230,17 @@ public class Client {
 					errorQueryMessage();
 				}
 				continue;
+			case "TOPKJOIN":
+				if(queryParts.length==10) {
+					try {
+						topkjoin(queryParts[1],Integer.parseInt(queryParts[2]),queryParts[3],Integer.parseInt(queryParts[4]),Integer.parseInt(queryParts[5]),queryParts[6],Integer.parseInt(queryParts[7]),Integer.parseInt(queryParts[8]),Integer.parseInt(queryParts[9]),"");
+					} catch (Exception e) {
+						e.printStackTrace();
+					}
+				}else if(queryParts.length == 12) {
+					
+				}
+				continue;
 			case "EXIT":
 				if(sys!=null) {
 					try {
@@ -246,13 +257,59 @@ public class Client {
 		}
 		in.close();
 	}
-//	int     n_pages,        
-//	   String outerRelation,          
-//	   String innerRelation,      
-//	   CondExpr outFilter[],      
-//	   CondExpr rightFilter[],    
-//	   FldSpec   proj_list[],
-//	   int        n_out_flds
+	
+	private static void topkjoin(String joinType, int k, String outerRelation, int outer_join_attr, int outer_merge_attr, String innerRelation, int inner_join_attr, int inner_merge_attr, int n_pages, String outputTableName) throws Exception{
+		if(joinType.equalsIgnoreCase("hash")) {
+			getRelationAttrInfo(outerRelation);
+			AttrType[] outer_in = curr_in.clone();
+			short[] outer_strLens = curr_str_lens.clone();
+			getRelationAttrInfo(innerRelation);
+			AttrType[] inner_in = curr_in.clone();
+			short[] inner_strLens = curr_str_lens.clone();
+			
+			int len_in1 = outer_in.length;
+			int len_in2 = inner_in.length;
+			int n_out_flds = len_in1 + len_in2;
+			FldSpec proj_list[] = new FldSpec[n_out_flds];
+			AttrType[] output_attr = new AttrType[n_out_flds];
+			
+			int pref_list_length=2;
+			int[] pref_list = new int[pref_list_length];
+			int j=0;
+			for(int i=0;i<len_in1;i++) {
+				proj_list[i] = new FldSpec(new RelSpec(RelSpec.outer), i+1);
+				output_attr[i] = outer_in[i];
+				if(i==outer_merge_attr-1) {
+					pref_list[j++] = outer_merge_attr;
+				}
+			}
+			for(int i=0;i<len_in2;i++) {
+				proj_list[i+len_in1] = new FldSpec(new RelSpec(RelSpec.innerRel), i+1);
+				output_attr[i+len_in1] = inner_in[i];
+				if(i==inner_merge_attr-1) {
+					pref_list[j++] = len_in1+i+1;
+				}
+			}
+			
+			short output_str_lens[] = new short[outer_strLens.length+inner_strLens.length];
+			j=0;
+			for(short value:outer_strLens) {
+				output_str_lens[j++] = value;
+			}
+			for(short value:inner_strLens) {
+				output_str_lens[j++] = value;			
+			}
+			
+			
+			Iterator it = new TopK_HashJoin(outer_in,outer_in.length,outer_strLens,outer_join_attr,outer_merge_attr,inner_in,inner_in.length,inner_strLens,inner_join_attr,inner_merge_attr,outerRelation,innerRelation,n_out_flds,pref_list_length,pref_list,proj_list,output_attr,output_str_lens,k,n_pages);
+			Tuple t = new Tuple();
+			while((t=it.get_next())!=null) {
+				t.setHdr((short)n_out_flds, output_attr, output_str_lens);
+				t.print(output_attr);
+			}
+		}
+	}
+	
 	private static void join(String joinType, String outerRelation, int outer_attr, String innerRelation, int inner_attr, String operator, int n_pages, String outputRelation) throws Exception{
 		getRelationAttrInfo(outerRelation);
 		AttrType[] outer_in = curr_in.clone();
@@ -308,6 +365,7 @@ public class Client {
 			}
 			break;
 		}
+		scan.close();
 		
 	}
 	
