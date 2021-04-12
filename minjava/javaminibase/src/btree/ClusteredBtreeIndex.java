@@ -1,22 +1,16 @@
 package btree;
 
-import global.AttrType;
-import global.GlobalConst;
-import global.RID;
-import global.TupleOrder;
-import heap.FieldNumberOutOfBoundException;
-import heap.Heapfile;
-import heap.Tuple;
-import iterator.FileScan;
-import iterator.FldSpec;
-import iterator.RelSpec;
-import iterator.Sort;
+import diskmgr.Page;
+import global.*;
+import heap.*;
+import iterator.*;
 
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.List;
 
 public class ClusteredBtreeIndex {
 
@@ -28,6 +22,7 @@ public class ClusteredBtreeIndex {
   private final String fileName, indexFileName, filePath;
   private int numFlds, keySize, recSize;
   private AttrType[] attrTypes;
+  private AttrType indexType;
   private short[] strSizes;
 
   public ClusteredBtreeIndex(String fileName, String filePath, String indexFileName, int indexAttr) throws Exception {
@@ -38,7 +33,7 @@ public class ClusteredBtreeIndex {
 
     relation = new Heapfile(fileName, true);
     readData();
-    bTreeFile = new BTreeFile(indexFileName, attrTypes[indexAttr - 1].attrType, keySize, 1);
+    bTreeFile = new BTreeFile(indexFileName, indexType.attrType, keySize, 1);
     clusterData();
   }
 
@@ -88,7 +83,7 @@ public class ClusteredBtreeIndex {
       throw new Exception("Clustered Attribute is out of the range");
     }
 
-    String str = "";
+    String str;
 
     attrTypes = new AttrType[numberOfCols];
     int numStr = 0;
@@ -104,6 +99,8 @@ public class ClusteredBtreeIndex {
         attrTypes[i] = new AttrType(AttrType.attrReal);
       }
     }
+
+    indexType = attrTypes[indexField-1];
 
     projection = new FldSpec[numberOfCols];
 
@@ -126,7 +123,7 @@ public class ClusteredBtreeIndex {
     Heapfile temp = new Heapfile(tempFileName);
 
     while ((str = br.readLine()) != null) {
-      String attrs[] = str.split("\\s+");
+      String[] attrs = str.split("\\s+");
       int k = 1;
 
       for (String attr : attrs) {
@@ -154,7 +151,7 @@ public class ClusteredBtreeIndex {
   }
 
   private void setKeySize() {
-    switch (attrTypes[indexField - 1].attrType) {
+    switch (indexType.attrType) {
       case 0:
         keySize = strSizes[0] * 2;
         break;
@@ -186,15 +183,136 @@ public class ClusteredBtreeIndex {
     for (tupleCount = 1; next_tuple != null; next_tuple = sort.get_next(), tupleCount++) {
       keyTupleRid = relation.insertRecord(next_tuple.returnTupleByteArray(), maxPageCapacity);
       if (tupleCount % maxPageCapacity == 0) {
-        bTreeFile.insert(getKeyClass(next_tuple, indexField, attrTypes[indexField - 1]), keyTupleRid);
+        bTreeFile.insert(getKeyClass(next_tuple, indexField, indexType), keyTupleRid);
       }
       lastTuple = next_tuple;
     }
     tupleCount--;
     if (tupleCount % maxPageCapacity != 0) {
-      bTreeFile.insert(getKeyClass(lastTuple, indexField, attrTypes[indexField - 1]), keyTupleRid);
+      bTreeFile.insert(getKeyClass(lastTuple, indexField, indexType), keyTupleRid);
     }
     sort.close();
     tempScan.close();
+  }
+
+  //Might remove later - not used currently
+  public Tuple lookUp(String key) throws Exception {
+    if(indexType.attrType != 0){
+      throw new Exception("Invalid key type");
+    }
+    PageId dataPageId = bTreeFile.getDataPageID(new StringKey(key));
+    if(dataPageId == null) {
+      return null;
+    }
+    Page page = new Page();
+    pinPage(dataPageId, page);
+    HFPage curr_page = new HFPage(page);
+    RID curr_page_RID = null;
+    Tuple match;
+    do {
+      if (curr_page_RID != null) {
+        curr_page_RID = curr_page.nextRecord(curr_page_RID);
+      } else {
+        curr_page_RID = curr_page.firstRecord();
+      }
+      if (curr_page_RID == null) {
+        unpinPage(curr_page.getCurPage());
+        return null;
+      }
+      match = curr_page.getRecord(curr_page_RID);
+      match.setHdr((short) attrTypes.length, attrTypes, strSizes);
+      if(key.equals(match.getStrFld(indexField)))
+        return match;
+    }while (true);
+  }
+
+  //Might remove later - not used currently
+  public Tuple lookUp(int key) throws Exception {
+    if(indexType.attrType != 1){
+      throw new Exception("Invalid key type");
+    }
+    PageId dataPageId = bTreeFile.getDataPageID(new IntegerKey(key));
+    if(dataPageId == null) {
+      return null;
+    }
+    Page page = new Page();
+    pinPage(dataPageId, page);
+    HFPage curr_page = new HFPage(page);
+    RID curr_page_RID = null;
+    Tuple match;
+    do {
+      if (curr_page_RID != null) {
+        curr_page_RID = curr_page.nextRecord(curr_page_RID);
+      } else {
+        curr_page_RID = curr_page.firstRecord();
+      }
+      if (curr_page_RID == null) {
+        unpinPage(curr_page.getCurPage());
+        return null;
+      }
+      match = curr_page.getRecord(curr_page_RID);
+      match.setHdr((short) attrTypes.length, attrTypes, strSizes);
+      if(key == match.getIntFld(indexField))
+        return match;
+    }while (true);
+  }
+
+  //Might remove later - not used currently
+  public Tuple lookUp(float key) throws Exception {
+    if(indexType.attrType != 2){
+      throw new Exception("Invalid key type");
+    }
+    PageId dataPageId = bTreeFile.getDataPageID(new RealKey(key));
+    if(dataPageId == null) {
+      return null;
+    }
+    Page page = new Page();
+    pinPage(dataPageId, page);
+    HFPage curr_page = new HFPage(page);
+    RID curr_page_RID = null;
+    Tuple match;
+    do {
+      if (curr_page_RID != null) {
+        curr_page_RID = curr_page.nextRecord(curr_page_RID);
+      } else {
+        curr_page_RID = curr_page.firstRecord();
+      }
+      if (curr_page_RID == null) {
+        unpinPage(curr_page.getCurPage());
+        return null;
+      }
+      match = curr_page.getRecord(curr_page_RID);
+      match.setHdr((short) attrTypes.length, attrTypes, strSizes);
+      if(key == match.getFloFld(indexField))
+        return match;
+    }while (true);
+  }
+
+  /**
+   * short cut to access the pinPage function in bufmgr package.
+   *
+   * @see bufmgr.pinPage
+   */
+  private void pinPage(PageId pageNo, Page page)
+          throws HFBufMgrException {
+    try {
+      SystemDefs.JavabaseBM.pinPage(pageNo, page, false);
+    } catch (Exception e) {
+      throw new HFBufMgrException(e, "Heapfile.java: pinPage() failed");
+    }
+  }
+
+  /**
+   * short cut to access the unpinPage function in bufmgr package.
+   *
+   * @see bufmgr.unpinPage
+   */
+  private void unpinPage(PageId pageNo)
+          throws HFBufMgrException {
+    try {
+      SystemDefs.JavabaseBM.unpinPage(pageNo, false);
+    } catch (Exception e) {
+      throw new HFBufMgrException(e, "Heapfile.java: unpinPage() failed");
+    }
   }
 }

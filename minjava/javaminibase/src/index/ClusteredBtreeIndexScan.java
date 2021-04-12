@@ -7,12 +7,11 @@ import global.PageId;
 import global.RID;
 import global.SystemDefs;
 import heap.*;
-import iterator.CondExpr;
-import iterator.FldSpec;
-import iterator.Iterator;
-import iterator.UnknownKeyTypeException;
+import iterator.*;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Index Scan iterator will directly access the required tuple using
@@ -28,6 +27,10 @@ public class ClusteredBtreeIndexScan extends Iterator {
   public FldSpec[] perm_mat;
   private HFPage curr_page = null;
   private RID curr_page_RID = null;
+  private CondExpr[] _selects;
+  private List<Tuple> sortedBuffer;
+  private int indexField, bufferPosition=0, bufferSize;
+  private boolean buffered = false;
 
   /**
    * class constructor. set up the index scan.
@@ -42,11 +45,15 @@ public class ClusteredBtreeIndexScan extends Iterator {
           final String indName,
           AttrType[] types,
           short[] str_sizes,
-          CondExpr[] selects
+          CondExpr[] selects,
+          int indexField
   )
           throws IndexException {
     _types = types;
     _s_sizes = str_sizes;
+    _selects = selects;
+    sortedBuffer = new ArrayList<>();
+    this.indexField = indexField;
 
     try {
       indFile = new BTreeFile(indName);
@@ -73,35 +80,61 @@ public class ClusteredBtreeIndexScan extends Iterator {
           throws IndexException,
           UnknownKeyTypeException,
           IOException, ScanIteratorException, HFBufMgrException, InvalidSlotNumberException,
-          InvalidTupleSizeException, InvalidTypeException {
-    Tuple t = null;
-    if (curr_page != null) {
-      if (curr_page_RID != null) {
-        curr_page_RID = curr_page.nextRecord(curr_page_RID);
-      } else {
-        curr_page_RID = curr_page.firstRecord();
-      }
-      if (curr_page_RID == null) {
-        unpinPage(curr_page.getCurPage());
-        curr_page = null;
+          InvalidTupleSizeException, InvalidTypeException, UnknowAttrType, FieldNumberOutOfBoundException, PredEvalException {
+    Tuple t;
+    if (buffered) {
+      if(bufferPosition >= bufferSize){
+        buffered = false;
+        sortedBuffer.clear();
         return get_next();
       }
-      t = curr_page.getRecord(curr_page_RID);
-      t.setHdr((short) _types.length, _types, _s_sizes);
-      return t;
+      return sortedBuffer.get(bufferPosition++);
     } else {
       RID rid;
-      KeyDataEntry nextentry = null;
-      nextentry = indScan.get_next();
-      if (nextentry == null) {
+      KeyDataEntry nextEntry;
+      nextEntry = ((BTFileScan)indScan).get_next_clustered_page();
+      if (nextEntry == null) {
         return null;
       }
-      rid = ((LeafData) nextentry.data).getData();
-
+      rid = ((LeafData) nextEntry.data).getData();
       PageId pid = rid.pageNo;
       Page page = new Page();
       pinPage(pid, page);
       curr_page = new HFPage(page);
+      curr_page_RID = curr_page.firstRecord();
+      while(curr_page_RID != null){
+        t = curr_page.getRecord(curr_page_RID);
+        t.setHdr((short) _types.length, _types, _s_sizes);
+        if(PredEval.Eval(_selects, t, null, _types, null)){
+          sortedBuffer.add(t);
+        }
+        curr_page_RID = curr_page.nextRecord(curr_page_RID);
+      }
+      unpinPage(curr_page.getCurPage());
+      sortedBuffer.sort((o1, o2) -> {
+        int result = 0;
+        try {
+          switch (_types[indexField-1].attrType){
+            case AttrType.attrString:
+                result = o1.getStrFld(indexField).compareTo(o2.getStrFld(indexField));
+                break;
+            case AttrType.attrInteger:
+                result = o1.getIntFld(indexField) - o2.getIntFld(indexField);
+                break;
+            case AttrType.attrReal:
+                float f = o1.getFloFld(indexField) - o2.getFloFld(indexField);
+                if(f>0) result = 1;
+                if(f<0) result = -1;
+                break;
+          }
+        } catch (IOException | FieldNumberOutOfBoundException e) {
+          e.printStackTrace();
+        }
+        return result;
+      });
+      buffered = true;
+      bufferPosition = 0;
+      bufferSize = sortedBuffer.size();
       return get_next();
     }
   }

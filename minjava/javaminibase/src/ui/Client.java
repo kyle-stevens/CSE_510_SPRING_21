@@ -29,7 +29,7 @@ public class Client {
     try {
       setupDB();
       ClusteredBtreeIndex clusteredBtreeIndex = new ClusteredBtreeIndex("sample1",
-              "/afs/asu.edu/users/s/p/a/spatil23/CSE510/minjava/javaminibase/src/sample.txt","btree", 1);
+              "/afs/asu.edu/users/s/p/a/spatil23/CSE510/minjava/javaminibase/src/sample.txt","btree", 2);
       clusteredBtreeIndex.printCBtree();
       Heapfile temp = new Heapfile("sample1");
       Scan sc = temp.openScan();
@@ -41,13 +41,34 @@ public class Client {
         tuple.print(clusteredBtreeIndex.getAttrTypes());
       }
       sc.closescan();
+
+      System.out.println("Testing range scan");
+      CondExpr[] expr = new CondExpr[3];
+      expr[0] = new CondExpr();
+      expr[0].op    = new AttrOperator(AttrOperator.aopGE);
+      expr[0].type1 = new AttrType(AttrType.attrSymbol);
+      expr[0].type2 = new AttrType(AttrType.attrInteger);
+      expr[0].operand1.symbol = new FldSpec (new RelSpec(RelSpec.outer),2);
+      expr[0].operand2.integer = 400;
+      expr[0].next = null;
+
+      expr[1] = new CondExpr();
+      expr[1].op    = new AttrOperator(AttrOperator.aopLE);
+      expr[1].next  = null;
+      expr[1].type1 = new AttrType(AttrType.attrSymbol);
+      expr[1].type2 = new AttrType(AttrType.attrInteger);
+      expr[1].operand1.symbol = new FldSpec (new RelSpec(RelSpec.outer),2);
+      expr[1].operand2.integer = 500;
+      expr[2] = null;
+
       ClusteredBtreeIndexScan iscan = new ClusteredBtreeIndexScan("btree", clusteredBtreeIndex.getAttrTypes(),
-              clusteredBtreeIndex.getStrSizes(), null);
+              clusteredBtreeIndex.getStrSizes(), expr, 2);
       System.out.println("Scanning index");
       while((tuple = iscan.get_next()) != null) {
         tuple.setHdr((short)clusteredBtreeIndex.getNumFlds(), clusteredBtreeIndex.getAttrTypes(), clusteredBtreeIndex.getStrSizes());
         tuple.print(clusteredBtreeIndex.getAttrTypes());
       }
+      iscan.close();
     } catch (Exception e) {
       e.printStackTrace();
     }

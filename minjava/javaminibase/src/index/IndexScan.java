@@ -123,9 +123,12 @@ public class IndexScan extends Iterator {
               throw new IndexException(e, "IndexScan.java: BTreeFile exceptions caught from BTreeFile constructor");
       }
       try{
-              indScan = (ClusteredBtreeIndexScan) IndexUtils.BTree_scan(selects, indFile);//Determine if IndexUtils needs changes to account for this
+              indScan = IndexUtils.BTree_scan(selects, indFile);//Determine if IndexUtils needs changes to account for this
       }//Changes end here
-    case IndexType.None:
+      catch (Exception e) {
+        e.printStackTrace();
+      }
+      case IndexType.None:
     default:
       throw new UnknownIndexTypeException("Only BTree index is supported so far");
 

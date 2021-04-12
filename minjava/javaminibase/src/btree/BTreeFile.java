@@ -945,10 +945,100 @@ public class BTreeFile extends IndexFile
 	throw new InsertException(null,"");
       }
     }
-  
-  
-  
-  
+
+
+
+	//Might remove later - not used currently
+	public PageId getDataPageID(KeyClass key)
+					throws KeyTooLongException,
+					KeyNotMatchException,
+					ConstructPageException,
+					UnpinPageException,
+					PinPageException,
+					IndexSearchException,
+					IteratorException,
+					IOException {
+
+		if (BT.getKeyLength(key) > headerPage.get_maxKeySize())
+			throw new KeyTooLongException(null, "");
+
+		if (key instanceof StringKey) {
+			if (headerPage.get_keyType() != AttrType.attrString) {
+				throw new KeyNotMatchException(null, "");
+			}
+		} else if (key instanceof IntegerKey) {
+			if (headerPage.get_keyType() != AttrType.attrInteger) {
+				throw new KeyNotMatchException(null, "");
+			}
+		} else if (key instanceof RealKey) {
+			if (headerPage.get_keyType() != AttrType.attrReal) {
+				throw new KeyNotMatchException(null, "");
+			}
+		} else
+			throw new KeyNotMatchException(null, "");
+
+		if (headerPage.get_rootId().pid == INVALID_PAGE) {
+			return null;
+		}
+
+		return _getDataPageID(key, headerPage.get_rootId());
+	}
+
+	//Might remove later - not used currently
+	private PageId _getDataPageID(KeyClass key, PageId currentPageId)
+					throws PinPageException,
+					IOException,
+					ConstructPageException,
+					IndexSearchException,
+					UnpinPageException,
+					IteratorException,
+					KeyNotMatchException {
+
+		BTSortedPage currentPage;
+		Page page;
+
+		page = pinPage(currentPageId);
+		currentPage = new BTSortedPage(page, headerPage.get_keyType());
+
+		if (trace != null) {
+			trace.writeBytes("VISIT node " + currentPageId + lineSep);
+			trace.flush();
+		}
+
+		if (currentPage.getType() == NodeType.INDEX) {
+			BTIndexPage currentIndexPage = new BTIndexPage(page,
+							headerPage.get_keyType());
+			PageId currentIndexPageId = currentPageId;
+			PageId nextPageId;
+
+			nextPageId = currentIndexPage.getPageNoByKey(key);
+
+			// now unpin the page, recurse and then pin it again
+			unpinPage(currentIndexPageId);
+
+			return _getDataPageID(key, nextPageId);
+		}
+		else if (currentPage.getType() == NodeType.LEAF) {
+			BTLeafPage currentLeafPage =
+							new BTLeafPage(page, headerPage.get_keyType());
+
+			PageId currentLeafPageId = currentPageId;
+			RID temp = new RID();
+
+			KeyDataEntry entry = currentLeafPage.getFirst(temp);
+			while(entry != null){
+				if(BT.keyCompare(key,entry.key) <= 0) {
+					unpinPage(currentLeafPageId, false);
+					return ((LeafData)entry.data).getData().pageNo;
+				}
+				entry = currentLeafPage.getNext(temp);
+			}
+			unpinPage(currentLeafPageId, false);
+		}
+		return null;
+	}
+
+
   /** delete leaf entry  given its <key, rid> pair.
    *  `rid' is IN the data entry; it is not the id of the data entry)
    *@param key the key in pair <key, rid>. Input Parameter.
