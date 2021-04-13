@@ -8,6 +8,8 @@ public interface GlobalConst {
   /** Size of page. */
   public static final int MINIBASE_PAGESIZE = 1024;           // in bytes
 
+  public static final int MAX_PAGE_UTILIZATION = 80;          //in %
+
   /** Size of each frame. */
   public static final int MINIBASE_BUFFER_POOL_SIZE = 1024;   // in Frames
 
@@ -28,6 +30,10 @@ public interface GlobalConst {
   public static final int MAXINDEXNAME = 40;
   public static final int MAXATTRNAME  = 15;    
   public static final int MAX_NAME = 50;
+
+  public static final String STR = "STR";
+  public static final String INT = "INT";
+  public static final String FLO = "FLO";
 
   public static final int MAX_STR_LEN = 30;
   public static final int INVALID_PAGE = -1;

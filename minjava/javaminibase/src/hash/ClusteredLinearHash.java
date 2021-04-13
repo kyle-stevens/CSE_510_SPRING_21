@@ -29,12 +29,10 @@ public class ClusteredLinearHash {
 	public  int hash1 = 4;
 	private  int hash2 = 8;
 	
-	private  final String STR = "STR";
-	private final String INT = "INT";
 	public final String prefix= "TMP_HASH_CLST_";
 	public final String directoryPrefix = "dir_hs_";
 	
-	private int current_tuples=0;
+	private int current_pages=0;
 	private int targetUtilization=80;
 	private int tuple_threshold=0;
 	public int splitPointer = 0;
@@ -73,17 +71,21 @@ public class ClusteredLinearHash {
 		targetUtilization=80;
 		splitPointer=0;
 		numBuckets=hash1;
-		current_tuples=0;
+		current_pages=0;
 	}
 	
 	public ClusteredLinearHash(int utilization, String filepath, int attr_num, String filename, String indexFileName) throws Exception {
+		
 		initialize();
 		this.fileName = filename;
 		this.targetUtilization = utilization;
 		this.indexField = attr_num;
 		this.filePath = filepath;
+		
 		relation = new Heapfile(fileName);
+		
 		this.indexFileName = indexFileName;
+		
 		hashDirectory = new Heapfile(this.indexFileName);
 		
 		PageAttr = new AttrType[pageColNum];
@@ -97,7 +99,7 @@ public class ClusteredLinearHash {
 		
 		clusterRecordsFromfile();
 		
-		System.out.println(numBuckets+" :: "+splitPointer+" :: "+hash1);
+//		System.out.println(numBuckets+" :: "+splitPointer+" :: "+hash1);
 	}
 	
 	public ClusteredLinearHash(String relationName, String indexFileName, int attr_num, int hash1, int numBuckets, 
@@ -111,9 +113,12 @@ public class ClusteredLinearHash {
 		this.numBuckets = numBuckets-1;
 		this.splitPointer = splitPointer;
 		
+		
 		this.fileName = relationName;
 		this.indexField = attr_num;
 		relation = new Heapfile(fileName);
+		this.current_pages = relation.getPgCnt();
+
 		this.indexFileName = indexFileName;
 		hashDirectory = new Heapfile(this.indexFileName);
 		
@@ -127,16 +132,12 @@ public class ClusteredLinearHash {
 		dirStrlens[0] = GlobalConst.MAX_NAME + 2;
 		
 		keyPageAttr = new AttrType[keyPageColNum];
-		keyPageAttr[1] = new AttrType(AttrType.attrString);
+		keyPageAttr[1] = new AttrType(AttrType.attrInteger);
 		keyPageAttr[0] = new AttrType(_in[indexField-1].attrType);
 
 		if(_in[indexField-1].attrType==AttrType.attrString) {
-			keyPageStrlens = new short[2];
-			keyPageStrlens[0]=strSizes[0];
-			keyPageStrlens[1]=GlobalConst.MAX_NAME+2;
-		}else {
 			keyPageStrlens = new short[1];
-			keyPageStrlens[0]=GlobalConst.MAX_NAME+2;
+			keyPageStrlens[0]=strSizes[0];
 		}
 		
 		Tuple t = new Tuple();
@@ -162,10 +163,10 @@ public class ClusteredLinearHash {
 		for (int i = 0; i < numberOfCols; i++) {
 			str = br.readLine();
 			String attrInfo[] = str.split("\\t");
-			if (attrInfo[1].equalsIgnoreCase(STR)) {
+			if (attrInfo[1].equalsIgnoreCase(GlobalConst.STR)) {
 				numStr++;
 				_in[i] = new AttrType(AttrType.attrString);
-			} else if (attrInfo[1].equalsIgnoreCase(INT)) {
+			} else if (attrInfo[1].equalsIgnoreCase(GlobalConst.INT)) {
 				_in[i] = new AttrType(AttrType.attrInteger);
 			}else {
 				_in[i] = new AttrType(AttrType.attrReal);
@@ -176,20 +177,13 @@ public class ClusteredLinearHash {
 		Arrays.fill(strSizes, (short) 30);
 		
 		keyPageAttr = new AttrType[keyPageColNum];
-		keyPageAttr[1] = new AttrType(AttrType.attrString);
-		
-		
+		keyPageAttr[1] = new AttrType(AttrType.attrInteger);
 		keyPageAttr[0] = new AttrType(_in[indexField-1].attrType);
 
 		if(_in[indexField-1].attrType==AttrType.attrString) {
-			keyPageStrlens = new short[2];
-			keyPageStrlens[0]=strSizes[0];
-			keyPageStrlens[1]=GlobalConst.MAX_NAME+2;
-		}else {
 			keyPageStrlens = new short[1];
-			keyPageStrlens[0]=GlobalConst.MAX_NAME+2;
-		}
-		
+			keyPageStrlens[0]=strSizes[0];
+		}		
 		Tuple t = new Tuple();
 		try {
 			t.setHdr((short) numberOfCols, _in, strSizes);
@@ -245,46 +239,53 @@ public class ClusteredLinearHash {
 			e.printStackTrace();
 		}
 	}
-	private RID insertIntoPage(Tuple t, String pageIdFile) throws Exception{
-		Heapfile hf = new Heapfile(pageIdFile);
-		Scan scan = new Scan(hf);
+	private RID insertIntoPage(Tuple t, Heapfile bucket) throws Exception{
+		Scan scan = new Scan(bucket);
 		Tuple t1 = null;
 		PageId result = null;
 		while((t1 = scan.getNext(new RID()))!=null) {
-			t1.setHdr((short)1, PageAttr, null);
-			Page page = new Page();
-			PageId tmp = new PageId(t1.getIntFld(1));
-			pinPage(tmp, page, false);
-			HFPage hfp = new HFPage(page);
-			if(hfp.available_space()>=t.size()) {
-				unpinPage(tmp, false);
-				result = tmp;
+			t1.setHdr(keyPageColNum, keyPageAttr, keyPageStrlens);
+			if(TupleUtils.CompareTupleWithTuple(_in[indexField-1], t, indexField, t1, 1)==0) {
+				result = new PageId(t1.getIntFld(2));
 				break;
 			}
-			unpinPage(tmp, false);
 		}
 		scan.closescan();
 		if(result==null) {
 			result = newPage(new Page(), 1);
-			hf.insertRecord(TupleFromPageId(result).getTupleByteArray(),calculateMaxCapacityForKeyPair());
-			return relation.insertRecord(t.getTupleByteArray(), result);
+			bucket.insertRecord(keyTupleFromTuple(t, result.pid).getTupleByteArray());
+		}else {
+			while(result!=null) {
+				Page page = new Page();
+				pinPage(result, page, false);
+				HFPage hfp = new HFPage(page);
+				if(hfp.available_space()>=t.size()) {
+					unpinPage(result, false);
+					break;
+				}
+				int tmp = hfp.getNextPage().pid;
+				if(tmp==GlobalConst.INVALID_PAGE) {
+					result = newPage(new Page(), 1);
+					hfp.setNextPage(result);
+					Page nextPage = new Page();
+					pinPage(result, nextPage, true);
+					HFPage nhfp = new HFPage();
+					nhfp.init(result, nextPage);
+					nhfp.setPrevPage(hfp.getCurPage());
+					unpinPage(result, true);
+					unpinPage(hfp.getCurPage(), true);
+					break;
+				}else {
+					unpinPage(result, false);
+					result = new PageId(tmp);
+				}
+			}
 		}
-		relation.insertRecord(t.getTupleByteArray(), result);
-		return null;
+		return relation.insertRecord(t.getTupleByteArray(), result);
 	}
 	
 	private boolean setupDirectory(String name) throws Exception{
-    	Scan scan = new Scan(hashDirectory);
     	Tuple t = null;
-    	while((t=scan.getNext(new RID()))!=null) {
-    		t.setHdr(dirColNum, dirAttr,dirStrlens);
-       		String curStr = t.getStrFld(1);
-       		if(curStr.equalsIgnoreCase(name)) {
-       			scan.closescan();
-       			return false;
-       		}
-    	}
-    	scan.closescan();
     	t = new Tuple();
 		t.setHdr(dirColNum, dirAttr,dirStrlens);
 		t = new Tuple(t.size());
@@ -300,41 +301,26 @@ public class ClusteredLinearHash {
 			hashValue = calculateHashValueForTuple(t, true);
 		if (!(hashValue < 0)) {
 			try {
-//				if(new Heapfile(getHashBucketName(hashValue)).getRecCnt()==0) {
-//					
-//				}
-				RID insert_rid = insertIntoPage(t, getHashBucketInnerHeapfileName(t, hashValue));
-				if(insert_rid!=null) {
+				Heapfile bucket = new Heapfile(getHashBucketName(hashValue));
+				if(bucket.isEmpty()) {
 					setupDirectory(getHashBucketName(hashValue));
-					Heapfile hf = new Heapfile(getHashBucketName(hashValue));
-					Scan scan = new Scan(hf);
-					Tuple t3 = null;
-					while((t3 = scan.getNext(new RID()))!=null) {
-						t3.setHdr(keyPageColNum, keyPageAttr, keyPageStrlens);
-						if(TupleUtils.CompareTupleWithTuple(_in[indexField-1], t, indexField, t3, 1)==0) {
-							break;
-						}
-					}
-					scan.closescan();
-					if(t3==null) {
-						Tuple t4 = keyTupleFromTuple(t, getHashBucketInnerHeapfileName(t, hashValue));
-						hf.insertRecord(t4.getTupleByteArray());
-					}
 				}
-				current_tuples++;
-				if (tuple_threshold == current_tuples) {
+				RID insert_rid = insertIntoPage(t, bucket);
+				if (tuple_threshold == current_pages) {
 					Heapfile sf = new Heapfile("TempHash");
 					Heapfile f = new Heapfile(getHashBucketName(splitPointer));
 					Scan scan = new Scan(f);
 					Tuple t1 = null;
 					RID rid = new RID();
 					while ((t1 = scan.getNext(rid)) != null) {
-						t1.setHdr((short) 2, keyPageAttr, keyPageStrlens);
+						t1.setHdr(keyPageColNum, keyPageAttr, keyPageStrlens);
 						int newBucket = calculateHashValueFromKeyTuple(t1, true);
 						if (newBucket != splitPointer) {
 							sf.insertRecord(tupleFromRid(rid).getTupleByteArray());
-							setupDirectory(getHashBucketName(newBucket));
-							new Heapfile(getHashBucketName(newBucket)).insertRecord(t1.getTupleByteArray());
+							Heapfile tmp = new Heapfile(getHashBucketName(newBucket));
+							if(tmp.isEmpty())
+								setupDirectory(getHashBucketName(newBucket));
+							tmp.insertRecord(t1.getTupleByteArray());
 						}
 					}
 					scan.closescan();
@@ -360,7 +346,7 @@ public class ClusteredLinearHash {
 	}
 	
 	/***
-	 * This method assumes that the record is already deleted from the datafile,
+	 * This method assumes that the record is not deleted from the datafile,
 	 * it just removes the record from index and update index if necessary
 	 * @param t
 	 * @param rid
@@ -368,74 +354,103 @@ public class ClusteredLinearHash {
 	 */
 	public void deleteFromIndex(Tuple t, RID rid) throws Exception {
 		int recCnt = relation.getRecCnt(rid.pageNo);
-		if(recCnt==0) {
+		if(recCnt==1) {
 			int hash = calculateHashValueForTuple(t, false);
 			if(hash<splitPointer) {
 				hash = calculateHashValueForTuple(t, true);
 			}
-			String keyFile = getHashBucketInnerHeapfileName(t, hash);
-			Heapfile hf = new Heapfile(keyFile);
+			String bucketName = getHashBucketName(hash);
+			Heapfile hf = new Heapfile(bucketName);
 			Scan scan = new Scan(hf);
 			Tuple t1 = null;
 			RID rid1 = new RID();
+			PageId header = null;
 			while((t1=scan.getNext(rid1))!=null) {
-				t1.setHdr((short)1, PageAttr, null);
-				if(t1.getIntFld(1)==rid.pageNo.pid) {
-					scan.closescan();
+				t1.setHdr(keyPageColNum, keyPageAttr, keyPageStrlens);
+				if(TupleUtils.CompareTupleWithTuple(_in[indexField-1], t, indexField, t1, 1)==0) {
+					header = new PageId(t1.getIntFld(2));
+					break;
+				}
+				
+			}
+			if(header!=null) {
+				if(header.pid==rid.pageNo.pid) {
 					hf.deleteRecord(rid1);
-					//If you want to delete heapfiles in directory pages
-					if(hf.getRecCnt()==0) {
-						hf = new Heapfile(getHashBucketName(hash));
-						scan = new Scan(hf);
-						t1 = null;
-						while((t1=scan.getNext(rid1))!=null) {
-							t1.setHdr(keyPageColNum, keyPageAttr, keyPageStrlens);
-							String str = t1.getStrFld(2);
-							if(str.equalsIgnoreCase(keyFile)) {
-								scan.closescan();
-								hf.deleteRecord(rid1);
-								if(hf.getRecCnt()==0){
-									scan = new Scan(hashDirectory);
-									t1 = null;
-									while((t1=scan.getNext(rid1))!=null) {
-										t1.setHdr(dirColNum, dirAttr, dirStrlens);
-										if(t1.getStrFld(1).equals(getHashBucketName(hash))) {
-											scan.closescan();
-											hf.deleteRecord(rid1);
-										}
-									}
-								}
-							}
+				}else {
+					Page page = new Page();
+					pinPage(header, page, false);
+					HFPage hfp = new HFPage(page);
+					while(hfp.getNextPage().pid!=GlobalConst.INVALID_PAGE &&
+							hfp.getNextPage().pid!=rid.pageNo.pid) {
+						unpinPage(header, false);
+						header = hfp.getNextPage();
+						if(header.pid == GlobalConst.INVALID_PAGE)break;
+						pinPage(header,page,false);
+						hfp = new HFPage(page);
+					}
+					if(header.pid!=GlobalConst.INVALID_PAGE) {
+						PageId prev = hfp.getCurPage();
+						Page nextPage = new Page();
+						pinPage(hfp.getNextPage(),nextPage,false);
+						HFPage nhfp = new HFPage(nextPage);
+						hfp.setNextPage(nhfp.getNextPage());
+						unpinPage(nhfp.getCurPage(),false);
+						if(hfp.getNextPage().pid!=GlobalConst.INVALID_PAGE) {
+							pinPage(hfp.getNextPage(),nextPage,false);
+							nhfp = new HFPage(hfp);
+							nhfp.setPrevPage(prev);
+							unpinPage(nhfp.getCurPage(), true);
 						}
+						unpinPage(hfp.getCurPage(), true);
 					}
 				}
 			}
 		}
 	}
 	
-	private int calculateMaxCapacityForKeyPair() throws Exception{
-		return (number_of_tuples_in_a_page*targetUtilization)/100;
+	public void printIndex() throws Exception{
+		Scan scan = new Scan(hashDirectory);
+		Tuple t = null;
+		while((t = scan.getNext(new RID()))!=null) {
+			t.setHdr(dirColNum, dirAttr, dirStrlens);
+			String bucketName = t.getStrFld(1);
+			String offset = directoryPrefix+fileName;
+			System.out.println("====Printing the bucket with hash value::"+bucketName.substring(offset.length(), bucketName.length())+"====");
+			Scan innerScan = new Scan(new Heapfile(bucketName));
+			while((t=innerScan.getNext(new RID()))!=null) {
+				t.setHdr(keyPageColNum, keyPageAttr, keyPageStrlens);
+				String result = "[ key = ";
+				switch(keyPageAttr[0].attrType) {
+				case AttrType.attrInteger:
+					result+=t.getIntFld(1);
+					break;
+				case AttrType.attrReal:
+					result+=t.getFloFld(1);
+					break;
+				case AttrType.attrString:
+					result+=t.getStrFld(1);
+					break;
+				}
+				result+=", pageIds = [ ";
+				PageId header = new PageId(t.getIntFld(2));
+				while(header.pid!=GlobalConst.INVALID_PAGE) {
+					result+=header.pid+", ";
+					Page page = new Page();
+					pinPage(header, page, false);
+					HFPage hfp  =new HFPage(page);
+					header = hfp.getNextPage();
+					unpinPage(hfp.getCurPage(), false);
+				}
+				result+="]";
+				System.out.println(result);
+			}
+			innerScan.closescan();
+		}
+		scan.closescan();
 	}
 	
 	private String getHashBucketName(int hash) {
 		return directoryPrefix+fileName+hash;
-	}
-	
-	private String getHashBucketInnerHeapfileName(Tuple t, int hash) throws Exception{
-		String key = "";
-		switch(_in[indexField-1].attrType) {
-		case AttrType.attrInteger:
-			key+=t.getIntFld(indexField);
-			break;
-		case AttrType.attrString:
-			String str = t.getStrFld(indexField);
-			key+=str.substring(0, Math.min(10,str.length()));
-			break;
-		case AttrType.attrReal:
-			key+=t.getFloFld(indexField);
-			break;
-		}
-		return directoryPrefix+fileName+hash+key;
 	}
 	
 	
@@ -496,6 +511,7 @@ public class ClusteredLinearHash {
 		
 	}
 	
+	
 	private int calculateHashValueForTuple(Tuple t,boolean reHash) throws Exception{
 		int hashValue = -1;
 		switch(_in[indexField-1].attrType) {
@@ -532,14 +548,15 @@ public class ClusteredLinearHash {
 	}
 	
 	private int calculateHash(String data,boolean reHash) {
-		int hash = 7;
+		long hash = 7;
 		for (int i = 0; i < data.length(); i++) {
 		    hash = hash*11 + data.charAt(i);
 		}
 		if(!reHash)
-			return hash%hash1;
-		return hash%hash2;
+			return (int)(hash%hash1);
+		return (int)(hash%hash2);
 	}
+	
 	private int calculateHash(float data,boolean reHash) {
 		if(!reHash)
 			return ((int)(data*100))%hash1;
@@ -553,7 +570,7 @@ public class ClusteredLinearHash {
 	}
 	
 	
-	private Tuple keyTupleFromTuple(Tuple t1,String name) throws Exception{
+	private Tuple keyTupleFromTuple(Tuple t1,int pageId) throws Exception{
 		Tuple t = new Tuple();
 		t.setHdr(keyPageColNum, keyPageAttr, keyPageStrlens);
 		t = new Tuple(t.size());
@@ -569,21 +586,10 @@ public class ClusteredLinearHash {
 			t.setFloFld(1, t1.getFloFld(indexField));
 			break;
 		}
-		t.setStrFld(2, name);
+		t.setIntFld(2, pageId);
 		return t;
 	}
-	
-	private Tuple TupleFromPageId(PageId pageId) throws Exception{
-		Tuple t = new Tuple();
-		t.setHdr(pageColNum, PageAttr, null);
-		t = new Tuple(t.size());
-		t.setHdr(pageColNum, PageAttr, null);
-		t.setIntFld(1,  pageId.pid);
-		return t;
-	}
-	
-	
-	
+		
 	/**
 	   * short cut to access the pinPage function in bufmgr package.
 	   * @see bufmgr.pinPage
@@ -623,6 +629,7 @@ public class ClusteredLinearHash {
 
 	    try {
 	      tmpId = SystemDefs.JavabaseBM.newPage(page,num);
+	      current_pages++;
 	      unpinPage(tmpId, false);
 	    }
 	    catch (Exception e) {
