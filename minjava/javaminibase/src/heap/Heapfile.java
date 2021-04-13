@@ -278,7 +278,7 @@ public class Heapfile implements Filetype, GlobalConst {
 
 	} // end of constructor
 
-	
+
 	public boolean isEmpty() throws Exception{
 
 		boolean answer = true;
@@ -297,7 +297,7 @@ public class Heapfile implements Filetype, GlobalConst {
 					rid = currentDirPage.nextRecord(rid)) {
 				atuple = currentDirPage.getRecord(rid);
 				DataPageInfo dpinfo = new DataPageInfo(atuple);
-				if(dpinfo.recct>0) { 
+				if(dpinfo.recct>0) {
 					unpinPage(currentDirPageId, false /* undirty */);
 					return false;
 					}
@@ -319,9 +319,9 @@ public class Heapfile implements Filetype, GlobalConst {
 		// - if not yet end of heapfile: currentDirPageId valid
 
 		return answer;
-	
+
 	}
-	
+
 	/**
 	 * Return number of records in file.
 	 *
@@ -680,7 +680,7 @@ public class Heapfile implements Filetype, GlobalConst {
 
 	/***
 	 * This method inserts record into the heapfile by considering the utilization
-	 * 
+	 *
 	 * @param recPtr
 	 * @param maxCapacity
 	 * @return
@@ -898,9 +898,104 @@ public class Heapfile implements Filetype, GlobalConst {
 
 	}
 
+	public RID insertRecordOnNewPage(byte[] recPtr)
+					throws InvalidSlotNumberException, InvalidTupleSizeException, SpaceNotAvailableException, HFException,
+					HFBufMgrException, HFDiskMgrException, IOException {
+		int recLen = recPtr.length;
+		boolean found;
+		RID currentDataPageRid = new RID();
+		Page pageinbuffer = new Page();
+		HFPage currentDirPage = new HFPage();
+		HFPage currentDataPage = new HFPage();
+
+		HFPage nextDirPage = new HFPage();
+		PageId currentDirPageId = new PageId(_firstDirPageId.pid);
+		PageId nextDirPageId = new PageId(); // OK
+
+		pinPage(currentDirPageId, currentDirPage, false/* Rdisk */);
+
+		found = false;
+		Tuple atuple;
+		DataPageInfo dpinfo = new DataPageInfo();
+		while (found == false) {
+			if (currentDirPage.available_space() >= dpinfo.size) {
+				currentDataPage = _newDatapage(dpinfo);
+				atuple = dpinfo.convertToTuple();
+				byte[] tmpData = atuple.getTupleByteArray();
+				currentDataPageRid = currentDirPage.insertRecord(tmpData);
+
+				RID tmprid = currentDirPage.firstRecord();
+
+				if (currentDataPageRid == null)
+					throw new HFException(null, "no space to insert rec.");
+
+				found = true;
+
+			}
+			else {
+				nextDirPageId = currentDirPage.getNextPage();
+
+				if (nextDirPageId.pid != INVALID_PAGE) {
+					unpinPage(currentDirPageId, false);
+
+					currentDirPageId.pid = nextDirPageId.pid;
+
+					pinPage(currentDirPageId, currentDirPage, false);
+
+				}
+				else {
+					nextDirPageId = newPage(pageinbuffer, 1);
+					if (nextDirPageId == null)
+						throw new HFException(null, "can't new pae");
+
+
+					nextDirPage.init(nextDirPageId, pageinbuffer);
+					PageId temppid = new PageId(INVALID_PAGE);
+					nextDirPage.setNextPage(temppid);
+					nextDirPage.setPrevPage(currentDirPageId);
+
+					currentDirPage.setNextPage(nextDirPageId);
+					unpinPage(currentDirPageId, true/* dirty */);
+
+					currentDirPageId.pid = nextDirPageId.pid;
+					currentDirPage = new HFPage(nextDirPage);
+
+				}
+			}
+		}
+
+		if ((dpinfo.pageId).pid == INVALID_PAGE) // check error!
+			throw new HFException(null, "invalid PageId");
+
+		if (!(currentDataPage.available_space() >= recLen))
+			throw new SpaceNotAvailableException(null, "no available space");
+
+		if (currentDataPage == null)
+			throw new HFException(null, "can't find Data page");
+
+		RID rid;
+		rid = currentDataPage.insertRecord(recPtr);
+
+		dpinfo.recct++;
+		dpinfo.availspace = currentDataPage.available_space();
+
+		unpinPage(dpinfo.pageId, true /* = DIRTY */);
+
+		atuple = currentDirPage.returnRecord(currentDataPageRid);
+		DataPageInfo dpinfo_ondirpage = new DataPageInfo(atuple);
+
+		dpinfo_ondirpage.availspace = dpinfo.availspace;
+		dpinfo_ondirpage.recct = dpinfo.recct;
+		dpinfo_ondirpage.pageId.pid = dpinfo.pageId.pid;
+		dpinfo_ondirpage.flushToTuple();
+
+		unpinPage(currentDirPageId, true /* = DIRTY */);
+		return rid;
+	}
+
 	/***
 	 * This method inserts a record into the heapfile on specific page ID.
-	 * 
+	 *
 	 * @param recPtr
 	 * @param pid
 	 * @return
