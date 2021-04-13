@@ -40,9 +40,13 @@ public class ClusteredHashIndexScan extends Iterator{
 	AttrType[] _keyPageAttr;
 	short[] _key_sizes;
 	
-	AttrType[] _pageAttr;
+	
+	int index_field;
 	
 	public ClusteredHashIndexScan(String directoryFile, AttrType[] in, short[] sSizes, int attr_no) throws Exception{
+		
+		index_field = attr_no;
+		
 		indexFile = new Heapfile(directoryFile);
 		_in = in.clone();
 		_sSizes = sSizes.clone();
@@ -52,33 +56,25 @@ public class ClusteredHashIndexScan extends Iterator{
 		_dir_sizes = new short[1];
 		_dir_sizes[0] = GlobalConst.MAX_NAME + 2;
 		
-		_pageAttr = new AttrType[1];
-		_pageAttr[0] = new AttrType(AttrType.attrInteger);
 		
 		_keyPageAttr = new AttrType[2];
 		_keyPageAttr[0] = new AttrType(in[attr_no-1].attrType);
-		_keyPageAttr[1] = new AttrType(AttrType.attrString);
+		_keyPageAttr[1] = new AttrType(AttrType.attrInteger);
 		
 		if(in[attr_no-1].attrType == AttrType.attrString) {
-			_key_sizes = new short[2];
-			_key_sizes[0] = sSizes[0];
-			_key_sizes[1] = GlobalConst.MAX_NAME + 2;
-		}else {
 			_key_sizes = new short[1];
-			_key_sizes[0] = GlobalConst.MAX_NAME + 2;
+			_key_sizes[0] = sSizes[0];
 		}
 		
 	}
 	
 	HFPage curr_page = null;
 	RID curr_page_RID = null;
-	String curr_page_file = null;
-	RID curr_page_file_RID = null;
-	String curr_key_page_file = null;
-	RID curr_key_page_RID = null;
+	
+	Scan currBucketScan = null;
+	
 	RID curr_hash_bucket_RID = null;
 	
-int k=0;
 	@Override
 	public Tuple get_next() throws IOException, JoinsException, IndexException, InvalidTupleSizeException,
 			InvalidTypeException, PageNotReadException, TupleUtilsException, PredEvalException, SortException,
@@ -94,66 +90,36 @@ int k=0;
 			}
 			if(curr_page_RID==null) {
 				unpinPage(curr_page.getCurPage(), false);
-				curr_page = null;
+				PageId next_page = curr_page.getNextPage();
+				if(next_page.pid!=GlobalConst.INVALID_PAGE) {
+					Page page = new Page();
+					pinPage(next_page, page, false);
+					curr_page = new HFPage(page);
+				}else {
+					curr_page = null;
+				}
 				return get_next();
 			}
 			t = curr_page.getRecord(curr_page_RID);
 			t.setHdr((short)_in.length, _in, _sSizes);
 			t = new Tuple(t);
 			t.setHdr((short)_in.length, _in, _sSizes);
-			if(k++==0)System.out.println(curr_page_RID.slotNo+" "+curr_page_RID.pageNo.pid);
+			System.out.println(curr_page_RID.pageNo.pid);
 			return t;
-		}else if(curr_page_file!=null){
-			Heapfile hf = new Heapfile(curr_page_file);
-			Scan scan = new Scan(hf);
-			
-			if(curr_page_file_RID!=null) {
-				scan.position(curr_page_file_RID);
-				scan.getNext(curr_page_file_RID);
-			}
-			else {
-				curr_page_file_RID = new RID();
-			}
-			t = scan.getNext(curr_page_file_RID);
+		}else if(currBucketScan!=null){
+			t = currBucketScan.getNext(new RID());
 			if(t==null) {
-				curr_page_file_RID = null;
-				curr_page_file = null;
-				scan.closescan();
-				return get_next();
-				
+				currBucketScan.closescan();
+				currBucketScan = null;
+				return get_next();				
 			}
-			t.setHdr((short)_pageAttr.length, _pageAttr, null);
+			t.setHdr((short)_keyPageAttr.length, _keyPageAttr, _key_sizes);
 			t = new Tuple(t);
-			t.setHdr((short)_pageAttr.length, _pageAttr, null);
-			scan.closescan();
-			PageId pid = new PageId(t.getIntFld(1));
+			t.setHdr((short)_keyPageAttr.length, _keyPageAttr, _key_sizes);
+			PageId pid = new PageId(t.getIntFld(2));
 			Page page = new Page();
 			pinPage(pid,page,false);
 			curr_page = new HFPage(page);
-			return get_next();
-		}else if(curr_key_page_file!=null) {
-			Scan scan = new Scan(new Heapfile(curr_key_page_file));
-			if(curr_key_page_RID!=null){
-				scan.position(curr_key_page_RID);
-				scan.getNext(curr_key_page_RID);
-			}else {
-				curr_key_page_RID = new RID();
-			}
-			t = scan.getNext(curr_key_page_RID);
-			if(t==null) {
-				curr_key_page_RID = null;
-				curr_key_page_file = null;
-				scan.closescan();
-				return get_next();
-				
-				//this hashbucket is done, fetch next one
-				//call getNext()
-			}
-			t.setHdr((short)_keyPageAttr.length, _keyPageAttr, _key_sizes);
-			t = new Tuple(t);
-			t.setHdr((short)_keyPageAttr.length, _keyPageAttr, _key_sizes);
-			scan.closescan();
-			curr_page_file = t.getStrFld(2);
 			return get_next();
 		}else {
 			Scan scan = new Scan(indexFile);
@@ -172,7 +138,7 @@ int k=0;
 			t = new Tuple(t);
 			t.setHdr((short)_dir_page_attr.length, _dir_page_attr, _dir_sizes);
 			scan.closescan();
-			curr_key_page_file = t.getStrFld(1);
+			currBucketScan = new Scan(new Heapfile(t.getStrFld(1)));
 			return get_next();
 		}
 	}

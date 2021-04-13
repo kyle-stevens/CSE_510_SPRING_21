@@ -278,6 +278,50 @@ public class Heapfile implements Filetype, GlobalConst {
 
 	} // end of constructor
 
+	
+	public boolean isEmpty() throws Exception{
+
+		boolean answer = true;
+		PageId currentDirPageId = new PageId(_firstDirPageId.pid);
+
+		PageId nextDirPageId = new PageId(0);
+
+		HFPage currentDirPage = new HFPage();
+
+		while (currentDirPageId.pid != INVALID_PAGE) {
+			pinPage(currentDirPageId, currentDirPage, false);
+
+			RID rid = new RID();
+			Tuple atuple;
+			for (rid = currentDirPage.firstRecord(); rid != null; // rid==NULL means no more record
+					rid = currentDirPage.nextRecord(rid)) {
+				atuple = currentDirPage.getRecord(rid);
+				DataPageInfo dpinfo = new DataPageInfo(atuple);
+				if(dpinfo.recct>0) { 
+					unpinPage(currentDirPageId, false /* undirty */);
+					return false;
+					}
+
+			}
+
+			// ASSERTIONS: no more record
+			// - we have read all datapage records on
+			// the current directory page.
+
+			nextDirPageId = currentDirPage.getNextPage();
+			unpinPage(currentDirPageId, false /* undirty */);
+			currentDirPageId.pid = nextDirPageId.pid;
+		}
+
+		// ASSERTIONS:
+		// - if error, exceptions
+		// - if end of heapfile reached: currentDirPageId == INVALID_PAGE
+		// - if not yet end of heapfile: currentDirPageId valid
+
+		return answer;
+	
+	}
+	
 	/**
 	 * Return number of records in file.
 	 *

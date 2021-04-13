@@ -3,10 +3,14 @@ package hash;
 import java.io.IOException;
 
 import bufmgr.PageNotReadException;
+import diskmgr.Page;
 import global.AttrType;
 import global.GlobalConst;
 import global.PageId;
 import global.RID;
+import global.SystemDefs;
+import heap.HFBufMgrException;
+import heap.HFPage;
 import heap.Heapfile;
 import heap.InvalidTupleSizeException;
 import heap.InvalidTypeException;
@@ -61,31 +65,26 @@ public class UnclusteredHashIndexScan extends Iterator {
 		
 		keyFileAttr = new AttrType[2];
         keyFileAttr[0] = _in[attr_no-1];
-        keyFileAttr[1] = new AttrType(AttrType.attrString);
+        keyFileAttr[1] = new AttrType(AttrType.attrInteger);
         
         if(_in[attr_no-1].attrType==AttrType.attrString) {
-        	keyFileStrLens = new short[2];
-        	keyFileStrLens[0] = sSizes[0];
-        	keyFileStrLens[1] = GlobalConst.MAX_NAME+2;
-        }else {
         	keyFileStrLens = new short[1];
-        	keyFileStrLens[0] = GlobalConst.MAX_NAME+2;
-        	
-        }
-		
+        	keyFileStrLens[0] = sSizes[0];
+        }		
 		_keyPageAttr = new AttrType[2];
 		_keyPageAttr[0] = new AttrType(AttrType.attrInteger);
 		_keyPageAttr[1] = new AttrType(AttrType.attrInteger);
 		
-			
 	}
 	
-	String curr_page_file = null;
-	String curr_key_page_file = null;
-	RID curr_key_page_RID = null;
-	RID curr_hash_bucket_RID = null;
-	Scan scan;
 	
+	
+	HFPage curr_page = null;
+	RID curr_page_RID = null;
+	
+	Scan currBucketScan = null;
+	
+	RID curr_hash_bucket_RID = null;
 	@Override
 	public Tuple get_next() throws IOException, JoinsException, IndexException, InvalidTupleSizeException,
 			InvalidTypeException, PageNotReadException, TupleUtilsException, PredEvalException, SortException,
@@ -93,47 +92,47 @@ public class UnclusteredHashIndexScan extends Iterator {
 		// TODO Auto-generated method stub
 		Tuple t = null;
 		
-		if(curr_page_file!=null){
-			if(scan==null) {
-				Heapfile hf = new Heapfile(curr_page_file);
-				scan = new Scan(hf);
-			}			
-			t = scan.getNext(new RID());
-			if(t==null) {
-				curr_page_file = null;
-				scan.closescan();
-				scan = null;
+		if(curr_page!=null){
+			if(curr_page_RID!=null) {
+				curr_page_RID = curr_page.nextRecord(curr_page_RID);
+			}else {
+				curr_page_RID = curr_page.firstRecord();
+			}
+			if(curr_page_RID==null) {
+				unpinPage(curr_page.getCurPage(), false);
+				PageId next_page = curr_page.getNextPage();
+				if(next_page.pid!=GlobalConst.INVALID_PAGE) {
+					Page page = new Page();
+					pinPage(next_page, page, false);
+					curr_page = new HFPage(page);
+				}else {
+					curr_page = null;
+				}
 				return get_next();
 			}
-			t.setHdr((short)_keyPageAttr.length, _keyPageAttr, null);
+			t = curr_page.getRecord(curr_page_RID);
+			t.setHdr((short)2,_keyPageAttr,null);
+			t = new Tuple(t);
+			t.setHdr((short)2,_keyPageAttr,null);
 			t = relationFile.getRecord(ridFromTuple(t));
 			t.setHdr((short)_in.length, _in, _sSizes);
 			t = new Tuple(t);
 			t.setHdr((short)_in.length, _in, _sSizes);
 			return t;
-		}else if(curr_key_page_file!=null) {
-			Scan scan = new Scan(new Heapfile(curr_key_page_file));
-			if(curr_key_page_RID!=null){
-				scan.position(curr_key_page_RID);
-				scan.getNext(curr_key_page_RID);
-			}else {
-				curr_key_page_RID = new RID();
-			}
-			t = scan.getNext(curr_key_page_RID);
-			if(t==null) {
-				curr_key_page_RID = null;
-				curr_key_page_file = null;
-				scan.closescan();
+		}else if(currBucketScan!=null) {
+			Tuple keyPair = currBucketScan.getNext(new RID());
+			if(keyPair==null) {
+				currBucketScan.closescan();
+				currBucketScan=null;
 				return get_next();
-				
-				//this hashbucket is done, fetch next one
-				//call getNext()
 			}
-			t.setHdr((short)keyFileAttr.length, keyFileAttr, keyFileStrLens);
-			t = new Tuple(t);
-			t.setHdr((short)keyFileAttr.length, keyFileAttr, keyFileStrLens);
-			scan.closescan();
-			curr_page_file = t.getStrFld(2);
+			keyPair.setHdr((short)2, keyFileAttr, keyFileStrLens);
+			keyPair = new Tuple(keyPair);
+			keyPair.setHdr((short)2, keyFileAttr, keyFileStrLens);
+			PageId pid = new PageId(keyPair.getIntFld(2));
+			Page page = new Page();
+			pinPage(pid,page,false);
+			curr_page = new HFPage(page);
 			return get_next();
 		}else {
 			Scan scan = new Scan(indexFile);
@@ -152,10 +151,11 @@ public class UnclusteredHashIndexScan extends Iterator {
 			t = new Tuple(t);
 			t.setHdr((short)_dir_page_attr.length, _dir_page_attr, _dir_sizes);
 			scan.closescan();
-			curr_key_page_file = t.getStrFld(1);
+			currBucketScan = new Scan(new Heapfile(t.getStrFld(1)));
 			return get_next();
 		}
 	}
+	
 	private RID ridFromTuple(Tuple t1) throws Exception {
 	    try {
 	      t1.setHdr((short) 2, _keyPageAttr, null);
@@ -171,9 +171,42 @@ public class UnclusteredHashIndexScan extends Iterator {
 	@Override
 	public void close() throws IOException, JoinsException, SortException, IndexException {
 		// TODO Auto-generated method stub
-		if(scan!=null) {
-			scan.closescan();
+		if(currBucketScan!=null) {
+			currBucketScan.closescan();
 		}
 	}
+	
+	/**
+	   * short cut to access the pinPage function in bufmgr package.
+	   * @see bufmgr.pinPage
+	   */
+	  private void pinPage(PageId pageno, Page page, boolean emptyPage)
+	    throws HFBufMgrException {
+	    
+	    try {
+	      SystemDefs.JavabaseBM.pinPage(pageno, page, emptyPage);
+	    }
+	    catch (Exception e) {
+	      throw new HFBufMgrException(e,"Heapfile.java: pinPage() failed");
+	    }
+	    
+	  } // end of pinPage
+
+	  /**
+	   * short cut to access the unpinPage function in bufmgr package.
+	   * @see bufmgr.unpinPage
+	   */
+	  private void unpinPage(PageId pageno, boolean dirty)
+	    throws HFBufMgrException {
+
+	    try {
+	      SystemDefs.JavabaseBM.unpinPage(pageno, dirty);
+	    }
+	    catch (Exception e) {
+	      throw new HFBufMgrException(e,"Heapfile.java: unpinPage() failed");
+	    }
+
+	  } // end of unpinPage
+
 
 }
