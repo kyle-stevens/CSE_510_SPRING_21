@@ -98,7 +98,7 @@ public class NestedLoopsJoins  extends Iterator
       perm_mat = proj_list;
       nOutFlds = n_out_flds;
       try {
-	t_size = TupleUtils.setup_op_tuple(Jtuple, Jtypes,
+    t_size = TupleUtils.setup_op_tuple(Jtuple, Jtypes,
 					   in1, len_in1, in2, len_in2,
 					   t1_str_sizes, t2_str_sizes,
 					   proj_list, nOutFlds);
@@ -168,6 +168,7 @@ public class NestedLoopsJoins  extends Iterator
 	      if (inner != null)     // If this not the first time,
 		{
 		  // close scan
+	    	  inner.closescan();
 		  inner = null;
 		}
 	    
@@ -183,7 +184,7 @@ public class NestedLoopsJoins  extends Iterator
 		  done = true;
 		  if (inner != null) 
 		    {
-                      
+                      inner.closescan();
 		      inner = null;
 		    }
 		  

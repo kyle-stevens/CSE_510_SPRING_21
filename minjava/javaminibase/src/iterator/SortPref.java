@@ -4,9 +4,10 @@ import java.io.IOException;
 
 import global.AttrType;
 import global.GlobalConst;
-import global.PageId;
+import global.RID;
 import global.TupleOrder;
 import heap.Heapfile;
+import heap.Scan;
 import heap.Tuple;
 
 
@@ -23,8 +24,6 @@ public class SortPref extends Iterator implements GlobalConst {
 	private Iterator _am;
 	private TupleOrder order;
 	private int _n_pages;
-	private byte[][] bufs;
-	private boolean first_time;
 	private int Nruns;
 	private int max_elems_in_heap;
 	private int tuple_size;
@@ -36,16 +35,13 @@ public class SortPref extends Iterator implements GlobalConst {
 	private int[] n_tuples;
 	private int n_runs;
 	private Tuple op_buf;
-	private OBuf o_buf;
-	private SpoofIbuf[] i_buf;
-	private PageId[] bufs_pids;
-	private boolean useBM = true; // flag for whether to use buffer manager
-
+	private Scan[] i_buf;
+	
 	private int[] pref_list;
 	private int pref_list_len;
 	
-	private PageId[] max_heap_buf_pid;
-	private byte[][] max_heap_buf;
+	private static final String tmp_file_prefix = "TMP_SORT_";
+
 	
 	/***
 	 * Constructor to initialize the necessary details.
@@ -65,7 +61,7 @@ public class SortPref extends Iterator implements GlobalConst {
 	 */
 	public SortPref(AttrType[] in, short len_in, short[] str_sizes, Iterator am, TupleOrder sort_order,
 			int[] pref_list, int pref_list_len, int n_pages) throws UnknowAttrType, TupleUtilsException, JoinsException, IOException, Exception {
-		if(n_pages<3) throw new Exception("Not enough pages to sort the data.");
+		if(n_pages<2) throw new Exception("Not enough pages to sort the data.");
 		n_cols = len_in;
 		this.pref_list = pref_list;
 		this.pref_list_len = pref_list_len;
@@ -84,12 +80,6 @@ public class SortPref extends Iterator implements GlobalConst {
 		}
 		tuple_size = t.size();
 
-
-		
-		
-
-		first_time = true;
-
 		//Initial arbitrary number of runs, which can be updated in later stages according to the data
 		temp_files = new Heapfile[ARBIT_RUNS];
 		n_tempfiles = ARBIT_RUNS;
@@ -97,52 +87,15 @@ public class SortPref extends Iterator implements GlobalConst {
 		n_runs = ARBIT_RUNS;
 
 		try {
-			temp_files[0] = new Heapfile(null);	// heapfile to store the tuples of specific run
+			temp_files[0] = new Heapfile(tmp_file_prefix+0);	// heapfile to store the tuples of specific run
 		} catch (Exception e) {
 			throw new SortException(e, "Sort.java: Heapfile error");
 		}
 		
-		if(GlobalConst.MAX_SPACE==128) {
-			/***
-			 * reserving 3 pages for creating a heap file which will store sorted run and inserting a record into it.
-			 * and 50 for max heap
-			 */
-			_n_pages-=52;
-			if(_n_pages<1)
-				throw new Exception("Not enough pages to sort");
-			/**
-			 * Reserving this much pages for max heap
-			 */
-			max_heap_buf_pid = new PageId[50];
-			max_heap_buf = new byte[50][];
-			get_buffer_pages(50, max_heap_buf_pid, max_heap_buf);
-		}else if(GlobalConst.MAX_SPACE==1024) {
-			/***
-			 * reserving two pages for creating a heap file which will store sorted run and inserting a record into it.
-			 * and 5 for max heap
-			 */
-			_n_pages-=7;
-			if(_n_pages<1)
-				throw new Exception("Not enough pages to sort");
-			/**
-			 * Reserving this much pages for max heap
-			 */
-			max_heap_buf_pid = new PageId[5];
-			max_heap_buf = new byte[5][];
-			get_buffer_pages(5, max_heap_buf_pid, max_heap_buf);
-		}
-		
-		getBufferPages(_n_pages);
-		o_buf = new OBuf(); // Creating the OBuf object which helps uitilizing the buffer and writing tuples to heap file.
-
-		o_buf.init(bufs, _n_pages, tuple_size, temp_files[0], false);
-
-		
-		
 		//No of maximum elements the are allowed inside a heap at a time
-		max_elems_in_heap = 150;
+		max_elems_in_heap = 200;
 
-		//Creating a priority queue which helps in generating 
+		//Creating a priority queue which helps in generating sorted runs
 		Q = new pnodeSplayPQ(order,this.pref_list,this.pref_list_len,_in,n_cols,str_lens); 
 
 		
@@ -152,56 +105,18 @@ public class SortPref extends Iterator implements GlobalConst {
 		} catch (Exception e) {
 			throw new SortException(e, "Sort.java: op_buf.setHdr() failed");
 		}
-		// generate runs
+		
+		// generate runs, needs 2 unpinned pages to create and insert into the heapfiles
 		Nruns = generate_runs(max_elems_in_heap);
-		freePages(_n_pages);
-		/***
-		 * if we have Nruns number of sorted runs, we will open file scans on all of them which will
-		 * require 2*Nruns pages and we need to create Nruns size of buffer for loading one page from
-		 * each of those runs, in short we will need atleast 3*Nruns pages.
-		 */
-		if(GlobalConst.MAX_SPACE==128)
-			_n_pages = (_n_pages+4)/3;//adding +2 because our filescan is closed now. another 2 because we do not need to create any more heapfiles.
-		else if(GlobalConst.MAX_SPACE==1024)
-			_n_pages = (_n_pages+4)/3;//adding +2 because our filescan is closed now. another 2 because we do not need to create any more heapfiles.
-			System.out.println(_n_pages);
-		//Now, we know how many runs will be needed to do the sorting, so assign pages to the buffer accordingly
-		if(Nruns>(_n_pages)) {
-			System.out.println("Number of runs::"+ Nruns);
-			System.out.println("Required Pages: "+(Nruns*3)+" Available pages: "+(_n_pages));
-			try {
-				if(GlobalConst.MAX_SPACE==128)
-					free_buffer_pages(50, max_heap_buf_pid);
-				else if(GlobalConst.MAX_SPACE==1024)
-					free_buffer_pages(5, max_heap_buf_pid);
-			}catch(Exception e) {
-				e.printStackTrace();
-			}
-			throw new LowMemException("Sort.java: Not enough memory to sort in two passes.");
-		}
 		
+		_am.close();
+		_n_pages +=2;	//iterator scan is closed now
 		
-		getBufferPages(Nruns);
 		// setup state to perform merge of runs.
 		// Open input buffers for all the input file
 		setup_for_merge(tuple_size, Nruns);
 	}
 	
-	/***
-	 * Allocates the pages from main buffer
-	 * @param _n_pages
-	 * @throws SortException
-	 */
-	private void getBufferPages(int _n_pages) throws SortException {
-		try {
-			bufs_pids = new PageId[_n_pages]; // keep track of the page Ids of pages inside the buffer
-			bufs = new byte[_n_pages][];	// buffer of size n_pages
-			get_buffer_pages(_n_pages, bufs_pids, bufs); // getting the buffer pages from bufferManager
-		} catch (Exception e) {
-			throw new SortException(e, "Sort.java: BUFmgr error");
-		}
-
-	}
 	/**
 	 * Generate sorted runs. Using heap sort.
 	 * 
@@ -283,14 +198,13 @@ public class SortPref extends Iterator implements GlobalConst {
 				// write tuple to output file, need io_bufs.java, type cast???
 				// System.out.println("Putting tuple into run " + (run_num + 1));
 				// cur_node.tuple.print(_in);
-
-				o_buf.Put(cur_node.tuple);
+				temp_files[run_num].insertRecord(cur_node.tuple.getTupleByteArray());
+				n_tuples[run_num]++;
 			}
 
 			// check whether the other queue is full
 			if (p_elems_other_Q == max_elems) {
 				// close current run and start next run
-				n_tuples[run_num] = (int) o_buf.flush(); // need io_bufs.java
 				run_num++;
 
 				// check to see whether need to expand the array
@@ -311,13 +225,10 @@ public class SortPref extends Iterator implements GlobalConst {
 				}
 
 				try {
-					temp_files[run_num] = new Heapfile(null);
+					temp_files[run_num] = new Heapfile(tmp_file_prefix+run_num);
 				} catch (Exception e) {
 					throw new SortException(e, "Sort.java: create Heapfile failed");
 				}
-
-				// need io_bufs.java
-				o_buf.init(bufs, _n_pages, tuple_size, temp_files[run_num], false);
 
 				// set the last Elem to be the minimum value for the sort field
 				if (order.tupleOrder == TupleOrder.Ascending) {
@@ -339,7 +250,7 @@ public class SortPref extends Iterator implements GlobalConst {
 			else if (p_elems_curr_Q == 0) {
 				while ((p_elems_curr_Q + p_elems_other_Q) < max_elems) {
 					try {
-						tuple = _am.get_next(); // according to Iterator.java
+						tuple = _am.get_next();
 					} catch (Exception e) {
 						throw new SortException(e, "get_next() failed");
 					}
@@ -369,7 +280,6 @@ public class SortPref extends Iterator implements GlobalConst {
 				} else {
 					// generate one more run for all tuples in the other queue
 					// close current run and start next run
-					n_tuples[run_num] = (int) o_buf.flush(); 
 					run_num++;
 
 					// check to see whether need to expand the array
@@ -390,12 +300,10 @@ public class SortPref extends Iterator implements GlobalConst {
 					}
 
 					try {
-						temp_files[run_num] = new Heapfile(null);
+						temp_files[run_num] = new Heapfile(tmp_file_prefix+run_num);
 					} catch (Exception e) {
 						throw new SortException(e, "Sort.java: create Heapfile failed");
 					}
-
-					o_buf.init(bufs, _n_pages, tuple_size, temp_files[run_num], false);
 
 					// set the last Elem to be the minimum value for the sort field
 					if (order.tupleOrder == TupleOrder.Ascending) {
@@ -416,7 +324,6 @@ public class SortPref extends Iterator implements GlobalConst {
 		} // end of while (true)
 
 		// close the last run
-		n_tuples[run_num] = (int) o_buf.flush();
 		run_num++;
 
 		return run_num;
@@ -436,39 +343,91 @@ public class SortPref extends Iterator implements GlobalConst {
 	 */
 	private void setup_for_merge(int tuple_size, int n_R_runs)
 			throws IOException, LowMemException, SortException, Exception {
-	
-
+		while(n_R_runs*2>_n_pages) {
+			if(_n_pages<6) {
+				throw new Exception("Can not sort with less than 6 pages.");
+			}
+			Heapfile tmp_file = new Heapfile(tmp_file_prefix+n_R_runs);
+			
+			Scan first = new Scan(temp_files[n_R_runs-2]);
+			Scan second = new Scan(temp_files[n_R_runs-1]);
+			Tuple f = first.getNext(new RID());
+			Tuple s = second.getNext(new RID());
+			while(f!=null&&s!=null) {
+				f.setHdr(n_cols, _in, str_lens);
+				s.setHdr(n_cols, _in, str_lens);
+				double sum1 = TupleUtils.getPrefAttrSum(f, _in, n_cols, pref_list, pref_list_len);
+				double sum2 = TupleUtils.getPrefAttrSum(s, _in, n_cols, pref_list, pref_list_len);
+				switch(order.tupleOrder) {
+				case TupleOrder.Descending:
+					if(sum2>sum1) {
+						tmp_file.insertRecord(s.getTupleByteArray());
+						s = second.getNext(new RID());
+					}else {
+						tmp_file.insertRecord(f.getTupleByteArray());
+						f = first.getNext(new RID());						
+					}
+					break;
+				case TupleOrder.Ascending:
+					if(sum2<sum1) {
+						tmp_file.insertRecord(s.getTupleByteArray());
+						s = second.getNext(new RID());
+					}else {
+						tmp_file.insertRecord(f.getTupleByteArray());
+						f = first.getNext(new RID());
+					}
+					break;
+				}
+			}
+			while(f!=null) {
+				f.setHdr(n_cols, _in, str_lens);
+				tmp_file.insertRecord(f.getTupleByteArray());
+				f = first.getNext(new RID());
+			}
+			while(s!=null) {
+				s.setHdr(n_cols, _in, str_lens);
+				tmp_file.insertRecord(s.getTupleByteArray());
+				s = second.getNext(new RID());
+			}
+			first.closescan();
+			second.closescan();
+			temp_files[n_R_runs-2].deleteFile();
+			temp_files[n_R_runs-1].deleteFile();
+			temp_files[n_R_runs-2] = tmp_file;
+			n_R_runs--;
+			Heapfile[] temp1 = new Heapfile[n_R_runs];
+			for (int i = 0; i < n_R_runs; i++) {
+				temp1[i] = temp_files[i];
+			}
+			temp_files = temp1;
+		}
 		int i;
 		pnode cur_node; 
 
-		i_buf = new SpoofIbuf[n_R_runs];
+		i_buf = new Scan[n_R_runs];
 		for (int j = 0; j < n_R_runs; j++)
-			i_buf[j] = new SpoofIbuf();
+			i_buf[j] = new Scan(temp_files[j]);
 
 		//Enqueuing first tuple of all the runs into a priority queue to prepare them for sorted access
 		for (i = 0; i < n_R_runs; i++) {
-			byte[][] apage = new byte[1][];
-			apage[0] = bufs[i];
-
-			// need iobufs.java
-			i_buf[i].init(temp_files[i], apage, 1, tuple_size, n_tuples[i]);
-
+			
 			cur_node = new pnode();
 			cur_node.run_num = i;
 
 			
-			Tuple temp_tuple = new Tuple(tuple_size);
+			Tuple temp_tuple = null;
 
-			try {
-				temp_tuple.setHdr(n_cols, _in, str_lens);
-			} catch (Exception e) {
-				throw new SortException(e, "Sort.java: Tuple.setHdr() failed");
-			}
+			
 
-			temp_tuple = i_buf[i].Get(temp_tuple);
+			temp_tuple = i_buf[i].getNext(new RID());
 
+			
 			if (temp_tuple != null) {
-				
+				try {
+					temp_tuple.setHdr(n_cols, _in, str_lens);
+				} catch (Exception e) {
+					throw new SortException(e, "Sort.java: Tuple.setHdr() failed");
+				}
 				cur_node.tuple = temp_tuple; 
 				try {
 					
@@ -500,18 +459,16 @@ public class SortPref extends Iterator implements GlobalConst {
 		
 		// we just removed one tuple from one run, now we need to put another
 		// tuple of the same run into the queue
-		if (i_buf[cur_node.run_num].empty() != true) {
+		new_tuple = i_buf[cur_node.run_num].getNext(new RID());
+		if (new_tuple != null) {
 			// run not exhausted
-			new_tuple = new Tuple(tuple_size);
-
+			
 			try {
 				new_tuple.setHdr(n_cols, _in, str_lens);
 			} catch (Exception e) {
 				throw new SortException(e, "Sort.java: setHdr() failed");
 			}
 
-			new_tuple = i_buf[cur_node.run_num].Get(new_tuple);
-			if (new_tuple != null) {
 				cur_node.tuple = new_tuple;
 				try {
 					Q.enqPref(cur_node);
@@ -520,9 +477,6 @@ public class SortPref extends Iterator implements GlobalConst {
 				} catch (TupleUtilsException e) {
 					throw new SortException(e, "Sort.java: TupleUtilsException caught from Q.enqPref()");
 				}
-			} else {
-				throw new SortException("********** Wait a minute, I thought input is not empty ***************");
-			}
 
 		}
 
@@ -580,19 +534,9 @@ public class SortPref extends Iterator implements GlobalConst {
 				throw new SortException(e, "Sort.java: error in closing iterator.");
 			}
 
-			if (useBM) {
-				freePages(bufs_pids.length);
-				try {
-					if(GlobalConst.MAX_SPACE==128)
-						free_buffer_pages(50, max_heap_buf_pid);
-					else if(GlobalConst.MAX_SPACE==1024)
-						free_buffer_pages(5, max_heap_buf_pid);
-				}catch(Exception e) {
-					e.printStackTrace();
-				}
-			}
+			
 			for(int i=0;i<i_buf.length;i++) {
-				i_buf[i].closeScan();
+				i_buf[i].closescan();
 			}
 			for (int i = 0; i < temp_files.length; i++) {
 				if (temp_files[i] != null) {
@@ -608,17 +552,4 @@ public class SortPref extends Iterator implements GlobalConst {
 		}
 	}
 	
-	/***
-	 * Free the buffer pages
-	 */
-	private void freePages(int _n_pages) {
-		try {
-			free_buffer_pages(_n_pages, bufs_pids);
-			
-		} catch (Exception e) {
-			System.out.println("Failed to free pages");
-		}
-		for (int i = 0; i < _n_pages; i++)
-			bufs_pids[i].pid = INVALID_PAGE;
-	}
 }

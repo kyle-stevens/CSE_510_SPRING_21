@@ -29,5 +29,6 @@ public interface GlobalConst {
   public static final int MAXATTRNAME  = 15;    
   public static final int MAX_NAME = 50;
 
+  public static final int MAX_STR_LEN = 30;
   public static final int INVALID_PAGE = -1;
 }

@@ -121,4 +121,12 @@ public class SystemDefs {
 		e.printStackTrace();
 	}
   }
+  public void closeDB() throws Exception{
+	  try {
+		  JavabaseBM.flushAllPages();
+	  }catch(Exception e) {
+		  System.out.println("Error flushing the pages");
+	  }
+	  JavabaseDB.closeDB();
+  }
 }
