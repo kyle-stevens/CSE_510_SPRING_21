@@ -41,8 +41,6 @@ public class IndexType {
       return "B_Index";
     case Hash:
       return "Hash";
-    case CB_Index: //Added in CB_Index type
-      return "CB_Index";
     }
     return ("Unexpected IndexType " + indexType);
   }

@@ -93,7 +93,7 @@ public class IndexScan extends Iterator {
     catch (Exception e) {
       throw new IndexException(e, "IndexScan.java: Heapfile not created");
     }
-    
+
     switch(index.indexType) {
       // linear hashing is not yet implemented
     case IndexType.B_Index:
@@ -115,19 +115,6 @@ public class IndexScan extends Iterator {
       }
 
       break;
-    case IndexType.CB_Index: //Changes start here -
-      try{
-              indFile = new BTreeFile(indName);
-      }
-      catch(Exception e){
-              throw new IndexException(e, "IndexScan.java: BTreeFile exceptions caught from BTreeFile constructor");
-      }
-      try{
-              indScan = IndexUtils.BTree_scan(selects, indFile);//Determine if IndexUtils needs changes to account for this
-      }//Changes end here
-      catch (Exception e) {
-        e.printStackTrace();
-      }
       case IndexType.None:
     default:
       throw new UnknownIndexTypeException("Only BTree index is supported so far");
