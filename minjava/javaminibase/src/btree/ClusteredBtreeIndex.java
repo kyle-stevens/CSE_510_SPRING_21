@@ -1,16 +1,20 @@
 package btree;
 
+import bufmgr.HashEntryNotFoundException;
+import bufmgr.InvalidFrameNumberException;
+import bufmgr.PageUnpinnedException;
+import bufmgr.ReplacerException;
 import diskmgr.Page;
 import global.*;
 import heap.*;
+import index.IndexUtils;
 import iterator.*;
 
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 
 public class ClusteredBtreeIndex {
 
@@ -19,22 +23,37 @@ public class ClusteredBtreeIndex {
   private final BTreeFile bTreeFile;
   private final Heapfile relation;
   private final int indexField;
-  private final String fileName, indexFileName, filePath;
+  private final String relationName, indexFileName;
   private int numFlds, keySize, recSize;
   private AttrType[] attrTypes;
-  private AttrType indexType;
+  private AttrType indexAttrType;
   private short[] strSizes;
 
-  public ClusteredBtreeIndex(String fileName, String filePath, String indexFileName, int indexAttr) throws Exception {
-    this.fileName = fileName;
-    this.filePath = filePath;
+  public ClusteredBtreeIndex(String relationName, String filePath, String indexFileName,
+                             int indexAttr) throws Exception {
+    this.relationName = relationName;
     this.indexFileName = indexFileName;
     this.indexField = indexAttr;
 
-    relation = new Heapfile(fileName, true);
-    readData();
-    bTreeFile = new BTreeFile(indexFileName, indexType.attrType, keySize, 1);
+    relation = new Heapfile(relationName, true);
+    readDataFromFile(filePath);
+    bTreeFile = new BTreeFile(indexFileName, indexAttrType.attrType, keySize, 1);
     clusterData();
+  }
+
+  public ClusteredBtreeIndex(String relationName, String indexFileName, int indexAttr,
+                             AttrType[] attrTypes, short[] strSizes) throws Exception {
+    this.relationName = relationName;
+    this.indexFileName = indexFileName;
+    this.indexField = indexAttr;
+    this.numFlds = attrTypes.length;
+    this.indexAttrType = attrTypes[indexAttr - 1];
+    this.attrTypes = attrTypes;
+    this.strSizes = strSizes;
+    setKeySize();
+    this.recSize = calculateRecSize(numFlds, attrTypes, strSizes);
+    this.relation = new Heapfile(relationName, true);
+    this.bTreeFile = new BTreeFile(indexFileName, indexAttrType.attrType, keySize, 1);
   }
 
   public short[] getStrSizes() {
@@ -58,21 +77,21 @@ public class ClusteredBtreeIndex {
     }
   }
 
-  private KeyClass getKeyClass(Tuple tuple, int attrIndex, AttrType type) throws IOException, FieldNumberOutOfBoundException {
-    switch (type.attrType) {
+  private KeyClass getKeyClass(Tuple tuple) throws IOException, FieldNumberOutOfBoundException {
+    switch (indexAttrType.attrType) {
       case 0:
-        return new StringKey(tuple.getStrFld(attrIndex));
+        return new StringKey(tuple.getStrFld(indexField));
       case 1:
-        return new IntegerKey(tuple.getIntFld(attrIndex));
+        return new IntegerKey(tuple.getIntFld(indexField));
       case 2:
-        return new RealKey(tuple.getFloFld(attrIndex));
+        return new RealKey(tuple.getFloFld(indexField));
       default:
         System.out.println("invalid attribute type for index key");
         return null;
     }
   }
 
-  private void readData() throws Exception {
+  private void readDataFromFile(String filePath) throws Exception {
     File file = new File(filePath);
     BufferedReader br = new BufferedReader(new FileReader(file));
     int numberOfCols = (short) Integer.parseInt(br.readLine().trim());
@@ -100,7 +119,7 @@ public class ClusteredBtreeIndex {
       }
     }
 
-    indexType = attrTypes[indexField-1];
+    indexAttrType = attrTypes[indexField - 1];
 
     projection = new FldSpec[numberOfCols];
 
@@ -112,12 +131,9 @@ public class ClusteredBtreeIndex {
     Arrays.fill(strSizes, (short) 30);
 
     setKeySize();
+    recSize = calculateRecSize(numberOfCols, attrTypes, strSizes);
 
-    Tuple t = new Tuple();
-    t.setHdr((short) numberOfCols, attrTypes, strSizes);
-    recSize = t.size();
-
-    t = new Tuple(recSize);
+    Tuple t = new Tuple(recSize);
     t.setHdr((short) numberOfCols, attrTypes, strSizes);
 
     Heapfile temp = new Heapfile(tempFileName);
@@ -151,7 +167,7 @@ public class ClusteredBtreeIndex {
   }
 
   private void setKeySize() {
-    switch (indexType.attrType) {
+    switch (indexAttrType.attrType) {
       case 0:
         keySize = strSizes[0] * 2;
         break;
@@ -163,6 +179,16 @@ public class ClusteredBtreeIndex {
         System.out.println("ERROR while setting key size: invalid attribute type for index key");
         break;
     }
+  }
+
+  private int calculateRecSize(int numberOfCols, AttrType[] attrTypes, short[] strSizes) {
+    Tuple t = new Tuple();
+    try {
+      t.setHdr((short) numberOfCols, attrTypes, strSizes);
+    } catch (IOException | InvalidTypeException | InvalidTupleSizeException e) {
+      e.printStackTrace();
+    }
+    return t.size();
   }
 
   private void clusterData() throws Exception {
@@ -183,109 +209,151 @@ public class ClusteredBtreeIndex {
     for (tupleCount = 1; next_tuple != null; next_tuple = sort.get_next(), tupleCount++) {
       keyTupleRid = relation.insertRecord(next_tuple.returnTupleByteArray(), maxPageCapacity);
       if (tupleCount % maxPageCapacity == 0) {
-        bTreeFile.insert(getKeyClass(next_tuple, indexField, indexType), keyTupleRid);
+        bTreeFile.insert(getKeyClass(next_tuple), keyTupleRid);
       }
       lastTuple = next_tuple;
     }
     tupleCount--;
     if (tupleCount % maxPageCapacity != 0) {
-      bTreeFile.insert(getKeyClass(lastTuple, indexField, indexType), keyTupleRid);
+      bTreeFile.insert(getKeyClass(lastTuple), keyTupleRid);
     }
     sort.close();
     tempScan.close();
   }
 
-  //Might remove later - not used currently
-  public Tuple lookUp(String key) throws Exception {
-    if(indexType.attrType != 0){
-      throw new Exception("Invalid key type");
-    }
-    PageId dataPageId = bTreeFile.getDataPageID(new StringKey(key));
-    if(dataPageId == null) {
-      return null;
-    }
-    Page page = new Page();
-    pinPage(dataPageId, page);
-    HFPage curr_page = new HFPage(page);
-    RID curr_page_RID = null;
-    Tuple match;
-    do {
-      if (curr_page_RID != null) {
-        curr_page_RID = curr_page.nextRecord(curr_page_RID);
-      } else {
-        curr_page_RID = curr_page.firstRecord();
+  public int insert(Tuple tuple) throws Exception {
+
+    IndexFileScan indScan = IndexUtils.BTree_scan(getMatchCondition(tuple), bTreeFile);
+    RID rid;
+    KeyDataEntry nextEntry, lastEntry = null;
+    boolean fisrtEntry = true;
+
+    while(true) {
+      nextEntry = ((BTFileScan) indScan).get_next_clustered_page();
+      if (nextEntry == null) {
+        break;
       }
-      if (curr_page_RID == null) {
-        unpinPage(curr_page.getCurPage());
-        return null;
+      rid = ((LeafData) nextEntry.data).getData();
+      PageId pid = rid.pageNo;
+      Page page = new Page();
+      pinPage(pid, page);
+      HFPage curr_page = new HFPage(page);
+      if (curr_page.available_space() >= recSize) {
+        relation.insertRecord(tuple.getTupleByteArray(), pid);
+        unpinPage(pid);
+        ((BTFileScan) indScan).DestroyBTreeFileScan();
+        return 0;
       }
-      match = curr_page.getRecord(curr_page_RID);
-      match.setHdr((short) attrTypes.length, attrTypes, strSizes);
-      if(key.equals(match.getStrFld(indexField)))
-        return match;
-    }while (true);
+      lastEntry = nextEntry;
+      fisrtEntry = false;
+      unpinPage(pid);
+    }
+    ((BTFileScan) indScan).DestroyBTreeFileScan();
+
+    if(fisrtEntry) {
+      rid = relation.insertRecordOnNewPage(tuple.returnTupleByteArray());
+      bTreeFile.insert(getKeyClass(tuple), rid);
+      return 0;
+    }
+
+
+    splitDataPage(lastEntry);
+
+    return insert(tuple);
   }
 
-  //Might remove later - not used currently
-  public Tuple lookUp(int key) throws Exception {
-    if(indexType.attrType != 1){
-      throw new Exception("Invalid key type");
-    }
-    PageId dataPageId = bTreeFile.getDataPageID(new IntegerKey(key));
-    if(dataPageId == null) {
-      return null;
-    }
+  private void splitDataPage(KeyDataEntry entry) throws Exception {
+    RID rid = ((LeafData) entry.data).getData();
+    PageId pid = rid.pageNo;
     Page page = new Page();
-    pinPage(dataPageId, page);
+    pinPage(pid, page);
     HFPage curr_page = new HFPage(page);
-    RID curr_page_RID = null;
-    Tuple match;
-    do {
-      if (curr_page_RID != null) {
-        curr_page_RID = curr_page.nextRecord(curr_page_RID);
+
+    RID curr_page_RID = curr_page.firstRecord();
+    Map<Tuple,RID> sortedBuffer = new TreeMap<>((o1, o2) -> {
+      int result = 0;
+      try {
+        switch (attrTypes[indexField-1].attrType){
+          case AttrType.attrString:
+            result = o1.getStrFld(indexField).compareTo(o2.getStrFld(indexField));
+            break;
+          case AttrType.attrInteger:
+            result = o1.getIntFld(indexField) - o2.getIntFld(indexField);
+            break;
+          case AttrType.attrReal:
+            float f = o1.getFloFld(indexField) - o2.getFloFld(indexField);
+            if(f>0) result = 1;
+            if(f<0) result = -1;
+            break;
+        }
+      } catch (IOException | FieldNumberOutOfBoundException e) {
+        e.printStackTrace();
+      }
+      return result;
+    });
+    Tuple t;
+    while(curr_page_RID != null){
+      t = curr_page.getRecord(curr_page_RID);
+      t.setHdr((short) attrTypes.length, attrTypes, strSizes);
+      sortedBuffer.put(t, curr_page_RID);
+      curr_page_RID = curr_page.nextRecord(curr_page_RID);
+    }
+    unpinPage(curr_page.getCurPage());
+    int tupleCount = sortedBuffer.size();
+    int splitPoint = tupleCount/2;
+
+    List<Map.Entry<Tuple, RID>> sortedList = new ArrayList<>(sortedBuffer.entrySet());
+    Map.Entry<Tuple, RID> tupleToMove = null;
+    RID newRid = null;
+    PageId newPageid = null;
+
+    for(int i = splitPoint; i<tupleCount; i++){
+      tupleToMove = sortedList.get(i);
+      relation.deleteRecord(tupleToMove.getValue());
+      if(tupleToMove.getValue().equals(rid)){
+        bTreeFile.Delete(getKeyClass(tupleToMove.getKey()), tupleToMove.getValue());
+        bTreeFile.insert(getKeyClass(sortedList.get(splitPoint-1).getKey()),
+                sortedList.get(splitPoint-1).getValue());
+      }
+      if(i == splitPoint) {
+        //this could be improved later
+        newRid = relation.insertRecordOnNewPage(tupleToMove.getKey().returnTupleByteArray());
+        newPageid = newRid.pageNo;
       } else {
-        curr_page_RID = curr_page.firstRecord();
+        newRid = relation.insertRecord(tupleToMove.getKey().returnTupleByteArray(), newPageid);
       }
-      if (curr_page_RID == null) {
-        unpinPage(curr_page.getCurPage());
-        return null;
-      }
-      match = curr_page.getRecord(curr_page_RID);
-      match.setHdr((short) attrTypes.length, attrTypes, strSizes);
-      if(key == match.getIntFld(indexField))
-        return match;
-    }while (true);
+    }
+    bTreeFile.insert(getKeyClass(tupleToMove.getKey()),newRid);
   }
 
-  //Might remove later - not used currently
-  public Tuple lookUp(float key) throws Exception {
-    if(indexType.attrType != 2){
-      throw new Exception("Invalid key type");
+  private CondExpr[] getMatchCondition(Tuple tuple) throws FieldNumberOutOfBoundException, IOException {
+    CondExpr[] expr = new CondExpr[2];
+    expr[0] = new CondExpr();
+    expr[0].op    = new AttrOperator(AttrOperator.aopEQ);
+    expr[0].type1 = new AttrType(AttrType.attrSymbol);
+    expr[0].type2 = new AttrType(indexAttrType.attrType);
+    expr[0].operand1.symbol = new FldSpec (new RelSpec(RelSpec.outer),indexField);
+    switch (indexAttrType.attrType) {
+      case AttrType.attrInteger:
+        expr[0].operand2.integer = tuple.getIntFld(indexField);
+        break;
+      case AttrType.attrString:
+        expr[0].operand2.string = tuple.getStrFld(indexField);
+        break;
+      case AttrType.attrReal:
+        expr[0].operand2.real = tuple.getFloFld(indexField);
+        break;
     }
-    PageId dataPageId = bTreeFile.getDataPageID(new RealKey(key));
-    if(dataPageId == null) {
-      return null;
+    expr[0].next = null;
+    return expr;
+  }
+
+  public void close() {
+    try {
+      bTreeFile.close();
+    } catch (PageUnpinnedException | InvalidFrameNumberException | HashEntryNotFoundException | ReplacerException e) {
+      e.printStackTrace();
     }
-    Page page = new Page();
-    pinPage(dataPageId, page);
-    HFPage curr_page = new HFPage(page);
-    RID curr_page_RID = null;
-    Tuple match;
-    do {
-      if (curr_page_RID != null) {
-        curr_page_RID = curr_page.nextRecord(curr_page_RID);
-      } else {
-        curr_page_RID = curr_page.firstRecord();
-      }
-      if (curr_page_RID == null) {
-        unpinPage(curr_page.getCurPage());
-        return null;
-      }
-      match = curr_page.getRecord(curr_page_RID);
-      match.setHdr((short) attrTypes.length, attrTypes, strSizes);
-      if(key == match.getFloFld(indexField))
-        return match;
-    }while (true);
   }
 
   /**

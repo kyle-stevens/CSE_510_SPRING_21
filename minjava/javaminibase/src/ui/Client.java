@@ -30,6 +30,7 @@ public class Client {
       setupDB();
       ClusteredBtreeIndex clusteredBtreeIndex = new ClusteredBtreeIndex("sample1",
               "/afs/asu.edu/users/s/p/a/spatil23/CSE510/minjava/javaminibase/src/sample.txt","btree", 2);
+      System.out.println("**printing btree");
       clusteredBtreeIndex.printCBtree();
       Heapfile temp = new Heapfile("sample1");
       Scan sc = temp.openScan();
@@ -69,6 +70,63 @@ public class Client {
         tuple.print(clusteredBtreeIndex.getAttrTypes());
       }
       iscan.close();
+
+      System.out.println("**printing btree");
+      clusteredBtreeIndex.printCBtree();
+
+      Tuple add = new Tuple();
+      add.setHdr((short)clusteredBtreeIndex.getNumFlds(), clusteredBtreeIndex.getAttrTypes(), clusteredBtreeIndex.getStrSizes());
+      add = new Tuple(add.size());
+      add.setHdr((short)clusteredBtreeIndex.getNumFlds(), clusteredBtreeIndex.getAttrTypes(), clusteredBtreeIndex.getStrSizes());
+      add.setStrFld(1, "ZZZZZZZZZZ");
+      add.setIntFld(2,0);
+      add.setIntFld(3,0);
+
+      clusteredBtreeIndex.insert(add);
+
+      iscan = new ClusteredBtreeIndexScan("btree", clusteredBtreeIndex.getAttrTypes(),
+              clusteredBtreeIndex.getStrSizes(), null, 2);
+      System.out.println("Scanning index");
+      while((tuple = iscan.get_next()) != null) {
+        tuple.setHdr((short)clusteredBtreeIndex.getNumFlds(), clusteredBtreeIndex.getAttrTypes(), clusteredBtreeIndex.getStrSizes());
+        tuple.print(clusteredBtreeIndex.getAttrTypes());
+      }
+      iscan.close();
+
+      add = new Tuple(add.size());
+      add.setHdr((short)clusteredBtreeIndex.getNumFlds(), clusteredBtreeIndex.getAttrTypes(), clusteredBtreeIndex.getStrSizes());
+      add.setStrFld(1, "AAA");
+      add.setIntFld(2,99999);
+      add.setIntFld(3,99999);
+
+      clusteredBtreeIndex.insert(add);
+
+      iscan = new ClusteredBtreeIndexScan("btree", clusteredBtreeIndex.getAttrTypes(),
+              clusteredBtreeIndex.getStrSizes(), null, 2);
+      System.out.println("Scanning index");
+      while((tuple = iscan.get_next()) != null) {
+        tuple.setHdr((short)clusteredBtreeIndex.getNumFlds(), clusteredBtreeIndex.getAttrTypes(), clusteredBtreeIndex.getStrSizes());
+        tuple.print(clusteredBtreeIndex.getAttrTypes());
+      }
+      iscan.close();
+
+      add = new Tuple(add.size());
+      add.setHdr((short)clusteredBtreeIndex.getNumFlds(), clusteredBtreeIndex.getAttrTypes(), clusteredBtreeIndex.getStrSizes());
+      add.setStrFld(1, "LLLLL");
+      add.setIntFld(2,500);
+      add.setIntFld(3,5000);
+
+      clusteredBtreeIndex.insert(add);
+
+      iscan = new ClusteredBtreeIndexScan("btree", clusteredBtreeIndex.getAttrTypes(),
+              clusteredBtreeIndex.getStrSizes(), null, 2);
+      System.out.println("Scanning index");
+      while((tuple = iscan.get_next()) != null) {
+        tuple.setHdr((short)clusteredBtreeIndex.getNumFlds(), clusteredBtreeIndex.getAttrTypes(), clusteredBtreeIndex.getStrSizes());
+        tuple.print(clusteredBtreeIndex.getAttrTypes());
+      }
+      iscan.close();
+      clusteredBtreeIndex.close();
     } catch (Exception e) {
       e.printStackTrace();
     }
