@@ -215,6 +215,33 @@ public class BTIndexPage extends BTSortedPage{
       }
       
     } // end of getFirst
+
+  public KeyDataEntry getLast(RID rid)
+          throws IteratorException
+  {
+
+    KeyDataEntry  entry;
+
+    try {
+
+      if ( getSlotCnt() == 0) {
+        return null;
+      }
+
+      rid.pageNo = getCurPage();
+      rid.slotNo = getSlotCnt()-1; // begin with last slot
+
+      entry=BT.getEntryFromBytes( getpage(),getSlotOffset(rid.slotNo),
+              getSlotLength(rid.slotNo),
+              keyType, NodeType.INDEX);
+
+      return entry;
+    }
+    catch (Exception e) {
+      throw new IteratorException(e, "Get last entry failed");
+    }
+
+  } // end of getLast
   
   
   /**Iterators.  
@@ -250,6 +277,31 @@ public class BTIndexPage extends BTSortedPage{
 	throw new IteratorException(e, "Get next entry failed");
       }
     } // end of getNext
+
+  public KeyDataEntry getPrev (RID rid)
+          throws  IteratorException
+  {
+    KeyDataEntry  entry;
+    int i;
+    try{
+      rid.slotNo--; //must before any return;
+      i=rid.slotNo;
+
+      if ( rid.slotNo < 0)
+      {
+        return null;
+      }
+
+      entry=BT.getEntryFromBytes(getpage(),getSlotOffset(i),
+              getSlotLength(i),
+              keyType, NodeType.INDEX);
+
+      return entry;
+    }
+    catch (Exception e) {
+      throw new IteratorException(e, "Get prev entry failed");
+    }
+  } // end of getPrev
   
   
   /** Left Link 
