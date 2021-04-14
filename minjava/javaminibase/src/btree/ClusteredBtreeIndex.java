@@ -228,7 +228,7 @@ public class ClusteredBtreeIndex {
     KeyDataEntry nextEntry, lastEntry = null;
     boolean fisrtEntry = true;
 
-    while(true) {
+    while (true) {
       nextEntry = ((BTFileScan) indScan).get_next_clustered_page();
       if (nextEntry == null) {
         //the given tuple's key is higher than all other existing keys
@@ -253,7 +253,7 @@ public class ClusteredBtreeIndex {
     ((BTFileScan) indScan).DestroyBTreeFileScan();
 
     //if there are no existing clusters/keys which can accommodate new tuple
-    if(fisrtEntry) {
+    if (fisrtEntry) {
       rid = new RID();
       BTLeafPage lastLeafPage = bTreeFile.findRunEnd(null, rid);
       KeyDataEntry entry = lastLeafPage.getCurrent(rid);
@@ -284,6 +284,64 @@ public class ClusteredBtreeIndex {
     return insert(tuple);
   }
 
+  public int delete(Tuple tuple) throws Exception {
+    CondExpr[] equalitySearch = getMatchCondition(tuple);
+    IndexFileScan indScan = IndexUtils.BTree_scan(equalitySearch, bTreeFile);
+    RID rid;
+    KeyDataEntry nextEntry;
+    int deleteCount = 0;
+
+    while (true) {
+      nextEntry = ((BTFileScan) indScan).get_next_clustered_page();
+      if (nextEntry == null) {
+        //the given tuple doesn't exist
+        break;
+      }
+      //there is an existing leaf page where this tuple might be present
+      rid = ((LeafData) nextEntry.data).getData();
+      PageId pid = rid.pageNo;
+      Page page = new Page();
+      pinPage(pid, page);
+      HFPage curr_page = new HFPage(page);
+
+      RID curr_page_RID = curr_page.firstRecord();
+      Tuple t;
+      Map<Tuple, RID> sortedBuffer = getTreeMap();
+      boolean keyDeleted = false;
+      while(curr_page_RID != null){
+        t = curr_page.getRecord(curr_page_RID);
+        t.setHdr((short) numFlds, attrTypes, strSizes);
+        if(TupleUtils.Equal(tuple, t, attrTypes, numFlds)) {
+          if(curr_page_RID.equals(rid)) {
+            bTreeFile.Delete(nextEntry.key, rid);
+            keyDeleted = true;
+          }
+          relation.deleteRecord(curr_page_RID);
+          deleteCount++;
+        } else {
+          sortedBuffer.put(t, curr_page_RID);
+        }
+        curr_page_RID = curr_page.nextRecord(curr_page_RID);
+      }
+
+      List<Map.Entry<Tuple, RID>> sortedList = new ArrayList<>(sortedBuffer.entrySet());
+
+      //if data page is not empty
+      if(sortedList.size() > 0) {
+        //if existing key in btree is deleted
+        if(keyDeleted) {
+          bTreeFile.insert(getKeyClass(sortedList.get(sortedList.size()-1).getKey()),
+                  sortedList.get(sortedList.size()-1).getValue());
+        }
+        //unpin only if page is not empty
+        unpinPage(curr_page.getCurPage());
+      }
+    }
+    ((BTFileScan) indScan).DestroyBTreeFileScan();
+
+    return deleteCount;
+  }
+
   private void splitDataPage(KeyDataEntry entry) throws Exception {
     RID rid = ((LeafData) entry.data).getData();
     PageId pid = rid.pageNo;
@@ -292,29 +350,9 @@ public class ClusteredBtreeIndex {
     HFPage curr_page = new HFPage(page);
 
     RID curr_page_RID = curr_page.firstRecord();
-    Map<Tuple,RID> sortedBuffer = new TreeMap<>((o1, o2) -> {
-      int result = 0;
-      try {
-        switch (attrTypes[indexField-1].attrType){
-          case AttrType.attrString:
-            result = o1.getStrFld(indexField).compareTo(o2.getStrFld(indexField));
-            break;
-          case AttrType.attrInteger:
-            result = o1.getIntFld(indexField) - o2.getIntFld(indexField);
-            break;
-          case AttrType.attrReal:
-            float f = o1.getFloFld(indexField) - o2.getFloFld(indexField);
-            if(f>0) result = 1;
-            if(f<0) result = -1;
-            break;
-        }
-      } catch (IOException | FieldNumberOutOfBoundException e) {
-        e.printStackTrace();
-      }
-      return result;
-    });
+    Map<Tuple, RID> sortedBuffer = getTreeMap();
     Tuple t;
-    while(curr_page_RID != null){
+    while (curr_page_RID != null) {
       t = curr_page.getRecord(curr_page_RID);
       t.setHdr((short) attrTypes.length, attrTypes, strSizes);
       sortedBuffer.put(t, curr_page_RID);
@@ -322,38 +360,38 @@ public class ClusteredBtreeIndex {
     }
     unpinPage(curr_page.getCurPage());
     int tupleCount = sortedBuffer.size();
-    int splitPoint = tupleCount/2;
+    int splitPoint = tupleCount / 2;
 
     List<Map.Entry<Tuple, RID>> sortedList = new ArrayList<>(sortedBuffer.entrySet());
     Map.Entry<Tuple, RID> tupleToMove = null;
     RID newRid = null;
     PageId newPageid = null;
 
-    for(int i = splitPoint; i<tupleCount; i++){
+    for (int i = splitPoint; i < tupleCount; i++) {
       tupleToMove = sortedList.get(i);
       relation.deleteRecord(tupleToMove.getValue());
-      if(tupleToMove.getValue().equals(rid)){
+      if (tupleToMove.getValue().equals(rid)) {
         bTreeFile.Delete(getKeyClass(tupleToMove.getKey()), tupleToMove.getValue());
-        bTreeFile.insert(getKeyClass(sortedList.get(splitPoint-1).getKey()),
-                sortedList.get(splitPoint-1).getValue());
+        bTreeFile.insert(getKeyClass(sortedList.get(splitPoint - 1).getKey()),
+                sortedList.get(splitPoint - 1).getValue());
       }
-      if(i == splitPoint) {
+      if (i == splitPoint) {
         newRid = relation.insertRecordOnNewPage(tupleToMove.getKey().returnTupleByteArray());
         newPageid = newRid.pageNo;
       } else {
         newRid = relation.insertRecord(tupleToMove.getKey().returnTupleByteArray(), newPageid);
       }
     }
-    bTreeFile.insert(getKeyClass(tupleToMove.getKey()),newRid);
+    bTreeFile.insert(getKeyClass(tupleToMove.getKey()), newRid);
   }
 
   private CondExpr[] getMatchCondition(Tuple tuple) throws FieldNumberOutOfBoundException, IOException {
     CondExpr[] expr = new CondExpr[2];
     expr[0] = new CondExpr();
-    expr[0].op    = new AttrOperator(AttrOperator.aopEQ);
+    expr[0].op = new AttrOperator(AttrOperator.aopEQ);
     expr[0].type1 = new AttrType(AttrType.attrSymbol);
     expr[0].type2 = new AttrType(indexAttrType.attrType);
-    expr[0].operand1.symbol = new FldSpec (new RelSpec(RelSpec.outer),indexField);
+    expr[0].operand1.symbol = new FldSpec(new RelSpec(RelSpec.outer), indexField);
     switch (indexAttrType.attrType) {
       case AttrType.attrInteger:
         expr[0].operand2.integer = tuple.getIntFld(indexField);
@@ -367,6 +405,30 @@ public class ClusteredBtreeIndex {
     }
     expr[0].next = null;
     return expr;
+  }
+
+  private Map<Tuple, RID> getTreeMap() {
+    return new TreeMap<>((o1, o2) -> {
+      int result = 0;
+      try {
+        switch (attrTypes[indexField - 1].attrType) {
+          case AttrType.attrString:
+            result = o1.getStrFld(indexField).compareTo(o2.getStrFld(indexField));
+            break;
+          case AttrType.attrInteger:
+            result = o1.getIntFld(indexField) - o2.getIntFld(indexField);
+            break;
+          case AttrType.attrReal:
+            float f = o1.getFloFld(indexField) - o2.getFloFld(indexField);
+            if (f > 0) result = 1;
+            if (f < 0) result = -1;
+            break;
+        }
+      } catch (IOException | FieldNumberOutOfBoundException e) {
+        e.printStackTrace();
+      }
+      return result;
+    });
   }
 
   public void close() {
