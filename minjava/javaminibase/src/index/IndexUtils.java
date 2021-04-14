@@ -153,9 +153,139 @@ public class IndexUtils {
 	}
       } // end of else 
       
-    } 
+    }
 
-  /**
+	public static IndexFileScan BTree_scan_desc(CondExpr[] selects, IndexFile indFile)
+					throws IOException,
+					UnknownKeyTypeException,
+					InvalidSelectionException,
+					KeyNotMatchException,
+					UnpinPageException,
+					PinPageException,
+					IteratorException,
+					ConstructPageException
+	{
+		IndexFileScan indScan;
+
+		if (selects == null || selects[0] == null) {
+			indScan = ((BTreeFile)indFile).new_reverse_scan(null, null);
+			return indScan;
+		}
+
+		if (selects[1] == null) {
+			if (selects[0].type1.attrType != AttrType.attrSymbol && selects[0].type2.attrType != AttrType.attrSymbol) {
+				throw new InvalidSelectionException("IndexUtils.java: Invalid selection condition");
+			}
+
+			KeyClass key;
+
+			// symbol = value
+			if (selects[0].op.attrOperator == AttrOperator.aopEQ) {
+				if (selects[0].type1.attrType != AttrType.attrSymbol) {
+					key = getValue(selects[0], selects[0].type1, 1);
+					indScan = ((BTreeFile)indFile).new_reverse_scan(key, key);
+				}
+				else {
+					key = getValue(selects[0], selects[0].type2, 2);
+					indScan = ((BTreeFile)indFile).new_reverse_scan(key, key);
+				}
+				return indScan;
+			}
+
+			// symbol < value or symbol <= value
+			if (selects[0].op.attrOperator == AttrOperator.aopLT || selects[0].op.attrOperator == AttrOperator.aopLE) {
+				if (selects[0].type1.attrType != AttrType.attrSymbol) {
+					key = getValue(selects[0], selects[0].type1, 1);
+					indScan = ((BTreeFile)indFile).new_reverse_scan(null, key);
+				}
+				else {
+					key = getValue(selects[0], selects[0].type2, 2);
+					indScan = ((BTreeFile)indFile).new_reverse_scan(null, key);
+				}
+				return indScan;
+			}
+
+			// symbol > value or symbol >= value
+			if (selects[0].op.attrOperator == AttrOperator.aopGT || selects[0].op.attrOperator == AttrOperator.aopGE) {
+				if (selects[0].type1.attrType != AttrType.attrSymbol) {
+					key = getValue(selects[0], selects[0].type1, 1);
+					indScan = ((BTreeFile)indFile).new_reverse_scan(key, null);
+				}
+				else {
+					key = getValue(selects[0], selects[0].type2, 2);
+					indScan = ((BTreeFile)indFile).new_reverse_scan(key, null);
+				}
+				return indScan;
+			}
+
+			// error if reached here
+			System.err.println("Error -- in IndexUtils.BTree_scan()");
+			return null;
+		}
+		else {
+			// selects[1] != null, must be a range query
+			if (selects[0].type1.attrType != AttrType.attrSymbol && selects[0].type2.attrType != AttrType.attrSymbol) {
+				throw new InvalidSelectionException("IndexUtils.java: Invalid selection condition");
+			}
+			if (selects[1].type1.attrType != AttrType.attrSymbol && selects[1].type2.attrType != AttrType.attrSymbol) {
+				throw new InvalidSelectionException("IndexUtils.java: Invalid selection condition");
+			}
+
+			// which symbol is higher??
+			KeyClass key1, key2;
+			AttrType type;
+
+			if (selects[0].type1.attrType != AttrType.attrSymbol) {
+				key1 = getValue(selects[0], selects[0].type1, 1);
+				type = selects[0].type1;
+			}
+			else {
+				key1 = getValue(selects[0], selects[0].type2, 2);
+				type = selects[0].type2;
+			}
+			if (selects[1].type1.attrType != AttrType.attrSymbol) {
+				key2 = getValue(selects[1], selects[1].type1, 1);
+			}
+			else {
+				key2 = getValue(selects[1], selects[1].type2, 2);
+			}
+
+			switch (type.attrType) {
+				case AttrType.attrString:
+					if (((StringKey)key1).getKey().compareTo(((StringKey)key2).getKey()) < 0) {
+						indScan = ((BTreeFile)indFile).new_reverse_scan(key1, key2);
+					}
+					else {
+						indScan = ((BTreeFile)indFile).new_reverse_scan(key2, key1);
+					}
+					return indScan;
+
+				case AttrType.attrInteger:
+					if (((IntegerKey) key1).getKey() < ((IntegerKey) key2).getKey()) {
+						indScan = ((BTreeFile)indFile).new_reverse_scan(key1, key2);
+					}
+					else {
+						indScan = ((BTreeFile)indFile).new_reverse_scan(key2, key1);
+					}
+					return indScan;
+
+				case AttrType.attrReal:
+					if (((RealKey)key1).getKey() < ((RealKey)key2).getKey()) {
+						indScan = ((BTreeFile)indFile).new_reverse_scan(key1, key2);
+					}
+					else {
+						indScan = ((BTreeFile)indFile).new_reverse_scan(key2, key1);
+					}
+					return indScan;
+				default:
+					// error condition
+					throw new UnknownKeyTypeException("IndexUtils.java: Only Integer and String keys are supported so far");
+			}
+		} // end of else
+
+	}
+
+	/**
    * getValue returns the key value extracted from the selection condition.
    * @param cd the selection condition
    * @param type attribute type of the selection field

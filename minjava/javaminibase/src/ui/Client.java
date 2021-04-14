@@ -1,14 +1,12 @@
 package ui;
 
-import btree.BTreeFile;
-import btree.RealKey;
+import btree.*;
 import diskmgr.PCounter;
 import global.*;
 import heap.FieldNumberOutOfBoundException;
 import heap.Heapfile;
 import heap.Scan;
 import heap.Tuple;
-import btree.ClusteredBtreeIndex;
 import index.ClusteredBtreeIndexScan;
 import index.IndexException;
 import iterator.*;
@@ -29,7 +27,7 @@ public class Client {
     try {
       setupDB();
       ClusteredBtreeIndex clusteredBtreeIndex = new ClusteredBtreeIndex("sample1",
-              "/afs/asu.edu/users/s/p/a/spatil23/CSE510/minjava/javaminibase/src/sample.txt","btree", 2);
+              "/afs/asu.edu/users/s/p/a/spatil23/CSE510/minjava/javaminibase/src/sample.txt","btree", 1);
       System.out.println("**printing btree");
       clusteredBtreeIndex.printCBtree();
       Heapfile temp = new Heapfile("sample1");
@@ -43,33 +41,33 @@ public class Client {
       }
       sc.closescan();
 
-      System.out.println("Testing range scan");
-      CondExpr[] expr = new CondExpr[3];
-      expr[0] = new CondExpr();
-      expr[0].op    = new AttrOperator(AttrOperator.aopGE);
-      expr[0].type1 = new AttrType(AttrType.attrSymbol);
-      expr[0].type2 = new AttrType(AttrType.attrInteger);
-      expr[0].operand1.symbol = new FldSpec (new RelSpec(RelSpec.outer),2);
-      expr[0].operand2.integer = 400;
-      expr[0].next = null;
-
-      expr[1] = new CondExpr();
-      expr[1].op    = new AttrOperator(AttrOperator.aopLE);
-      expr[1].next  = null;
-      expr[1].type1 = new AttrType(AttrType.attrSymbol);
-      expr[1].type2 = new AttrType(AttrType.attrInteger);
-      expr[1].operand1.symbol = new FldSpec (new RelSpec(RelSpec.outer),2);
-      expr[1].operand2.integer = 500;
-      expr[2] = null;
-
-      ClusteredBtreeIndexScan iscan = new ClusteredBtreeIndexScan("btree", clusteredBtreeIndex.getAttrTypes(),
-              clusteredBtreeIndex.getStrSizes(), expr, 2);
-      System.out.println("Scanning index");
-      while((tuple = iscan.get_next()) != null) {
-        tuple.setHdr((short)clusteredBtreeIndex.getNumFlds(), clusteredBtreeIndex.getAttrTypes(), clusteredBtreeIndex.getStrSizes());
-        tuple.print(clusteredBtreeIndex.getAttrTypes());
-      }
-      iscan.close();
+//      System.out.println("Testing range scan");
+//      CondExpr[] expr = new CondExpr[3];
+//      expr[0] = new CondExpr();
+//      expr[0].op    = new AttrOperator(AttrOperator.aopGE);
+//      expr[0].type1 = new AttrType(AttrType.attrSymbol);
+//      expr[0].type2 = new AttrType(AttrType.attrInteger);
+//      expr[0].operand1.symbol = new FldSpec (new RelSpec(RelSpec.outer),2);
+//      expr[0].operand2.integer = 400;
+//      expr[0].next = null;
+//
+//      expr[1] = new CondExpr();
+//      expr[1].op    = new AttrOperator(AttrOperator.aopLE);
+//      expr[1].next  = null;
+//      expr[1].type1 = new AttrType(AttrType.attrSymbol);
+//      expr[1].type2 = new AttrType(AttrType.attrInteger);
+//      expr[1].operand1.symbol = new FldSpec (new RelSpec(RelSpec.outer),2);
+//      expr[1].operand2.integer = 500;
+//      expr[2] = null;
+//
+//      ClusteredBtreeIndexScan iscan = new ClusteredBtreeIndexScan("btree", clusteredBtreeIndex.getAttrTypes(),
+//              clusteredBtreeIndex.getStrSizes(), expr, 2, false);
+//      System.out.println("Scanning index");
+//      while((tuple = iscan.get_next()) != null) {
+//        tuple.setHdr((short)clusteredBtreeIndex.getNumFlds(), clusteredBtreeIndex.getAttrTypes(), clusteredBtreeIndex.getStrSizes());
+//        tuple.print(clusteredBtreeIndex.getAttrTypes());
+//      }
+//      iscan.close();
 
       System.out.println("**printing btree");
       clusteredBtreeIndex.printCBtree();
@@ -84,8 +82,8 @@ public class Client {
 
       clusteredBtreeIndex.insert(add);
 
-      iscan = new ClusteredBtreeIndexScan("btree", clusteredBtreeIndex.getAttrTypes(),
-              clusteredBtreeIndex.getStrSizes(), null, 2);
+      ClusteredBtreeIndexScan iscan = new ClusteredBtreeIndexScan("btree", clusteredBtreeIndex.getAttrTypes(),
+              clusteredBtreeIndex.getStrSizes(), null, 1, false);
       System.out.println("Scanning index");
       while((tuple = iscan.get_next()) != null) {
         tuple.setHdr((short)clusteredBtreeIndex.getNumFlds(), clusteredBtreeIndex.getAttrTypes(), clusteredBtreeIndex.getStrSizes());
@@ -102,7 +100,7 @@ public class Client {
       clusteredBtreeIndex.insert(add);
 
       iscan = new ClusteredBtreeIndexScan("btree", clusteredBtreeIndex.getAttrTypes(),
-              clusteredBtreeIndex.getStrSizes(), null, 2);
+              clusteredBtreeIndex.getStrSizes(), null, 1, false);
       System.out.println("Scanning index");
       while((tuple = iscan.get_next()) != null) {
         tuple.setHdr((short)clusteredBtreeIndex.getNumFlds(), clusteredBtreeIndex.getAttrTypes(), clusteredBtreeIndex.getStrSizes());
@@ -119,13 +117,39 @@ public class Client {
       clusteredBtreeIndex.insert(add);
 
       iscan = new ClusteredBtreeIndexScan("btree", clusteredBtreeIndex.getAttrTypes(),
-              clusteredBtreeIndex.getStrSizes(), null, 2);
+              clusteredBtreeIndex.getStrSizes(), null, 1, true);
       System.out.println("Scanning index");
-      while((tuple = iscan.get_next()) != null) {
+      while((tuple = iscan.get_reversed_next()) != null) {
         tuple.setHdr((short)clusteredBtreeIndex.getNumFlds(), clusteredBtreeIndex.getAttrTypes(), clusteredBtreeIndex.getStrSizes());
         tuple.print(clusteredBtreeIndex.getAttrTypes());
       }
       iscan.close();
+
+//      clusteredBtreeIndex.close();
+//      clusteredBtreeIndex.printCBtree();
+//      KeyClass testKey = new IntegerKey(1500);
+//      RID testRID = new RID();
+//      BTLeafPage testPage = clusteredBtreeIndex.test(testKey, testRID);
+//      KeyDataEntry testKeyDataEntry = testPage.getCurrent(testRID);
+//      System.out.println("Key = " + ((IntegerKey)testKeyDataEntry.key).getKey().toString());
+//
+//      clusteredBtreeIndex.printCBtree();
+//
+//      testRID = new RID();
+//      testPage = clusteredBtreeIndex.test(null, testRID);
+//      testKeyDataEntry = testPage.getCurrent(testRID);
+//      System.out.println("Key = " + ((IntegerKey)testKeyDataEntry.key).getKey().toString());
+//
+//      clusteredBtreeIndex.printCBtree();
+//
+//      testKey = new IntegerKey(4000);
+//      testRID = new RID();
+//      testPage = clusteredBtreeIndex.test(testKey, testRID);
+//      testKeyDataEntry = testPage.getCurrent(testRID);
+//      testKeyDataEntry = testPage.getPrev(testRID);
+//      System.out.println("Key = " + ((IntegerKey)testKeyDataEntry.key).getKey().toString());
+
+      clusteredBtreeIndex.printCBtree();
       clusteredBtreeIndex.close();
     } catch (Exception e) {
       e.printStackTrace();

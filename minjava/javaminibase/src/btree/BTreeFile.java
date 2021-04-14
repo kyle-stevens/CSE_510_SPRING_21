@@ -1229,6 +1229,121 @@ public class BTreeFile extends IndexFile
       
       return pageLeaf;
     }
+
+	BTLeafPage findRunEnd (KeyClass hi_key,
+													 RID startrid)
+					throws IOException,
+					IteratorException,
+					KeyNotMatchException,
+					ConstructPageException,
+					PinPageException,
+					UnpinPageException
+	{
+		BTLeafPage  pageLeaf;
+		BTIndexPage pageIndex;
+		Page page;
+		BTSortedPage  sortPage;
+		PageId pageno;
+		PageId prevpageno;
+		PageId nextpageno;
+		KeyDataEntry curEntry;
+
+		pageno = headerPage.get_rootId();
+
+		if (pageno.pid == INVALID_PAGE){        // no pages in the BTREE
+			pageLeaf = null;
+			return pageLeaf;
+		}
+
+		page= pinPage(pageno);
+		sortPage=new BTSortedPage(page, headerPage.get_keyType());
+
+
+		if ( trace!=null ) {
+			trace.writeBytes("VISIT node " + pageno + lineSep);
+			trace.flush();
+		}
+
+
+		// ASSERTION
+		// - pageno and sortPage is the root of the btree
+		// - pageno and sortPage valid and pinned
+
+		while (sortPage.getType() == NodeType.INDEX) {
+			pageIndex=new BTIndexPage(page, headerPage.get_keyType());
+			prevpageno = pageIndex.getNextPage();
+			curEntry= pageIndex.getLast(startrid);
+			while ( curEntry!=null && hi_key != null
+							&& BT.keyCompare(curEntry.key, hi_key) > 0) {
+
+				prevpageno = ((IndexData)curEntry.data).getData();
+				curEntry=pageIndex.getPrev(startrid);
+			}
+
+			unpinPage(pageno);
+
+			pageno = prevpageno;
+			page=pinPage(pageno);
+			sortPage=new BTSortedPage(page, headerPage.get_keyType());
+
+
+			if ( trace!=null )
+			{
+				trace.writeBytes( "VISIT node " + pageno+lineSep);
+				trace.flush();
+			}
+
+
+		}
+
+		pageLeaf = new BTLeafPage(page, headerPage.get_keyType() );
+
+		curEntry=pageLeaf.getLast(startrid);
+		while (curEntry==null) {
+			// skip empty leaf pages off to right
+			nextpageno = pageLeaf.getPrevPage();
+			unpinPage(pageno);
+			if (nextpageno.pid == INVALID_PAGE) {
+				// oops, no more records, so set this scan to indicate this.
+				return null;
+			}
+
+			pageno = nextpageno;
+			pageLeaf=  new BTLeafPage( pinPage(pageno), headerPage.get_keyType());
+			curEntry=pageLeaf.getLast(startrid);
+		}
+
+		// ASSERTIONS:
+		// - curkey, curRid: contain the last record on the
+		//     current leaf page (curkey its key, cur
+		// - pageLeaf, pageno valid and pinned
+
+
+		if (hi_key == null) {
+			return pageLeaf;
+			// note that pageno/pageLeaf is still pinned;
+			// scan will unpin it when done
+		}
+
+		while (BT.keyCompare(curEntry.key, hi_key) > 0) {
+			curEntry= pageLeaf.getPrev(startrid);
+			while (curEntry == null) { // have to go left
+				nextpageno = pageLeaf.getPrevPage();
+				unpinPage(pageno);
+
+				if (nextpageno.pid == INVALID_PAGE) {
+					return null;
+				}
+
+				pageno = nextpageno;
+				pageLeaf=new BTLeafPage(pinPage(pageno), headerPage.get_keyType());
+
+				curEntry=pageLeaf.getLast(startrid);
+			}
+		}
+
+		return pageLeaf;
+	}
   
   
   
@@ -1888,6 +2003,35 @@ public class BTreeFile extends IndexFile
       scan.leafPage=findRunStart( lo_key, scan.curRid);
       return scan;
     }
+
+	public BTFileScan new_reverse_scan(KeyClass lo_key, KeyClass hi_key)
+					throws IOException,
+					KeyNotMatchException,
+					IteratorException,
+					ConstructPageException,
+					PinPageException,
+					UnpinPageException
+
+	{
+		BTFileScan scan = new BTFileScan();
+		if ( headerPage.get_rootId().pid==INVALID_PAGE) {
+			scan.leafPage=null;
+			return scan;
+		}
+
+		scan.treeFilename=dbname;
+		scan.endkey=lo_key;
+		scan.didfirst=false;
+		scan.deletedcurrent=false;
+		scan.curRid=new RID();
+		scan.keyType=headerPage.get_keyType();
+		scan.maxKeysize=headerPage.get_maxKeySize();
+		scan.bfile=this;
+
+		//this sets up scan at the starting position, ready for iteration
+		scan.leafPage=findRunEnd( hi_key, scan.curRid);
+		return scan;
+	}
   
   void trace_children(PageId id)
     throws  IOException, 

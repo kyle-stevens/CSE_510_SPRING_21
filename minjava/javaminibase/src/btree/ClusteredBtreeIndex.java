@@ -231,8 +231,10 @@ public class ClusteredBtreeIndex {
     while(true) {
       nextEntry = ((BTFileScan) indScan).get_next_clustered_page();
       if (nextEntry == null) {
+        //the given tuple's key is higher than all other existing keys
         break;
       }
+      //there is an existing leaf page where new tuple can be inserted
       rid = ((LeafData) nextEntry.data).getData();
       PageId pid = rid.pageNo;
       Page page = new Page();
@@ -250,15 +252,35 @@ public class ClusteredBtreeIndex {
     }
     ((BTFileScan) indScan).DestroyBTreeFileScan();
 
+    //if there are no existing clusters/keys which can accommodate new tuple
     if(fisrtEntry) {
+      rid = new RID();
+      BTLeafPage lastLeafPage = bTreeFile.findRunEnd(null, rid);
+      KeyDataEntry entry = lastLeafPage.getCurrent(rid);
+      rid = ((LeafData) entry.data).getData();
+      PageId pid = rid.pageNo;
+      Page page = new Page();
+      pinPage(pid, page);
+      HFPage curr_page = new HFPage(page);
+      if (curr_page.available_space() >= recSize) {
+        //we will append this tuple to the last page of the data file
+        RID newRid = relation.insertRecord(tuple.getTupleByteArray(), pid);
+        //update the btree accordingly
+        bTreeFile.Delete(entry.key, rid);
+        bTreeFile.insert(getKeyClass(tuple), newRid);
+        unpinPage(pid);
+        return 0;
+      }
+      unpinPage(pid);
+      //if last page is full, add a new page
       rid = relation.insertRecordOnNewPage(tuple.returnTupleByteArray());
+      //add entry to btree
       bTreeFile.insert(getKeyClass(tuple), rid);
       return 0;
     }
 
-
+    //if matching pages are full, split them
     splitDataPage(lastEntry);
-
     return insert(tuple);
   }
 
@@ -316,7 +338,6 @@ public class ClusteredBtreeIndex {
                 sortedList.get(splitPoint-1).getValue());
       }
       if(i == splitPoint) {
-        //this could be improved later
         newRid = relation.insertRecordOnNewPage(tupleToMove.getKey().returnTupleByteArray());
         newPageid = newRid.pageNo;
       } else {
