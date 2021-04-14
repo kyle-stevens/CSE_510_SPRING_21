@@ -4,23 +4,32 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Scanner;
 
+import btree.BT;
 import btree.BTreeFile;
+import btree.ClusteredBtreeIndex;
 import btree.IntegerKey;
 import btree.RealKey;
 import btree.StringKey;
 import diskmgr.PCounter;
+import global.AggType;
 import global.AttrOperator;
 import global.AttrType;
 import global.Catalogglobal;
 import global.GlobalConst;
+import global.IndexInfo;
 import global.IndexType;
 import global.RID;
 import global.SystemDefs;
+import global.TupleOrder;
 import hash.ClusteredLinearHash;
 import hash.UnclusteredLinearHash;
+import heap.HFBufMgrException;
+import heap.HFDiskMgrException;
+import heap.HFException;
 import heap.Heapfile;
 import heap.Scan;
 import heap.Tuple;
@@ -31,11 +40,15 @@ import iterator.BlockNestedLoopSky;
 import iterator.CondExpr;
 import iterator.FileScan;
 import iterator.FldSpec;
+import iterator.GroupBywithHash;
+import iterator.GroupBywithSort;
 import iterator.HashJoins;
 import iterator.Iterator;
+import iterator.NestedLoopsJoins;
 import iterator.NestedLoopsSky;
 import iterator.RelSpec;
 import iterator.SortFirstSky;
+import iterator.SortMerge;
 import iterator.TopK_HashJoin;
 import iterator.TupleUtils;
 
@@ -52,12 +65,15 @@ public class Client {
 	
 	static AttrType[] rel_attrs;
 	static short[] rel_str_lens;
+	static Heapfile relationHF;
 	
 	static AttrType[] attr_attrs;
 	static short[] attr_str_lens;
+	static Heapfile attrHF;
 	
 	static AttrType[] ind_attrs;
 	static short[] ind_str_lens;
+	static Heapfile indHF;
 	
 	static AttrType[] curr_in;
 	static short[] curr_str_lens;
@@ -117,9 +133,7 @@ public class Client {
 				continue;
 			case "close_database":
 				if(sys==null) {
-					System.out.println("please Insert the name of db which needs to be closed.");
-					String name = in.nextLine();
-					closeDB(name);
+					System.out.println("No open database to be closed");
 					continue;
 				}
 				try {
@@ -153,6 +167,7 @@ public class Client {
 						createIndex(queryParts[3], Integer.parseInt(queryParts[2]), queryParts[1].equalsIgnoreCase("btree")?IndexType.B_Index:IndexType.Hash);
 					} catch (Exception e) {
 						System.out.println("Error creating the index file");
+						e.printStackTrace();
 					}
 				}else {
 					errorQueryMessage();
@@ -193,16 +208,28 @@ public class Client {
 				continue;
 			case "output_index":
 				if(queryParts.length==3) {
-					outputIndex(queryParts[1], Integer.parseInt(queryParts[2]));
+					try {
+						outputIndex(queryParts[1], Integer.parseInt(queryParts[2]));
+					} catch (Exception e) {
+						e.printStackTrace();
+					}
 				}else {
 					errorQueryMessage();
 				}
 				continue;
 			case "groupby":
 				if(queryParts.length==7) {
-					groupby(queryParts[1], queryParts[2], Integer.parseInt(queryParts[3]), queryParts[4], queryParts[5], Integer.parseInt(queryParts[6]), "");
+					try {
+						groupby(queryParts[1], queryParts[2], Integer.parseInt(queryParts[3]), queryParts[4], queryParts[5], Integer.parseInt(queryParts[6]), "");
+					} catch (Exception e) {
+						e.printStackTrace();
+					}
 				}else if(queryParts.length==9) {
-					groupby(queryParts[1], queryParts[2], Integer.parseInt(queryParts[3]), queryParts[4], queryParts[5], Integer.parseInt(queryParts[6]), queryParts[8]);
+					try {
+						groupby(queryParts[1], queryParts[2], Integer.parseInt(queryParts[3]), queryParts[4], queryParts[5], Integer.parseInt(queryParts[6]), queryParts[8]);
+					} catch (Exception e) {
+						e.printStackTrace();
+					}
 				}else {
 					errorQueryMessage();
 				}
@@ -297,7 +324,7 @@ public class Client {
 				output_str_lens[j++] = value;
 			}
 			for(short value:inner_strLens) {
-				output_str_lens[j++] = value;			
+				output_str_lens[j++] = value;
 			}
 			
 			
@@ -307,6 +334,9 @@ public class Client {
 				t.setHdr((short)n_out_flds, output_attr, output_str_lens);
 				t.print(output_attr);
 			}
+			it.close();
+		}else {
+			//call NRA
 		}
 	}
 	
@@ -347,9 +377,11 @@ public class Client {
 		int n_out_flds = len_in1 + len_in2;
 		FldSpec proj_list[] = new FldSpec[n_out_flds];
 		AttrType[] output_attr = new AttrType[n_out_flds];
+		FldSpec outer_proj_list[] = new FldSpec[len_in1];
 		for(int i=0;i<len_in1;i++) {
 			proj_list[i] = new FldSpec(new RelSpec(RelSpec.outer), i+1);
 			output_attr[i] = outer_in[i];
+			outer_proj_list[i] = new FldSpec(new RelSpec(RelSpec.outer),i+1);
 		}
 		for(int i=0;i<len_in2;i++) {
 			proj_list[i+len_in1] = new FldSpec(new RelSpec(RelSpec.innerRel), i+1);
@@ -359,11 +391,69 @@ public class Client {
 		switch(joinType) {
 		case "HJ":
 			scan = new HashJoins(outer_in, len_in1, outer_strLens, inner_in, len_in2, inner_strLens, n_pages, outerRelation, innerRelation, outFilter, rightFilter, proj_list, n_out_flds);
-			Tuple t = null;
-			while((t=scan.get_next())!=null) {
-				t.print(output_attr);
+			break;
+		case "INLJ":
+			Iterator fileScan = new FileScan(outerRelation,outer_in,outer_strLens,(short)len_in1,len_in1,outer_proj_list,null);
+			ArrayList<IndexInfo> iInfo = getIndexInfo(innerRelation, inner_attr);
+			int hash=0;
+			int splitPointer=0;
+			String indexName="";
+			boolean clustered = false;
+			int indexType = IndexType.B_Index;
+			if(operator.equalsIgnoreCase("=")) {
+				for(IndexInfo indexInfo:iInfo) {
+					if(indexInfo.getIndexType()==IndexType.Hash) {
+						if(indexInfo.getClustered()==1) {
+							clustered=true;
+							hash = indexInfo.getHash1();
+							splitPointer = indexInfo.getSplitPointer();
+							indexType = IndexType.Hash;
+							indexName = getIndexFileName(indexInfo);
+							break;
+						}
+						clustered=false;
+						hash = indexInfo.getHash1();
+						splitPointer = indexInfo.getSplitPointer();
+						indexType = IndexType.Hash;
+						indexName = getIndexFileName(indexInfo);
+					}
+				}
+			}
+			if(indexName.isEmpty()) {
+				for(IndexInfo indexInfo:iInfo) {					 
+						if(indexInfo.getIndexType()==IndexType.B_Index) {
+							if(indexInfo.getClustered()==1) {
+								clustered = true;
+								indexType = IndexType.B_Index;
+								indexName = getIndexFileName(indexInfo);
+								break;
+								
+							}
+							clustered = false;
+							indexType = IndexType.B_Index;
+							indexName = getIndexFileName(indexInfo);
+						}
+					}
+			}
+			if(indexName.isEmpty()) {
+				scan = new NestedLoopsJoins(outer_in, len_in1, outer_strLens, inner_in, len_in2, inner_strLens, n_pages, fileScan, innerRelation, outFilter, rightFilter, proj_list, n_out_flds);	
+			}else {
+				//scan = new IndexNestedLoopsJoin(outer_in, len_in1, outer_strLens, inner_in, len_in2, inner_strLens, n_pages, fileScan, innerRelation,indexType,clustered,hash,splitPointer,indexName, outFilter, rightFilter, proj_list, n_out_flds);
 			}
 			break;
+		case "NLJ":
+			fileScan = new FileScan(outerRelation,outer_in,outer_strLens,(short)len_in1,len_in1,outer_proj_list,null);
+			scan = new NestedLoopsJoins(outer_in, len_in1, outer_strLens, inner_in, len_in2, inner_strLens, n_pages, fileScan, innerRelation, outFilter, rightFilter, proj_list, n_out_flds);
+			break;
+		case "SMJ":
+			Iterator fileScan1 = new FileScan(outerRelation,outer_in,outer_strLens,(short)len_in1,len_in1,outer_proj_list,null);
+			Iterator fileScan2 = new FileScan(outerRelation,outer_in,outer_strLens,(short)len_in1,len_in1,outer_proj_list,null);
+			scan = new SortMerge(outer_in, len_in1, outer_strLens, inner_in, len_in2, inner_strLens, outer_attr, outer_attr, inner_attr, inner_attr, n_pages, fileScan1, fileScan2, false, false, new TupleOrder(TupleOrder.Ascending), outFilter, outer_proj_list, n_out_flds);
+			break;
+		}
+		Tuple t = null;
+		while((t=scan.get_next())!=null) {
+			t.print(output_attr);
 		}
 		scan.close();
 		
@@ -372,21 +462,7 @@ public class Client {
 	private static void computeSkyline(String type, String pref_list, String relationName, int n_pages, String outputRelation) {
 		
 	}
-	private static void closeDB(String name) {
-		String dbpath = prefix_file_path + System.getProperty("user.name") + ".minibase."+name;
-		File file = new File(dbpath);
-		if (file.exists()) {
-			sys = new SystemDefs(dbpath, 0, GlobalConst.NUMBUF, "Clock");
-			try {
-				sys.closeDB();
-			}catch(Exception e) {
-				System.out.println("Error closing the database");
-			}
-			System.out.println("Closed the database");
-		}else {
-			System.out.println("DB does not exist.");
-		}
-	}
+	
 	
 	private static void createTable(String fileName) throws Exception{
 		if(sys==null) {
@@ -455,9 +531,9 @@ public class Client {
 		}
 		br.close();
 		sys.flushBuffer();
+		System.out.println("Table "+fileName+" Created Successfully.");
 	}
 	private static void addRelationAttrInfo(String relationName, String[] attr_names, AttrType[] in, short[] strlens) throws Exception{
-		Heapfile hf = new Heapfile(Catalogglobal.RELCATNAME);
 		Tuple t = new Tuple();
 		t.setHdr((short)rel_attrs.length, rel_attrs, rel_str_lens);
 		t = new Tuple(t.size());
@@ -465,8 +541,7 @@ public class Client {
 		t.setStrFld(1, relationName);
 		t.setIntFld(2, in.length);
 		t.setIntFld(3, strlens.length);
-		hf.insertRecord(t.getTupleByteArray());
-		hf = new Heapfile(Catalogglobal.ATTRCATNAME);
+		relationHF.insertRecord(t.getTupleByteArray());
 		t = new Tuple();
 		t.setHdr((short)attr_attrs.length, attr_attrs, attr_str_lens);
 		int k=0;
@@ -477,14 +552,16 @@ public class Client {
 			t.setStrFld(2, attr_names[i]);
 			t.setIntFld(3, in[i].attrType);
 			t.setIntFld(4, in[i].attrType==AttrType.attrString?strlens[k++]:4);
-			hf.insertRecord(t.getTupleByteArray());
+			attrHF.insertRecord(t.getTupleByteArray());
 		}
 		
 	}
 	
 	private static void getRelationAttrInfo(String relationName) throws Exception{
-		Heapfile hf = new Heapfile(Catalogglobal.RELCATNAME);
-		Scan scan = new Scan(hf);
+		curr_in = null;
+		curr_attr_names = null;
+		curr_str_lens = null;
+		Scan scan = new Scan(relationHF);
 		Tuple t = null;
 		while((t = scan.getNext(new RID()))!=null) {
 			t.setHdr((short)rel_attrs.length, rel_attrs, rel_str_lens);
@@ -511,11 +588,13 @@ public class Client {
 				scan.closescan();
 			}
 
-		}		
+		}
+		if(curr_in==null) {
+			System.out.println("Relation "+relationName+" does not exist.");
+		}
 	}
 	
 	private static void addIndexInfo(String relationName, String indexName, int attr_num, int index_type, boolean clustered, int hash1, int numBuckets, int splitpointer) throws Exception{
-		Heapfile hf = new Heapfile(Catalogglobal.INDEXCATNAME);
 		Tuple t = new Tuple();
 		t.setHdr((short)ind_attrs.length, ind_attrs, ind_str_lens);
 		t = new Tuple(t.size());
@@ -527,11 +606,28 @@ public class Client {
 		t.setIntFld(5, hash1);
 		t.setIntFld(6, numBuckets);
 		t.setIntFld(7, splitpointer);
-		hf.insertRecord(t.getTupleByteArray());
+		indHF.insertRecord(t.getTupleByteArray());
 	}
-	
-	private static void getIndexInfo(String indexName) {
-		
+	private static ArrayList<IndexInfo> getIndexInfo(String relationName, int attrNum) throws Exception{
+		ArrayList<IndexInfo> result = new ArrayList<>();
+		IndexInfo indexInfo = null;
+		Scan scan = new Scan(indHF);
+		Tuple t = null;
+		while((t=scan.getNext(new RID()))!=null) {
+			t.setHdr((short)ind_attrs.length, ind_attrs, ind_str_lens);
+			if(t.getStrFld(1).equalsIgnoreCase(relationName)&&t.getIntFld(3)==attrNum) {
+				indexInfo = new IndexInfo();
+				indexInfo.setAttr_num(t.getIntFld(3));
+				indexInfo.setClustered(t.getIntFld(4));
+				indexInfo.setHash1(t.getIntFld(5));
+				indexInfo.setIndexType(t.getIntFld(2));
+				indexInfo.setNumBuckets(t.getIntFld(6));
+				indexInfo.setRelationName(relationName);
+				indexInfo.setSplitPointer(t.getIntFld(7));
+				result.add(indexInfo);
+			}
+		}
+		return result;
 	}
 	
 	
@@ -547,48 +643,53 @@ public class Client {
 			break;
 		}
 		indexFileName+=fileName+"_"+attr_num;
+		String filepath = prefix_file_path+fileName+".txt"; 
+		File file = new File(filepath);
+		BufferedReader br = new BufferedReader(new FileReader(file));
+		int numberOfCols = Integer.parseInt(br.readLine().trim());
+		String attr_names[] = new String[numberOfCols];
+		AttrType[] in = new AttrType[numberOfCols];
+		int strnum=0;
+		int i=0;
+		while(i<numberOfCols) {
+			String str[] = br.readLine().split("\\s+");
+			attr_names[i] = str[0];
+			switch(str[1]) {
+			case "INT":
+				in[i] = new AttrType(AttrType.attrInteger);
+				break;
+			case "STR":
+				in[i] = new AttrType(AttrType.attrString);
+				strnum++;
+				break;
+			default:
+				in[i] = new AttrType(AttrType.attrReal);
+				break;
+			}
+			i++;
+		}
+		br.close();
+		short[] strsizes = new short[strnum];
+		Arrays.fill(strsizes, (short)GlobalConst.MAX_STR_LEN);
+		addRelationAttrInfo(fileName, attr_names, in, strsizes);
 		if(indexType==IndexType.Hash) {
 			if(sys==null) {
 				System.out.println("Please open a database first.");
 				return;
 			}
-			String filepath = prefix_file_path+fileName+".txt"; 
-			File file = new File(filepath);
-			BufferedReader br = new BufferedReader(new FileReader(file));
-			int numberOfCols = Integer.parseInt(br.readLine().trim());
-			String attr_names[] = new String[numberOfCols];
-			AttrType[] in = new AttrType[numberOfCols];
-			int strnum=0;
-			int i=0;
-			while(i<numberOfCols) {
-				String str[] = br.readLine().split("\\s+");
-				attr_names[i] = str[0];
-				switch(str[1]) {
-				case "INT":
-					in[i] = new AttrType(AttrType.attrInteger);
-					break;
-				case "STR":
-					in[i] = new AttrType(AttrType.attrString);
-					strnum++;
-					break;
-				default:
-					in[i] = new AttrType(AttrType.attrReal);
-					break;
-				}
-				i++;
-			}
-			short[] strsizes = new short[strnum];
-			Arrays.fill(strsizes, (short)GlobalConst.MAX_STR_LEN);
-			addRelationAttrInfo(fileName, attr_names, in, strsizes);
-			ClusteredLinearHash clh = new ClusteredLinearHash(-1, filepath, attr_num, fileName, indexFileName);
-			addIndexInfo(fileName,indexFileName,attr_num,IndexType.Hash,true,clh.hash1,clh.numBuckets,clh.splitPointer);
-			br.close();
-		}else {
 			
+			ClusteredLinearHash clh = new ClusteredLinearHash(80, filepath, attr_num, fileName, indexFileName);
+			addIndexInfo(fileName,indexFileName,attr_num,IndexType.Hash,true,clh.hash1,clh.numBuckets,clh.splitPointer);
+		}else {
+			//create a clustered btree index and update all the catalogs.
+			new ClusteredBtreeIndex(fileName,
+					filepath,indexFileName, attr_num);
+			addIndexInfo(fileName,indexFileName,attr_num,IndexType.B_Index,true,0,0,0);
 		}
+		System.out.println("Table with Index created Successfully");
 	}
 	
-	private static void createIndex(String tableName, int attr_num, int indexType) throws Exception{
+	private static String createIndex(String tableName, int attr_num, int indexType) throws Exception{
 		String indexFileName = "uclst_";
 		switch(indexType) {
 		case IndexType.B_Index:
@@ -664,11 +765,12 @@ public class Client {
 			scan.closescan();
 			addIndexInfo(tableName,indexFileName,attr_num,IndexType.B_Index,false,0,0,0);
 		}else {
-			UnclusteredLinearHash ulh = new UnclusteredLinearHash(-1, tableName, attr_num, strSizes, in, indexFileName);
-			addIndexInfo(tableName,indexFileName,attr_num,IndexType.Hash,false,ulh.hash1,ulh.numBuckets,ulh.splitPointer);			
+			UnclusteredLinearHash ulh = new UnclusteredLinearHash(80, tableName, attr_num, strSizes, in, indexFileName);
+			addIndexInfo(tableName,indexFileName,attr_num,IndexType.Hash,false,ulh.hash1,ulh.numBuckets,ulh.splitPointer);
 		}
 		System.out.println("Index Created Successfully.");
 		sys.flushBuffer();
+		return indexFileName;
 	}
 	
 	private static void insertData(String tableName, String fileName) throws Exception{
@@ -693,17 +795,191 @@ public class Client {
 		Tuple t = null;
 		Scan scan = new Scan(new Heapfile(tableName));
 		System.out.println("===="+tableName+"====");
-		System.out.println(attr_names.toString());
+		System.out.println(Arrays.toString(attr_names));
 		while((t = scan.getNext(new RID()))!=null) {
 			t.setHdr((short)attr_names.length, in, strLens);
 			t.print(in);
 		}
 	}
-	private static void outputIndex(String tableName, int attr_num) {
-		
+	
+	private static String getIndexFileName(IndexInfo indexInfo) {
+		String indexName = indexInfo.getClustered()==0?"uclst":"clst";
+		indexName+= indexInfo.getIndexType()==IndexType.B_Index?"_bt_":"_hs_";
+		indexName+= indexInfo.getRelationName()+"_";
+		indexName+= indexInfo.getAttr_num();
+		return indexName;
 	}
-	private static void groupby(String type, String agg_type, int agg_attr_num, String attr_list, String tableName, int n_pages, String outputTable) {
-		
+	private static void outputIndex(String tableName, int attr_num) throws Exception{
+		getRelationAttrInfo(tableName);
+		AttrType[] in = curr_in.clone();
+		short[] strLens = curr_str_lens.clone();
+
+		ArrayList<IndexInfo> indices= getIndexInfo(tableName, attr_num);
+		for(IndexInfo iInfo:indices) {
+			String indexName = getIndexFileName(iInfo);
+			System.out.println("====printing the index file::"+indexName+"====");
+			switch(iInfo.getIndexType()) {
+			case IndexType.B_Index:
+				switch(iInfo.getClustered()) {
+				case 0:
+					BTreeFile btree = new BTreeFile(indexName);
+					BT.printAllLeafPages(btree.getHeaderPage());
+					break;
+				case 1:
+//					String relationName, String indexFileName, int indexAttr,
+//                    AttrType[] attrTypes, short[] strSizes
+					ClusteredBtreeIndex clusteredBtreeIndex = new ClusteredBtreeIndex(tableName,
+				              indexName,attr_num, in,strLens);
+					clusteredBtreeIndex.printCBtree();
+					break;
+				}
+				break;
+			case IndexType.Hash:
+				switch(iInfo.getClustered()) {
+				case 0:
+//					UnclusteredHashIndexScan uhs = new UnclusteredHashIndexScan(indexName, in, strLens, attr_num, tableName, false);
+//					Tuple t = null;
+//					int splitPoint = iInfo.getSplitPointer();
+//					int hash1 = iInfo.getHash1();
+//					int hash2 = 2*hash1;
+//					System.out.println(hash1+" "+splitPoint+" "+iInfo.getNumBuckets());
+//					while((t=uhs.get_next())!=null) {
+//						t.setHdr((short)in.length, in, strLens);
+//						String data = t.getStrFld(1);
+//						long hash = 7;
+//						for (int i = 0; i < data.length(); i++) {
+//						    hash = hash*11 + data.charAt(i);
+//						}
+//						hash%=hash1;
+//						System.out.print(data+" "+hash+" tuple:: ");
+//						t.print(in);
+//					}
+					UnclusteredLinearHash ulh = new UnclusteredLinearHash(indexName, iInfo.getHash1(), iInfo.getNumBuckets(), iInfo.getSplitPointer(), attr_num, tableName, in, strLens);
+					ulh.printIndex();
+					break;
+				case 1:
+//					ClusteredHashIndexScan chis = new ClusteredHashIndexScan(indexName, in, strLens, attr_num);
+//					int splitPoint = iInfo.getSplitPointer();
+//					int hash1 = iInfo.getHash1();
+//					int hash2 = 2*hash1;
+//					Tuple t = null;
+//					while((t=chis.get_next())!=null) {
+//						t.setHdr((short)in.length, in, strLens);
+//						String data = t.getStrFld(1);
+//						int hash = 7;
+//						for (int i = 0; i < data.length(); i++) {
+//						    hash = hash*11 + data.charAt(i);
+//							hash = hash%hash1;
+//						}
+//						if(hash<splitPoint) {
+//							hash = 7;
+//							for (int i = 0; i < data.length(); i++) {
+//							    hash = hash*11 + data.charAt(i);
+//								hash = hash%hash2;
+//							}
+//						}
+//						System.out.print(hash+" tuple:: ");
+//						t.print(in);
+//					}
+					ClusteredLinearHash clh = new ClusteredLinearHash(tableName,indexName,attr_num,iInfo.getHash1(),iInfo.getNumBuckets(),iInfo.getSplitPointer(),in,strLens);
+					clh.printIndex();
+					break;
+				}
+				break;
+			}
+		}
+	}
+	
+
+	private static void groupby(String type, String agg_type, int agg_attr_num, String attr_list, String tableName, int n_pages, String outputTable) throws Exception{
+		getRelationAttrInfo(tableName);
+		AttrType[] in = curr_in.clone();
+		int len_in1 = in.length;
+		short[] strLens = curr_str_lens.clone();
+		String str[] = attr_list.split(",");
+		int[] agg_list = new int[str.length];
+		int i=0;
+		for(String st:str) {
+			agg_list[i++] = Integer.parseInt(st);
+		}
+		AggType agg_tp = null;
+		switch(agg_type) {
+		case "max":
+			agg_tp = new AggType(AggType.aggMax);
+			break;
+		case "min":
+			agg_tp = new AggType(AggType.aggMin);
+			break;
+		case "avg":
+			agg_tp = new AggType(AggType.aggAvg);
+			break;
+		case "sky":
+			agg_tp = new AggType(AggType.aggSky);
+			break;
+		}
+		short[] ssizes = null;
+		if(in[agg_attr_num-1].attrType==AttrType.attrString) {
+			ssizes = new short[1];
+			ssizes[0] = strLens[0];
+		}
+		int number_cols = agg_list.length+1;
+		AttrType[] result_in = new AttrType[number_cols];
+		result_in[0] = in[agg_attr_num-1];
+		for(i=1;i<number_cols;i++) {
+			result_in[i] = agg_tp.agg_type==AggType.aggSky?in[agg_list[i-1]-1]:new AttrType(AttrType.attrReal);
+		}
+		ArrayList<IndexInfo> iInfo = getIndexInfo(tableName, agg_attr_num);
+		boolean indexExists = false;
+		boolean clustered = false;
+		String indexName = "";
+		switch(type) {
+		case "sort":
+			
+			for(IndexInfo indexInfo:iInfo) {
+				if(indexInfo.getIndexType()==IndexType.B_Index) {
+					if(indexInfo.getClustered()==1) {
+						indexExists = true;
+						indexName = getIndexFileName(indexInfo);
+						break;
+					}
+				}
+			}
+			
+			GroupBywithSort gbs = new GroupBywithSort(in,len_in1,strLens,tableName,agg_attr_num,agg_list,agg_tp,n_pages,indexExists,indexName);
+			Tuple t = null;
+			
+			while((t = gbs.get_next())!=null) {
+				t.setHdr((short)number_cols, result_in, ssizes);
+				t.print(result_in);
+			}
+			gbs.close();
+			break;
+		case "hash":
+			
+			for(IndexInfo indexInfo:iInfo) {
+				if(indexInfo.getIndexType()==IndexType.Hash) {
+					indexExists = true;
+					if(indexInfo.getClustered()==1) {
+						clustered = true;
+						indexName = getIndexFileName(indexInfo);
+						break;
+					}
+					clustered = false;
+					indexName = getIndexFileName(indexInfo);
+				}
+			}
+			if(!indexExists) {
+				indexName = createIndex(tableName, agg_attr_num, IndexType.Hash);
+			}
+			GroupBywithHash gbh = new GroupBywithHash(in,len_in1,strLens,tableName,agg_attr_num,agg_list,agg_tp,n_pages,clustered,indexName);
+			
+			while((t = gbh.get_next())!=null) {
+				t.setHdr((short)number_cols, result_in, ssizes);
+				t.print(result_in);
+			}
+			gbh.close();
+			break;
+		}
 	}
 	private static void errorQueryMessage() {
 		System.out.println("Not a valid query, please write again!");
@@ -739,6 +1015,21 @@ public class Client {
 		}else {
 			sys = new SystemDefs(dbpath, 100000, GlobalConst.NUMBUF, "Clock");
 			System.out.println("Created a new database");
+		}
+		try {
+			relationHF = new Heapfile(Catalogglobal.RELCATNAME);
+		} catch (HFException | HFBufMgrException | HFDiskMgrException | IOException e1) {
+			System.out.println("Error creating relation catalog");
+		}
+		try {
+			indHF = new Heapfile(Catalogglobal.INDEXCATNAME);
+		} catch (HFException | HFBufMgrException | HFDiskMgrException | IOException e1) {
+			System.out.println("Error creating index catalog");
+		}
+		try {
+			attrHF = new Heapfile(Catalogglobal.ATTRCATNAME);
+		} catch (HFException | HFBufMgrException | HFDiskMgrException | IOException e1) {
+			System.out.println("Error creating attribute catalog");
 		}
 	}
 

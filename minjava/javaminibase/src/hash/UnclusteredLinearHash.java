@@ -13,7 +13,6 @@ public class UnclusteredLinearHash {
     private int targetUtilization=80;
     private int tuple_threshold=0;
     private String prefix= "unclst_buc_";
-    private String key_file_prefix = "unclst_key_";
     public int splitPointer = 0;
     public int number_of_tuples_in_a_page = 0;
     private int totalTuples = 0;
@@ -148,24 +147,24 @@ public class UnclusteredLinearHash {
     }
     
     public void deleteFromIndex(Tuple t, RID rid) throws Exception{
-    	t.setHdr(numberOfCols, _in, strSizes);
-		t = new Tuple(t);
-		t.setHdr(numberOfCols, _in, strSizes);
-		int hash = calculateHashValueForTuple(t,false);
-		if(hash<splitPointer) {
-			hash = calculateHashValueForTuple(t, true);
-		}
-		String name = getHashBucketInnerHeapfileName(t, hash);
-		RID rid1 = new RID();
-		Heapfile hf = new Heapfile(name);
-		Scan scan = new Scan(hf);
-		while((t = scan.getNext(rid1))!=null) {
-			if(rid.equals(ridFromTuple(t))) {
-				scan.closescan();
-				hf.deleteRecord(rid1);
-				return;
-			}
-		}
+//    	t.setHdr(numberOfCols, _in, strSizes);
+//		t = new Tuple(t);
+//		t.setHdr(numberOfCols, _in, strSizes);
+//		int hash = calculateHashValueForTuple(t,false);
+//		if(hash<splitPointer) {
+//			hash = calculateHashValueForTuple(t, true);
+//		}
+//		String name = getHashBucketInnerHeapfileName(t, hash);
+//		RID rid1 = new RID();
+//		Heapfile hf = new Heapfile(name);
+//		Scan scan = new Scan(hf);
+//		while((t = scan.getNext(rid1))!=null) {
+//			if(rid.equals(ridFromTuple(t))) {
+//				scan.closescan();
+//				hf.deleteRecord(rid1);
+//				return;
+//			}
+//		}
     }
     
     private void setupDirectory(String name) throws Exception{
@@ -316,22 +315,7 @@ public class UnclusteredLinearHash {
 		scan.closescan();
 	}
 
-    private String getHashBucketInnerHeapfileName(Tuple t, int hash) throws Exception{
-		String key = "";
-		switch(_in[indexField-1].attrType) {
-		case AttrType.attrInteger:
-			key+=t.getIntFld(indexField);
-			break;
-		case AttrType.attrString:
-			String str = t.getStrFld(indexField);
-			key+=str.substring(0, Math.min(str.length(),10));
-			break;
-		case AttrType.attrReal:
-			key+=t.getFloFld(indexField);
-			break;
-		}
-		return key_file_prefix+hash+key;
-	}
+ 
 
     private void increamentSplit() {
         splitPointer++;
