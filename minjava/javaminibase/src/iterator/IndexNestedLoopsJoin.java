@@ -2,6 +2,8 @@ package iterator;
 
 
 import btree.*;
+import hash.ClusteredHashIndexScan;
+import hash.UnclusteredHashIndexScan;
 import heap.*;
 import global.*;
 import bufmgr.*;
@@ -23,21 +25,21 @@ import java.io.*;
 public class IndexNestedLoopsJoin  extends Iterator
 {
     private AttrType      _in1[],  _in2[], Jtypes[];
-    private   int        in1_len, in2_len;
-    private   Iterator  outer;
+    private   int        in1_len, in2_len, Index_type, hash, split_pointer, field_num;
+    private   Iterator  outer, inner;
     private   short t2_str_sizescopy[];
     private   CondExpr OutputFilter[];
     private   CondExpr RightFilter[];
     private FldSpec[] Rprojection;
     private   int        n_buf_pgs;        // # of buffer pages available.
     private   boolean        done,         // Is the join complete
-            get_from_outer;                 // if TRUE, a tuple is got from outer
+            get_from_outer, is_clustered;                 // if TRUE, a tuple is got from outer
     private   Tuple     outer_tuple, inner_tuple;
     private   Tuple     Jtuple;           // Joined tuple
     private   FldSpec   perm_mat[];
     private   int        nOutFlds;
-    private IndexScan inner_scan, inner;
-    private String Outer_relation_name, Index_name;
+    private IndexScan inner_scan;
+    private String Inner_relation_name, Index_name;
 //    private   Scan      inner;
 
 
@@ -52,6 +54,12 @@ public class IndexNestedLoopsJoin  extends Iterator
      *@param amt_of_mem  IN PAGES
      *@param am1  access method for left i/p to join
      *@param relationName  access heapfile for right i/p to join
+     *@param ind_type  index type on right i/p to join
+     *@param index_name  index_name of right i/p to join
+     *@param is_clust  True if index is clustered, False otherwise
+     *@param hash1  True if index is clustered
+     *@param split_pntr  True if index is clustered
+     *@param fld_num  True if index is clustered
      *@param outFilter   select expressions
      *@param rightFilter reference to filter applied on right i/p
      *@param proj_list shows what input fields go where in the output tuple
@@ -72,6 +80,11 @@ public class IndexNestedLoopsJoin  extends Iterator
                              int     amt_of_mem,
                              Iterator     am1,
                              String relationName,
+                             int ind_type,
+                             boolean is_clust,
+                             int hash1,
+                             int split_pntr,
+                             int fld_num,
                              String index_name,
                              CondExpr outFilter[],
                              CondExpr rightFilter[],
@@ -85,8 +98,13 @@ public class IndexNestedLoopsJoin  extends Iterator
         System.arraycopy(in2,0,_in2,0,in2.length);
         in1_len = len_in1;
         in2_len = len_in2;
-        Outer_relation_name = relationName;
+        Inner_relation_name = relationName;
+        Index_type = ind_type;
         Index_name = index_name;
+        is_clustered = is_clust;
+        hash = hash1;
+        split_pointer = split_pntr;
+        field_num = fld_num;
 
         outer = am1;
         t2_str_sizescopy =  t2_str_sizes;
@@ -119,32 +137,6 @@ public class IndexNestedLoopsJoin  extends Iterator
         // In Select CondExpr obj,
         // typeX will be attrSymbol (Inner) and typeY will be a value (Outer)
         // ?typeY must be retrieved from outer relation using operand.symbol.offset values of OutputFilter condition?
-
-//        int i=0, fld1, fld2;
-//        while (OutputFilter[i] != null) {
-//            temp_ptr = OutputFilter[i];
-//            fld1 = temp_ptr.operand1.symbol.offset;
-//            if (temp_ptr.operand1.symbol.relation.key == RelSpec.outer) {
-//                tuple1 = t1;
-//                comparison_type.attrType = in1[fld1 - 1].attrType;
-//            } else {
-//                tuple1 = t2;
-//                comparison_type.attrType = in2[fld1 - 1].attrType;
-//            }
-//
-//            i++;
-//        }
-
-
-//        try {
-//            System.out.println("Trying to open BTree Index Scan");
-//            inner_scan = new IndexScan(new IndexType(IndexType.B_Index), relationName, index_name, this._in2, t2_str_sizescopy, in2_len,
-//                    nOutFlds, proj_list, OutputFilter, 0, false);
-
-//        }
-//        catch(Exception e) {
-//            throw new NestedLoopException(e, "Index open failed.");
-//        }
     }
 
     /**
@@ -234,16 +226,39 @@ public class IndexNestedLoopsJoin  extends Iterator
             }
 
             if (inner == null) {
+                switch (Index_type){
+                    case (IndexType.B_Index):
+                        if (is_clustered){
+//                            System.out.println("INLJ.get_next() - Calling Clustered Btree Index Scan");
+                            inner = new ClusteredBtreeIndexScan(Index_name, this._in2, t2_str_sizescopy, scan_selects, field_num);
+                        }
+                        else {
+//                            System.out.println("INLJ.get_next() - Calling Unclustered Btree Index Scan");
+                            inner = new IndexScan(new IndexType(IndexType.B_Index), Inner_relation_name, Index_name, this._in2, t2_str_sizescopy, in2_len,
+                                    in2_len, Rprojection, scan_selects, field_num, false);
+                        }
+                        break;
+                    case (IndexType.Hash):
+                        if (is_clustered){
+//                            System.out.println("INLJ.get_next() - Calling Clustered Hash Index Scan");
+                            inner = new ClusteredHashIndexScan(Index_name, Inner_relation_name, this._in2, t2_str_sizescopy, field_num, outer_tuple, hash, split_pointer);
+                        }
+                        else {
+//                            System.out.println("INLJ.get_next() - Calling Unclustered Hash Index Scan");
+                            inner = new UnclusteredHashIndexScan(Index_name, this._in2, t2_str_sizescopy, field_num, Inner_relation_name, outer_tuple, hash, split_pointer);
+                        }
+                        break;
+                    default:
+                        break;
+                }
 //                System.out.println("Opening Scan on B_Tree INDEX");
-                inner = new IndexScan(new IndexType(IndexType.B_Index), Outer_relation_name, Index_name, this._in2, t2_str_sizescopy, in2_len,
-                        nOutFlds, Rprojection, scan_selects, 0, false);
             }
 
             RID rid = new RID();
             while ((inner_tuple = inner.get_next()) != null)
             {
                 inner_tuple.setHdr((short)in2_len, _in2,t2_str_sizescopy);
-//                System.out.println("\nInner Tuple:");
+//                System.out.println("Inner Tuple:");
 //                inner_tuple.print(_in2);
 //                System.out.println("\n");
                 if (PredEval.Eval(RightFilter, inner_tuple, null, _in2, null) == true)
