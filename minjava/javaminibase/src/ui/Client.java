@@ -45,6 +45,7 @@ import iterator.GroupBywithSort;
 import iterator.HashJoins;
 import iterator.Iterator;
 import iterator.NestedLoopsJoins;
+import iterator.IndexNestedLoopsJoin;
 import iterator.NestedLoopsSky;
 import iterator.RelSpec;
 import iterator.SortFirstSky;
@@ -79,7 +80,7 @@ public class Client {
 	static short[] curr_str_lens;
 	static String[] curr_attr_names;
 	
-	static final String prefix_file_path="/afs/asu.edu/users/j/t/r/jtrada/";
+	static final String prefix_file_path="/Users/venkataramanabalajirajendran/Documents/Venkat/MS/DBMSI/minibase/javaminibase/src/data/";
 	
 
 	public static void main(String args[]) {
@@ -278,6 +279,7 @@ public class Client {
 				}
 				break;
 			default:
+				System.out.println("ClientDriver(): Invalid Query");
 				continue;
 			}
 			break;
@@ -438,7 +440,7 @@ public class Client {
 			if(indexName.isEmpty()) {
 				scan = new NestedLoopsJoins(outer_in, len_in1, outer_strLens, inner_in, len_in2, inner_strLens, n_pages, fileScan, innerRelation, outFilter, rightFilter, proj_list, n_out_flds);	
 			}else {
-				//scan = new IndexNestedLoopsJoin(outer_in, len_in1, outer_strLens, inner_in, len_in2, inner_strLens, n_pages, fileScan, innerRelation,indexType,clustered,hash,splitPointer,indexName, outFilter, rightFilter, proj_list, n_out_flds);
+				scan = new IndexNestedLoopsJoin(outer_in, len_in1, outer_strLens, inner_in, len_in2, inner_strLens, n_pages, fileScan, innerRelation,indexType,clustered,hash,splitPointer, inner_attr, indexName, outFilter, rightFilter, proj_list, n_out_flds);
 			}
 			break;
 		case "NLJ":
@@ -972,7 +974,7 @@ public class Client {
 				indexName = createIndex(tableName, agg_attr_num, IndexType.Hash);
 			}
 			GroupBywithHash gbh = new GroupBywithHash(in,len_in1,strLens,tableName,agg_attr_num,agg_list,agg_tp,n_pages,clustered,indexName);
-			
+
 			while((t = gbh.get_next())!=null) {
 				t.setHdr((short)number_cols, result_in, ssizes);
 				t.print(result_in);

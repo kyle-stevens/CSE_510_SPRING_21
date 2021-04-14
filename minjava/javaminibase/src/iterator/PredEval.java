@@ -43,7 +43,7 @@ public class PredEval
       int       comp_res;
       boolean   op_res = false, row_res = false, col_res = true;
       
-      if (p == null)
+      if (p == null || t1 == null || t2 == null)
 	{
 	  return true;
 	}
