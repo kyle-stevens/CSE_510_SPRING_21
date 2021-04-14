@@ -372,22 +372,22 @@ class JoinsDriver implements GlobalConst {
     
   }
   
-  public boolean runTests() {
+  public boolean runTests() throws Exception {
     
     Disclaimer();
-   // Query1();
-    try {
-    	QuerySortSky();
-    	QueryBtreeSky();
-    }catch(Exception e) {
-    	e.printStackTrace();
-    }
-  //  Query3();
+//    Query1();
+//    try {
+//    	QuerySortSky();
+//    	QueryBtreeSky();
+//    }catch(Exception e) {
+//    	e.printStackTrace();
+//    }
+//    Query3();
     
    
-   // Query4();
-   // Query5();
-    //Query6();
+    Query4();
+//    Query5();
+//    Query6();
     
     
     System.out.print ("Finished joins testing"+"\n");
@@ -1316,7 +1316,7 @@ System.out.println(PCounter.wcounter);
     }
   }
 
-   public void Query4() {
+   public void Query4() throws Exception, IOException, HFException, HFBufMgrException, HFDiskMgrException, InvalidTupleSizeException {
      System.out.print("**********************Query4 strating *********************\n");
     boolean status = OK;
 
@@ -1341,6 +1341,7 @@ System.out.println(PCounter.wcounter);
     t = null;
  
     AttrType Stypes[] = {
+//      new AttrType(AttrType.attrReal),
       new AttrType(AttrType.attrInteger),
       new AttrType(AttrType.attrString),
       new AttrType(AttrType.attrInteger),
@@ -1350,6 +1351,7 @@ System.out.println(PCounter.wcounter);
     Ssizes[0] = 30;
 
     AttrType [] Rtypes = {
+//      new AttrType(AttrType.attrReal),
       new AttrType(AttrType.attrInteger),
       new AttrType(AttrType.attrInteger),
       new AttrType(AttrType.attrString),
@@ -1408,56 +1410,151 @@ System.out.println(PCounter.wcounter);
     }
 
     FldSpec [] proj_list = {
+            new FldSpec(new RelSpec(RelSpec.innerRel), 1),
+            new FldSpec(new RelSpec(RelSpec.innerRel), 2),
       new FldSpec(new RelSpec(RelSpec.outer), 2)
     };
 
-    AttrType [] jtype     = { new AttrType(AttrType.attrString) };
+    AttrType [] jtype     = {
+            new AttrType(AttrType.attrInteger),
+            new AttrType(AttrType.attrInteger),
+            new AttrType(AttrType.attrString) };
  
-    TupleOrder ascending = new TupleOrder(TupleOrder.Ascending);
-    SortMerge sm = null;
-    short  []  jsizes    = new short[1];
-    jsizes[0] = 30;
-    try {
-      sm = new SortMerge(Stypes, 4, Ssizes,
-			 Rtypes, 3, Rsizes,
-			 1, 4,
-			 1, 4,
-			 10,
-			 am, am2,
-			 false, false, ascending,
-			 outFilter, proj_list, 1);
-    }
-    catch (Exception e) {
-      status = FAIL;
-      System.err.println (""+e);
-    }
+//    TupleOrder ascending = new TupleOrder(TupleOrder.Ascending);
+//    SortMerge sm = null;
+//    short  []  jsizes    = new short[1];
+//    jsizes[0] = 30;
+//    try {
+//      sm = new SortMerge(Stypes, 4, Ssizes,
+//			 Rtypes, 3, Rsizes,
+//			 1, 4,
+//			 1, 4,
+//			 10,
+//			 am, am2,
+//			 false, false, ascending,
+//			 outFilter, proj_list, 1);
+//    }
+
+     /* Building an Index*/
+
+     BTreeFile btf = null;
+     try {
+       btf = new BTreeFile("BTreeIndex", AttrType.attrInteger, 4, 1);
+     } catch (Exception e) {
+       e.printStackTrace();
+       Runtime.getRuntime().exit(1);
+     }
+     btf.traceFilename("TRACE");
+
+     RID rid = new RID();
+     KeyClass key = null;
+     Tuple temp = null;
+     Scan scan = new Scan(new Heapfile("reserves.in"));
+     try {
+       temp = scan.getNext(rid);
+     } catch (Exception e) {
+       e.printStackTrace();
+     }
+
+     Tuple tt = new Tuple();
+     try {
+       tt.setHdr((short) Rtypes.length, Rtypes, Rsizes);
+     } catch (Exception e) {
+       e.printStackTrace();
+     }
+
+     int sizett = tt.size();
+     tt = new Tuple(sizett);
+     try {
+       tt.setHdr((short) Rtypes.length, Rtypes, Rsizes);
+     } catch (Exception e) {
+       e.printStackTrace();
+     }
+     while (temp != null) {
+
+       try {
+         tt.tupleCopy(temp);
+//         float tmp = (float) TupleUtils.getPrefAttrSum(tt, Rtypes, (short) Rtypes.length, pref_list, pref_list_length);
+
+         key = new IntegerKey(tt.getIntFld(1));
+//           System.out.println("\nKey - " + (int)key + "\n");
+//         System.out.println("\nKey Size - " + new RealKey(key) + "\n");
+       } catch (Exception e) {
+         e.printStackTrace();
+       }
+
+       try {
+         btf.insert(key, rid);
+//         System.out.println("\nInserted - " + key + "\n");
+//         btf.insert(key, rid);
+       } catch (Exception e) {
+         e.printStackTrace();
+       }
+
+       try {
+         temp = scan.getNext(rid);
+       } catch (Exception e) {
+         e.printStackTrace();
+       }
+     }
+     // close the file scan
+//     BT.printBTree(btf.getHeaderPage());
+//     BT.printAllLeafPages(btf.getHeaderPage());
+//     int num = 0;
+//     while (num != -1) {
+//       System.out.println("Please input the page number (-1 to end): ");
+//       num = GetStuff.getChoice();
+//       BT.printPage(new PageId(num), AttrType.attrReal);
+//     }
+     btf.close();
+
+     scan.closescan();
+
+     IndexNestedLoopsJoin inl = null;
+     short  []  jsizes    = new short[1];
+     jsizes[0] = 30;
+//     try {
+       inl = new IndexNestedLoopsJoin (Stypes, 4, Ssizes,
+               Rtypes, 3, Rsizes,
+               10,
+               am, "reserves.in", "BTreeIndex",
+               outFilter, null, proj_list, 3);
+//     }
+//    catch (Exception e) {
+//      status = FAIL;
+//      System.err.println (""+e);
+//    }
  
     if (status != OK) {
       //bail out
-      System.err.println ("*** Error constructing SortMerge");
+      System.err.println ("*** Error constructing INLJ");
       Runtime.getRuntime().exit(1);
     }
     
    
 
-    DuplElim ed = null;
-    try {
-      ed = new DuplElim(jtype, (short)1, jsizes, sm, 10, false);
-    }
-    catch (Exception e) {
-      System.err.println (""+e);
-      Runtime.getRuntime().exit(1);
-    }
- 
-    QueryCheck qcheck4 = new QueryCheck(4);
+//    DuplElim ed = null;
+//    try {
+//      ed = new DuplElim(jtype, (short)1, jsizes, sm, 10, false);
+//    }
+//    catch (Exception e) {
+//      System.err.println (""+e);
+//      Runtime.getRuntime().exit(1);
+//    }
+//
+//    QueryCheck qcheck4 = new QueryCheck(4);
 
     
     t = null;
- 
+
+    System.out.println("\n**************************");
+    System.out.println("IndexNestedLoopJoin result");
+    System.out.println("**************************\n");
     try {
-      while ((t = ed.get_next()) != null) {
+      while ((t = inl.get_next()) != null) {
+//        System.out.println("\nPrinting get_next tuple");
         t.print(jtype);
-        qcheck4.Check(t);
+//        qcheck4.Check(t);
       }
     }
     catch (Exception e) {
@@ -1466,9 +1563,9 @@ System.out.println(PCounter.wcounter);
       Runtime.getRuntime().exit(1);
       }
     
-    qcheck4.report(4);
+//    qcheck4.report(4);
     try {
-      ed.close();
+      inl.close();
     }
     catch (Exception e) {
       status = FAIL;
@@ -1788,7 +1885,7 @@ System.out.println(PCounter.wcounter);
 	e.printStackTrace();
 	Runtime.getRuntime().exit(1);
       }
-      
+
       System.out.print( "After nested loop join R.bid|><|B.bid AND B.color=red.\n");
       
       TupleOrder ascending = new TupleOrder(TupleOrder.Ascending);
@@ -1802,8 +1899,8 @@ System.out.println(PCounter.wcounter);
 	System.err.println (""+e);
 	Runtime.getRuntime().exit(1);
       }
-      
-      
+
+
       System.out.print( "After sorting the output tuples.\n");
    
       
@@ -1820,11 +1917,11 @@ System.out.println(PCounter.wcounter);
 	Runtime.getRuntime().exit(1);
       }
       
-      qcheck6.report(6);
+//      qcheck6.report(6);
       
       System.out.println ("\n"); 
       try {
-	sort_names.close();
+	inl.close();
       }
       catch (Exception e) {
 	status = FAIL;
@@ -1851,7 +1948,7 @@ System.out.println(PCounter.wcounter);
 
 public class JoinTest
 {
-  public static void main(String argv[])
+  public static void main(String argv[]) throws Exception
   {
     boolean sortstatus;
     //SystemDefs global = new SystemDefs("bingjiedb", 100, 70, null);
