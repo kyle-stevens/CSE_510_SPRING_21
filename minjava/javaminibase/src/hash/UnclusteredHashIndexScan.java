@@ -22,6 +22,7 @@ import iterator.JoinsException;
 import iterator.LowMemException;
 import iterator.PredEvalException;
 import iterator.SortException;
+import iterator.TupleUtils;
 import iterator.TupleUtilsException;
 import iterator.UnknowAttrType;
 import iterator.UnknownKeyTypeException;
@@ -46,12 +47,15 @@ public class UnclusteredHashIndexScan extends Iterator {
 	int index_attr;
 	
 	boolean indexOnly = false;
+    private String prefix= "unclst_buc_";
 	
 	
 	public UnclusteredHashIndexScan(String directoryFile, AttrType[] in, short[] sSizes, int attr_no, String relationName, boolean indexOnly) throws Exception{
 		indexFile = new Heapfile(directoryFile);
 		relationFile = new Heapfile(relationName);
 
+		prefix+=relationName;
+		
 		_in = in.clone();
 		_sSizes = sSizes.clone();
 		
@@ -77,6 +81,35 @@ public class UnclusteredHashIndexScan extends Iterator {
 		
 	}
 	
+	int hash1,hash2;
+	boolean flag = false;
+	
+	public UnclusteredHashIndexScan(String indexFile, AttrType[] in, short[] sSizes, int attr_no, String relationName,Tuple t, int hash, int splitPointer) throws Exception {
+		this(indexFile,in,sSizes,attr_no,relationName,false);
+		this.hash1 = hash;
+		this.hash2 = 2*hash;
+		this.flag = true;
+		int hashValue = calculateHashValueForTuple(t, false);
+		if(hashValue<splitPointer) {
+			hashValue = calculateHashValueForTuple(t, true);
+		}
+		currBucketScan = new Scan(new Heapfile(getHashBucketName(hashValue)));
+		Tuple keyPair = null;
+		while((keyPair = currBucketScan.getNext(new RID()))!=null) {
+			keyPair.setHdr((short)2, keyFileAttr, keyFileStrLens);
+			keyPair = new Tuple(keyPair);
+			keyPair.setHdr((short)2, keyFileAttr, keyFileStrLens);
+			if(TupleUtils.CompareTupleWithTuple(in[index_attr-1], t, attr_no, keyPair, 1)==0) {
+				PageId pid = new PageId(keyPair.getIntFld(2));
+				Page page = new Page();
+				pinPage(pid,page,false);
+				curr_page = new HFPage(page);
+				break;
+			}
+		}
+		currBucketScan.closescan();
+		currBucketScan = null;
+	}
 	
 	
 	HFPage curr_page = null;
@@ -134,7 +167,7 @@ public class UnclusteredHashIndexScan extends Iterator {
 			pinPage(pid,page,false);
 			curr_page = new HFPage(page);
 			return get_next();
-		}else {
+		}else if(!flag){
 			Scan scan = new Scan(indexFile);
 			if(curr_hash_bucket_RID!=null) {
 				scan.position(curr_hash_bucket_RID);
@@ -154,6 +187,7 @@ public class UnclusteredHashIndexScan extends Iterator {
 			currBucketScan = new Scan(new Heapfile(t.getStrFld(1)));
 			return get_next();
 		}
+		return null;
 	}
 	
 	private RID ridFromTuple(Tuple t1) throws Exception {
@@ -174,6 +208,50 @@ public class UnclusteredHashIndexScan extends Iterator {
 		if(currBucketScan!=null) {
 			currBucketScan.closescan();
 		}
+	}
+	
+	private String getHashBucketName(int hash) {
+		return prefix+hash;
+	}
+	
+	private int calculateHashValueForTuple(Tuple t,boolean reHash) throws Exception{
+		int hashValue = -1;
+		switch(_in[index_attr-1].attrType) {
+			case AttrType.attrInteger:
+				hashValue = calculateHash(t.getIntFld(index_attr),reHash);
+				break;
+			case AttrType.attrString:
+				hashValue = calculateHash(t.getStrFld(index_attr),reHash);
+				break;
+			case AttrType.attrReal:
+				hashValue = calculateHash(t.getFloFld(index_attr), reHash);
+				break;
+			default:
+				break;
+		}
+		return hashValue;
+	}
+
+	private int calculateHash(String data,boolean reHash) {
+		long hash = 7;
+		for (int i = 0; i < data.length(); i++) {
+		    hash = hash*11 + data.charAt(i);
+		}
+		if(!reHash)
+			return (int)(hash%hash1);
+		return (int)(hash%hash2);
+	}
+	
+	private int calculateHash(float data,boolean reHash) {
+		if(!reHash)
+			return ((int)(data*100))%hash1;
+		return ((int)data*100)%hash2;
+	}
+	
+	private int calculateHash(int data,boolean reHash) {
+		if(!reHash)
+			return data%hash1;
+		return data%hash2;
 	}
 	
 	/**

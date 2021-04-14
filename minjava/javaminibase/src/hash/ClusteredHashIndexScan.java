@@ -22,6 +22,7 @@ import iterator.JoinsException;
 import iterator.LowMemException;
 import iterator.PredEvalException;
 import iterator.SortException;
+import iterator.TupleUtils;
 import iterator.TupleUtilsException;
 import iterator.UnknowAttrType;
 import iterator.UnknownKeyTypeException;
@@ -39,6 +40,9 @@ public class ClusteredHashIndexScan extends Iterator{
 	
 	AttrType[] _keyPageAttr;
 	short[] _key_sizes;
+	
+	public final String directoryPrefix = "dir_hs_";
+
 	
 	
 	int index_field;
@@ -66,6 +70,39 @@ public class ClusteredHashIndexScan extends Iterator{
 			_key_sizes[0] = sSizes[0];
 		}
 		
+	}
+	
+	int hash1,hash2;
+	boolean flag = false;
+	String fileName;
+	
+	public ClusteredHashIndexScan(String indexFile, String relationName, AttrType[] in, short[] sSizes, int attr_no, Tuple t, int hash1, int splitPointer) throws Exception{
+		this(indexFile,in,sSizes,attr_no);
+		this.hash1 = hash1;
+		this.hash2 = 2*hash1;
+		this.fileName = relationName;
+		flag = true;
+		int hashValue = calculateHashValueForTuple(t, false);
+		if(hashValue<splitPointer) {
+			hashValue = calculateHashValueForTuple(t, true);
+		}
+		String bucketFileName = getHashBucketName(hashValue);
+		currBucketScan = new Scan(new Heapfile(bucketFileName));
+		Tuple keyPair = null;
+		while((keyPair = currBucketScan.getNext(new RID()))!=null) {
+			keyPair.setHdr((short)2, _keyPageAttr, _key_sizes);
+			keyPair = new Tuple(keyPair);
+			keyPair.setHdr((short)2, _keyPageAttr, _key_sizes);
+			if(TupleUtils.CompareTupleWithTuple(in[attr_no-1], t, attr_no, keyPair, 1)==0) {
+				PageId pid = new PageId(keyPair.getIntFld(2));
+				Page page = new Page();
+				pinPage(pid,page,false);
+				curr_page = new HFPage(page);
+				break;
+			}
+		}
+		currBucketScan.closescan();
+		currBucketScan = null;
 	}
 	
 	HFPage curr_page = null;
@@ -121,7 +158,7 @@ public class ClusteredHashIndexScan extends Iterator{
 			pinPage(pid,page,false);
 			curr_page = new HFPage(page);
 			return get_next();
-		}else {
+		}else if(!flag){
 			Scan scan = new Scan(indexFile);
 			if(curr_hash_bucket_RID!=null) {
 				scan.position(curr_hash_bucket_RID);
@@ -141,13 +178,62 @@ public class ClusteredHashIndexScan extends Iterator{
 			currBucketScan = new Scan(new Heapfile(t.getStrFld(1)));
 			return get_next();
 		}
+		return null;
 	}
 
+	
+	
 	@Override
 	public void close() throws IOException, JoinsException, SortException, IndexException {
-		// TODO Auto-generated method stub
-		
+		if(currBucketScan!=null) {
+			currBucketScan.closescan();
+		}
 	}
+	
+	private String getHashBucketName(int hash) {
+		return directoryPrefix+fileName+hash;
+	}
+	
+	private int calculateHashValueForTuple(Tuple t,boolean reHash) throws Exception{
+		int hashValue = -1;
+		switch(_in[index_field-1].attrType) {
+			case AttrType.attrInteger:
+				hashValue = calculateHash(t.getIntFld(index_field),reHash);
+				break;
+			case AttrType.attrString:
+				hashValue = calculateHash(t.getStrFld(index_field),reHash);
+				break;
+			case AttrType.attrReal:
+				hashValue = calculateHash(t.getFloFld(index_field), reHash);
+				break;
+			default:
+				break;
+		}
+		return hashValue;
+	}
+
+	private int calculateHash(String data,boolean reHash) {
+		long hash = 7;
+		for (int i = 0; i < data.length(); i++) {
+		    hash = hash*11 + data.charAt(i);
+		}
+		if(!reHash)
+			return (int)(hash%hash1);
+		return (int)(hash%hash2);
+	}
+	
+	private int calculateHash(float data,boolean reHash) {
+		if(!reHash)
+			return ((int)(data*100))%hash1;
+		return ((int)data*100)%hash2;
+	}
+	
+	private int calculateHash(int data,boolean reHash) {
+		if(!reHash)
+			return data%hash1;
+		return data%hash2;
+	}
+	
 	
 	/**
 	   * short cut to access the pinPage function in bufmgr package.
