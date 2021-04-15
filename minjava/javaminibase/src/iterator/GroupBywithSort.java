@@ -56,7 +56,7 @@ public class GroupBywithSort extends Iterator{
 		}
 		if(indexExists) {
 			scan = new ClusteredBtreeIndexScan(indexFileName, in1,
-		              t1_str_sizes, null, group_by_attr);
+		              t1_str_sizes, null, group_by_attr, false);
 		}else{
 			Iterator am = new FileScan(relationName,in1,t1_str_sizes,(short)len_in1,len_in1,projection,null);
 			int size = 4;
