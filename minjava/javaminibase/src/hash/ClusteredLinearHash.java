@@ -29,8 +29,7 @@ public class ClusteredLinearHash {
 	public  int hash1 = 4;
 	private  int hash2 = 8;
 	
-	public final String prefix= "TMP_HASH_CLST_";
-	public final String directoryPrefix = "dir_hs_";
+	public String directoryPrefix = "buc_clst_";
 	
 	private int current_pages=0;
 	private int targetUtilization=80;
@@ -96,7 +95,7 @@ public class ClusteredLinearHash {
 		
 		dirStrlens= new short[1];
 		dirStrlens[0] = GlobalConst.MAX_NAME + 2;
-		
+		directoryPrefix += filename+"_"+attr_num+"_";
 		clusterRecordsFromfile();
 		
 //		System.out.println(numBuckets+" :: "+splitPointer+" :: "+hash1);
@@ -118,6 +117,7 @@ public class ClusteredLinearHash {
 		this.indexField = attr_num;
 		relation = new Heapfile(fileName);
 		this.current_pages = relation.getPgCnt();
+		directoryPrefix += fileName+"_"+attr_num+"_";
 
 		this.indexFileName = indexFileName;
 		hashDirectory = new Heapfile(this.indexFileName);
@@ -414,8 +414,8 @@ public class ClusteredLinearHash {
 		while((t = scan.getNext(new RID()))!=null) {
 			t.setHdr(dirColNum, dirAttr, dirStrlens);
 			String bucketName = t.getStrFld(1);
-			String offset = directoryPrefix+fileName;
-			System.out.println("====Printing the bucket with hash value::"+bucketName.substring(offset.length(), bucketName.length())+"====");
+			String[] hash = bucketName.split("_");
+			System.out.println("====Printing the bucket with hash value::"+hash[hash.length-1]+"====");
 			Scan innerScan = new Scan(new Heapfile(bucketName));
 			while((t=innerScan.getNext(new RID()))!=null) {
 				t.setHdr(keyPageColNum, keyPageAttr, keyPageStrlens);
@@ -450,7 +450,7 @@ public class ClusteredLinearHash {
 	}
 	
 	private String getHashBucketName(int hash) {
-		return directoryPrefix+fileName+hash;
+		return directoryPrefix+hash;
 	}
 	
 	

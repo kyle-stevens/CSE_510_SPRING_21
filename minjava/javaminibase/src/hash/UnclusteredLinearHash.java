@@ -10,7 +10,6 @@ public class UnclusteredLinearHash {
     public int hash1 = 4;
     private int hash2 = 8;
     private int current_tuples=0;
-    private int targetUtilization=80;
     private int tuple_threshold=0;
     private String prefix= "unclst_buc_";
     public int splitPointer = 0;
@@ -44,7 +43,6 @@ public class UnclusteredLinearHash {
     public UnclusteredLinearHash(int utilization, String filename, int attr_num, short[] strSizes, AttrType[] in, String indexfilename) throws Exception {
         
     	this.fileName = filename;
-        this.targetUtilization = 80;
         this.indexField = attr_num;
         this.directoryFile = indexfilename;
         directory = new Heapfile(this.directoryFile);
@@ -81,7 +79,7 @@ public class UnclusteredLinearHash {
 
         number_of_tuples_in_a_page = (GlobalConst.MAX_SPACE - HFPage.DPFIXED) / (size + HFPage.SIZE_OF_SLOT);
         
-        hash1 = (int)((relation.getRecCnt()*100.0)/(targetUtilization*number_of_tuples_in_a_page))+1;
+        hash1 = (int)((relation.getRecCnt()*100.0)/(GlobalConst.MAX_PAGE_UTILIZATION*number_of_tuples_in_a_page))+1;
         hash2 = 2*hash1;
         numBuckets = hash1;
         setTotalTuplesAndThreshold();
@@ -131,7 +129,6 @@ public class UnclusteredLinearHash {
         int size = t.size();
 
         number_of_tuples_in_a_page = (GlobalConst.MAX_SPACE - HFPage.DPFIXED) / (size + HFPage.SIZE_OF_SLOT);
-        targetUtilization=80;
         setTotalTuplesAndThreshold();
         
     }
@@ -274,8 +271,8 @@ public class UnclusteredLinearHash {
 			t.setHdr((short)1, dir_f_Attr, dir_f_str_lens);
 			String bucketName = t.getStrFld(1);
 			
-			String offset = prefix;
-			System.out.println("====Printing the bucket with hash value::"+bucketName.substring(offset.length(), bucketName.length())+"====");
+			String hash[] = bucketName.split("_");
+			System.out.println("====Printing the bucket with hash value::"+hash[hash.length-1]+"====");
 			Scan innerScan = new Scan(new Heapfile(bucketName));
 			while((t=innerScan.getNext(new RID()))!=null) {
 				t.setHdr((short)2, keyFileAttr, keyFileStrLens);
@@ -328,7 +325,7 @@ public class UnclusteredLinearHash {
 
     private void setTotalTuplesAndThreshold() {
         totalTuples = number_of_tuples_in_a_page*numBuckets;
-        tuple_threshold = (targetUtilization*totalTuples)/100;
+        tuple_threshold = (GlobalConst.MAX_PAGE_UTILIZATION*totalTuples)/100;
         numBuckets++;
 
     }

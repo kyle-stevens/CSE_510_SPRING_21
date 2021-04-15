@@ -25,9 +25,9 @@ import java.io.*;
 public class IndexNestedLoopsJoin  extends Iterator
 {
     private AttrType      _in1[],  _in2[], Jtypes[];
-    private   int        in1_len, in2_len, Index_type, hash, split_pointer, field_num;
+    private   int        in1_len, in2_len, Index_type, hash, split_pointer, inner_field_num, outer_field_num;
     private   Iterator  outer, inner;
-    private   short t2_str_sizescopy[];
+    private   short[] t2_str_sizescopy, t1_str_sizes;
     private   CondExpr OutputFilter[];
     private   CondExpr RightFilter[];
     private FldSpec[] Rprojection;
@@ -40,6 +40,7 @@ public class IndexNestedLoopsJoin  extends Iterator
     private   int        nOutFlds;
     private IndexScan inner_scan;
     private String Inner_relation_name, Index_name;
+    private int outer_join_attr;
 //    private   Scan      inner;
 
 
@@ -84,7 +85,8 @@ public class IndexNestedLoopsJoin  extends Iterator
                              boolean is_clust,
                              int hash1,
                              int split_pntr,
-                             int fld_num,
+                             int inner_join_attr,
+                             int outer_join_attr,
                              String index_name,
                              CondExpr outFilter[],
                              CondExpr rightFilter[],
@@ -104,14 +106,16 @@ public class IndexNestedLoopsJoin  extends Iterator
         is_clustered = is_clust;
         hash = hash1;
         split_pointer = split_pntr;
-        field_num = fld_num;
+        inner_field_num = inner_join_attr;
+        this.t1_str_sizes = t1_str_sizes.clone();
+        
+        outer_field_num = outer_join_attr;
 
         outer = am1;
         t2_str_sizescopy =  t2_str_sizes;
         inner_tuple = new Tuple();
         Jtuple = new Tuple();
         OutputFilter = outFilter;
-        CondExpr temp_ptr[] = OutputFilter;
         RightFilter  = rightFilter;
 
         n_buf_pgs    = amt_of_mem;
@@ -214,7 +218,7 @@ public class IndexNestedLoopsJoin  extends Iterator
             // Get the value of outer tuple field in the select condition
             // to be passed for Index Scan of inner relation
             // Prepare Select condition for Index_Scan with the retrieved value
-
+            outer_tuple.setHdr((short)_in1.length, _in1, t1_str_sizes);
             CondExpr [] scan_selects = get_index_scan_selects(OutputFilter, outer_tuple);
 
 //            if (scan_selects != null) System.out.println("Scan_selects length: " + scan_selects.length);
@@ -230,22 +234,22 @@ public class IndexNestedLoopsJoin  extends Iterator
                     case (IndexType.B_Index):
                         if (is_clustered){
 //                            System.out.println("INLJ.get_next() - Calling Clustered Btree Index Scan");
-                            inner = new ClusteredBtreeIndexScan(Index_name, this._in2, t2_str_sizescopy, scan_selects, field_num);
+                            inner = new ClusteredBtreeIndexScan(Index_name, this._in2, t2_str_sizescopy, scan_selects, inner_field_num);
                         }
                         else {
 //                            System.out.println("INLJ.get_next() - Calling Unclustered Btree Index Scan");
                             inner = new IndexScan(new IndexType(IndexType.B_Index), Inner_relation_name, Index_name, this._in2, t2_str_sizescopy, in2_len,
-                                    in2_len, Rprojection, scan_selects, field_num, false);
+                                    in2_len, Rprojection, scan_selects, inner_field_num, false);
                         }
                         break;
                     case (IndexType.Hash):
                         if (is_clustered){
 //                            System.out.println("INLJ.get_next() - Calling Clustered Hash Index Scan");
-                            inner = new ClusteredHashIndexScan(Index_name, Inner_relation_name, this._in2, t2_str_sizescopy, field_num, outer_tuple, hash, split_pointer);
+                            inner = new ClusteredHashIndexScan(Index_name, Inner_relation_name, this._in2, t2_str_sizescopy, inner_field_num, outer_field_num, outer_tuple, hash, split_pointer);
                         }
                         else {
 //                            System.out.println("INLJ.get_next() - Calling Unclustered Hash Index Scan");
-                            inner = new UnclusteredHashIndexScan(Index_name, this._in2, t2_str_sizescopy, field_num, Inner_relation_name, outer_tuple, hash, split_pointer);
+                        	inner = new UnclusteredHashIndexScan(Index_name, this._in2, t2_str_sizescopy, inner_field_num, Inner_relation_name, outer_field_num, outer_tuple, hash, split_pointer);
                         }
                         break;
                     default:
