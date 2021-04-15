@@ -54,7 +54,7 @@ public class UnclusteredHashIndexScan extends Iterator {
 		indexFile = new Heapfile(directoryFile);
 		relationFile = new Heapfile(relationName);
 
-		prefix+=relationName;
+		prefix+=relationName+"_"+attr_no+"_";
 		
 		_in = in.clone();
 		_sSizes = sSizes.clone();
@@ -84,22 +84,22 @@ public class UnclusteredHashIndexScan extends Iterator {
 	int hash1,hash2;
 	boolean flag = false;
 	
-	public UnclusteredHashIndexScan(String indexFile, AttrType[] in, short[] sSizes, int attr_no, String relationName,Tuple t, int hash, int splitPointer) throws Exception {
-		this(indexFile,in,sSizes,attr_no,relationName,false);
+	public UnclusteredHashIndexScan(String indexFile, AttrType[] in, short[] sSizes, int index_attr_no, String relationName, int t_attr_no,Tuple t, int hash, int splitPointer) throws Exception {
+		this(indexFile,in,sSizes,index_attr_no,relationName,false);
 		this.hash1 = hash;
 		this.hash2 = 2*hash;
 		this.flag = true;
-		int hashValue = calculateHashValueForTuple(t, false);
+		int hashValue = calculateHashValueForTuple(t, t_attr_no, false);
 		if(hashValue<splitPointer) {
-			hashValue = calculateHashValueForTuple(t, true);
+			hashValue = calculateHashValueForTuple(t, t_attr_no, true);
 		}
-		currBucketScan = new Scan(new Heapfile(getHashBucketName(hashValue)));
+		currBucketScan = new Scan(new Heapfile(prefix+hashValue));
 		Tuple keyPair = null;
 		while((keyPair = currBucketScan.getNext(new RID()))!=null) {
 			keyPair.setHdr((short)2, keyFileAttr, keyFileStrLens);
 			keyPair = new Tuple(keyPair);
 			keyPair.setHdr((short)2, keyFileAttr, keyFileStrLens);
-			if(TupleUtils.CompareTupleWithTuple(in[index_attr-1], t, attr_no, keyPair, 1)==0) {
+			if(TupleUtils.CompareTupleWithTuple(in[index_attr-1], t, t_attr_no, keyPair, 1)==0) {
 				PageId pid = new PageId(keyPair.getIntFld(2));
 				Page page = new Page();
 				pinPage(pid,page,false);
@@ -210,21 +210,18 @@ public class UnclusteredHashIndexScan extends Iterator {
 		}
 	}
 	
-	private String getHashBucketName(int hash) {
-		return prefix+hash;
-	}
 	
-	private int calculateHashValueForTuple(Tuple t,boolean reHash) throws Exception{
+	private int calculateHashValueForTuple(Tuple t, int attr_no,boolean reHash) throws Exception{
 		int hashValue = -1;
 		switch(_in[index_attr-1].attrType) {
 			case AttrType.attrInteger:
-				hashValue = calculateHash(t.getIntFld(index_attr),reHash);
+				hashValue = calculateHash(t.getIntFld(attr_no),reHash);
 				break;
 			case AttrType.attrString:
-				hashValue = calculateHash(t.getStrFld(index_attr),reHash);
+				hashValue = calculateHash(t.getStrFld(attr_no),reHash);
 				break;
 			case AttrType.attrReal:
-				hashValue = calculateHash(t.getFloFld(index_attr), reHash);
+				hashValue = calculateHash(t.getFloFld(attr_no), reHash);
 				break;
 			default:
 				break;

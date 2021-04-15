@@ -5,10 +5,13 @@ import java.util.Arrays;
 
 import global.AggType;
 import global.AttrType;
+import global.IndexType;
 import global.TupleOrder;
 import heap.Heapfile;
 import heap.Tuple;
+import index.ClusteredBtreeIndexScan;
 import index.IndexException;
+import index.IndexScan;
 
 public class GroupBywithSort extends Iterator{
 
@@ -25,14 +28,16 @@ public class GroupBywithSort extends Iterator{
 	
 	int agg_list[];
 
+	
 	public GroupBywithSort (
 			AttrType[] in1, int len_in1, short[] t1_str_sizes,
 			String relationName,
 			int group_by_attr,
 			int[] agg_list,
 			AggType agg_type,
-			int n_pages
-			) throws Exception{
+			int n_pages,
+			boolean indexExists,
+			String indexFileName) throws Exception{
 
 		_group_by_attr = group_by_attr;
 		_agg_type = agg_type;
@@ -44,17 +49,22 @@ public class GroupBywithSort extends Iterator{
 		
 		this.t1_str_sizes = t1_str_sizes;
 		len_in = len_in1;
-		_in1 = in1;
+		_in1 = in1.clone();
 		
-		for (int i = 0; i < len_in1; i++) {
+		for (int i = 0; i < len_in; i++) {
 		     projection[i] = new FldSpec(new RelSpec(RelSpec.outer), i + 1);
 		}
-		int size = 4;
-		if(in1[group_by_attr-1].attrType==AttrType.attrString) {
-			size = t1_str_sizes[0];
-		}
-		Iterator am = new FileScan(relationName,in1,t1_str_sizes,(short)len_in1,len_in1,projection,null);
-		scan = new Sort(in1, (short)len_in1, t1_str_sizes, am, group_by_attr, new TupleOrder(TupleOrder.Ascending), size , 40);
+		if(indexExists) {
+			scan = new ClusteredBtreeIndexScan(indexFileName, in1,
+		              t1_str_sizes, null, group_by_attr);
+		}else{
+			Iterator am = new FileScan(relationName,in1,t1_str_sizes,(short)len_in1,len_in1,projection,null);
+			int size = 4;
+			if(in1[group_by_attr-1].attrType==AttrType.attrString) {
+				size = t1_str_sizes[0];
+			}
+			scan = new Sort(in1, (short)len_in1, t1_str_sizes, am, group_by_attr, new TupleOrder(TupleOrder.Ascending), size , 40);
+	}
 	}
 
 	@Override

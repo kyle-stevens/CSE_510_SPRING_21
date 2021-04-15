@@ -7,7 +7,6 @@ import global.AggType;
 import global.AttrType;
 import hash.ClusteredHashIndexScan;
 import hash.UnclusteredHashIndexScan;
-import hash.UnclusteredLinearHash;
 import heap.Heapfile;
 import heap.Tuple;
 import index.IndexException;
@@ -34,7 +33,6 @@ public class GroupBywithHash extends Iterator{
 			int[] agg_list,
 			AggType agg_type,
 			int n_pages,
-			boolean indexExists,
 			boolean clustered, String indexFileName) throws Exception{
 
 		_group_by_attr = group_by_attr;
@@ -53,10 +51,8 @@ public class GroupBywithHash extends Iterator{
 		     projection[i] = new FldSpec(new RelSpec(RelSpec.outer), i + 1);
 		}
 		if (clustered)
-			scan = new ClusteredHashIndexScan(indexFileName, in1, t1_str_sizes, group_by_attr);
+			scan = new ClusteredHashIndexScan(indexFileName, _in1, t1_str_sizes, group_by_attr);
 		else {
-			if (!indexExists)
-				new UnclusteredLinearHash(80, relationName, group_by_attr, t1_str_sizes, _in1, indexFileName);
 			scan = new UnclusteredHashIndexScan(indexFileName, _in1, t1_str_sizes, group_by_attr, relationName, false);
 		}
 	}
@@ -64,7 +60,6 @@ public class GroupBywithHash extends Iterator{
 	@Override
 	public Tuple get_next() throws Exception {
 		
-		// TODO Auto-generated method stub
 		switch(_agg_type.agg_type) {
 		case AggType.aggAvg:
 			return getAvg();
@@ -333,7 +328,6 @@ public class GroupBywithHash extends Iterator{
 				nextTuple = new Tuple(nextTuple);
 				setHdr(nextTuple);
 			}
-			System.out.println(hf.getRecCnt()+" Records");
 			sky2 = new BlockNestedLoopSky(_in1, _in1.length, t1_str_sizes,
 		               null, hf.getName(), agg_list, agg_list.length, 25);
 			skyNextTuple = nextTuple;
@@ -344,7 +338,6 @@ public class GroupBywithHash extends Iterator{
 
 	@Override
 	public void close() throws IOException, JoinsException, SortException, IndexException {
-		// TODO Auto-generated method stub
 		if(scan!=null) {
 			scan.close();
 		}

@@ -80,7 +80,7 @@ public class Client {
 	static short[] curr_str_lens;
 	static String[] curr_attr_names;
 	
-	static final String prefix_file_path="/Users/venkataramanabalajirajendran/Documents/Venkat/MS/DBMSI/minibase/javaminibase/src/data/";
+	static final String prefix_file_path="/afs/asu.edu/users/j/t/r/jtrada/";
 	
 
 	public static void main(String args[]) {
@@ -118,7 +118,7 @@ public class Client {
 		
 		Scanner in = new Scanner(System.in);
 		while (true) {
-			//printMenu();
+			printMenu();
 			String str = in.nextLine();
 			String queryParts[] = str.trim().split("\\s+");
 			if (queryParts.length == 0)
@@ -392,16 +392,46 @@ public class Client {
 		Iterator scan = null;
 		switch(joinType) {
 		case "HJ":
-			scan = new HashJoins(outer_in, len_in1, outer_strLens, inner_in, len_in2, inner_strLens, n_pages, outerRelation, innerRelation, outFilter, rightFilter, proj_list, n_out_flds);
-			break;
-		case "INLJ":
-			Iterator fileScan = new FileScan(outerRelation,outer_in,outer_strLens,(short)len_in1,len_in1,outer_proj_list,null);
 			ArrayList<IndexInfo> iInfo = getIndexInfo(innerRelation, inner_attr);
 			int hash=0;
 			int splitPointer=0;
 			String indexName="";
 			boolean clustered = false;
 			int indexType = IndexType.B_Index;
+			if(operator.equalsIgnoreCase("=")) {
+				for(IndexInfo indexInfo:iInfo) {
+					if(indexInfo.getIndexType()==IndexType.Hash) {
+						if(indexInfo.getClustered()==1) {
+							clustered=true;
+							hash = indexInfo.getHash1();
+							splitPointer = indexInfo.getSplitPointer();
+							indexType = IndexType.Hash;
+							indexName = getIndexFileName(indexInfo);
+							break;
+						}
+						clustered=false;
+						hash = indexInfo.getHash1();
+						splitPointer = indexInfo.getSplitPointer();
+						indexType = IndexType.Hash;
+						indexName = getIndexFileName(indexInfo);
+					}
+				}
+			}
+			if(indexName.isEmpty())
+				scan = new HashJoins(outer_in, len_in1, outer_strLens, inner_in, len_in2, inner_strLens, n_pages, outerRelation, innerRelation, outFilter, rightFilter, proj_list, n_out_flds);
+			else {
+				Iterator fileScan = new FileScan(outerRelation,outer_in,outer_strLens,(short)len_in1,len_in1,outer_proj_list,null);
+			 	scan = new IndexNestedLoopsJoin(outer_in, len_in1, outer_strLens, inner_in, len_in2, inner_strLens, n_pages, fileScan, innerRelation,indexType,clustered,hash,splitPointer, inner_attr, outer_attr, indexName, outFilter, rightFilter, proj_list, n_out_flds);
+			}
+			break;
+		case "INLJ":
+			Iterator fileScan = new FileScan(outerRelation,outer_in,outer_strLens,(short)len_in1,len_in1,outer_proj_list,null);
+			iInfo = getIndexInfo(innerRelation, inner_attr);
+			hash=0;
+			splitPointer=0;
+			indexName="";
+			clustered = false;
+			indexType = IndexType.B_Index;
 			if(operator.equalsIgnoreCase("=")) {
 				for(IndexInfo indexInfo:iInfo) {
 					if(indexInfo.getIndexType()==IndexType.Hash) {
@@ -440,7 +470,7 @@ public class Client {
 			if(indexName.isEmpty()) {
 				scan = new NestedLoopsJoins(outer_in, len_in1, outer_strLens, inner_in, len_in2, inner_strLens, n_pages, fileScan, innerRelation, outFilter, rightFilter, proj_list, n_out_flds);	
 			}else {
-				scan = new IndexNestedLoopsJoin(outer_in, len_in1, outer_strLens, inner_in, len_in2, inner_strLens, n_pages, fileScan, innerRelation,indexType,clustered,hash,splitPointer, inner_attr, indexName, outFilter, rightFilter, proj_list, n_out_flds);
+				scan = new IndexNestedLoopsJoin(outer_in, len_in1, outer_strLens, inner_in, len_in2, inner_strLens, n_pages, fileScan, innerRelation,indexType,clustered,hash,splitPointer, inner_attr, outer_attr, indexName, outFilter, rightFilter, proj_list, n_out_flds);
 			}
 			break;
 		case "NLJ":
