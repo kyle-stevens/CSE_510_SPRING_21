@@ -40,8 +40,6 @@ public class IndexNestedLoopsJoin  extends Iterator
     private   int        nOutFlds;
     private IndexScan inner_scan;
     private String Inner_relation_name, Index_name;
-    private int outer_join_attr;
-//    private   Scan      inner;
 
 
     /**constructor
@@ -60,7 +58,8 @@ public class IndexNestedLoopsJoin  extends Iterator
      *@param is_clust  True if index is clustered, False otherwise
      *@param hash1  True if index is clustered
      *@param split_pntr  True if index is clustered
-     *@param fld_num  True if index is clustered
+     *@param inner_join_attr  inner relation Field_num to join
+     *@param outer_join_attr  outer relation Field_num to join
      *@param outFilter   select expressions
      *@param rightFilter reference to filter applied on right i/p
      *@param proj_list shows what input fields go where in the output tuple
@@ -234,7 +233,7 @@ public class IndexNestedLoopsJoin  extends Iterator
                     case (IndexType.B_Index):
                         if (is_clustered){
 //                            System.out.println("INLJ.get_next() - Calling Clustered Btree Index Scan");
-                            inner = new ClusteredBtreeIndexScan(Index_name, this._in2, t2_str_sizescopy, scan_selects, inner_field_num);
+                            inner = new ClusteredBtreeIndexScan(Index_name, this._in2, t2_str_sizescopy, scan_selects, inner_field_num, false);
                         }
                         else {
 //                            System.out.println("INLJ.get_next() - Calling Unclustered Btree Index Scan");
