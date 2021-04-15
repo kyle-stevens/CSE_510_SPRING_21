@@ -135,6 +135,30 @@ public class BTLeafPage extends BTSortedPage {
       }
     } // end of getFirst
 
+  public KeyDataEntry getLast(RID rid)
+          throws  IteratorException
+  {
+
+    KeyDataEntry  entry;
+
+    try {
+      if ( getSlotCnt() <= 0) {
+        return null;
+      }
+
+      rid.pageNo = getCurPage();
+      rid.slotNo = getSlotCnt()-1; // begin with last slot
+
+      entry=BT.getEntryFromBytes(getpage(), getSlotOffset(rid.slotNo), getSlotLength(rid.slotNo),
+              keyType, NodeType.LEAF);
+
+      return entry;
+    }
+    catch (Exception e) {
+      throw new IteratorException(e, "Get last entry failed");
+    }
+  } // end of getLast
+
  
    /**Iterators.  
     * One of the two functions: getFirst and getNext which  provide an
@@ -168,6 +192,30 @@ public class BTLeafPage extends BTSortedPage {
      catch (Exception e) {
        throw new IteratorException(e,"Get next entry failed");
      }
+  }
+
+  public KeyDataEntry getPrev (RID rid)
+          throws  IteratorException
+  {
+    KeyDataEntry  entry;
+    int i;
+    try{
+      rid.slotNo--; //must before any return;
+      i=rid.slotNo;
+
+      if ( rid.slotNo < 0)
+      {
+        return null;
+      }
+
+      entry=BT.getEntryFromBytes(getpage(),getSlotOffset(i), getSlotLength(i),
+              keyType, NodeType.LEAF);
+
+      return entry;
+    }
+    catch (Exception e) {
+      throw new IteratorException(e,"Get next entry failed");
+    }
   }
   
   

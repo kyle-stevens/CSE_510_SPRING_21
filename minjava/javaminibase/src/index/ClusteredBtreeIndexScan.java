@@ -46,7 +46,8 @@ public class ClusteredBtreeIndexScan extends Iterator {
           AttrType[] types,
           short[] str_sizes,
           CondExpr[] selects,
-          int indexField
+          int indexField,
+          boolean descending
   )
           throws IndexException {
     _types = types;
@@ -62,7 +63,11 @@ public class ClusteredBtreeIndexScan extends Iterator {
     }
 
     try {
-      indScan = IndexUtils.BTree_scan(selects, indFile);
+      if(descending) {
+        indScan = IndexUtils.BTree_scan_desc(selects, indFile);
+      } else {
+        indScan = IndexUtils.BTree_scan(selects, indFile);
+      }
     } catch (Exception e) {
       throw new IndexException(e, "IndexScan.java: BTreeFile exceptions caught from IndexUtils.BTree_scan().");
     }
@@ -136,6 +141,68 @@ public class ClusteredBtreeIndexScan extends Iterator {
       bufferPosition = 0;
       bufferSize = sortedBuffer.size();
       return get_next();
+    }
+  }
+
+  public Tuple get_reversed_next()
+          throws
+          IOException, ScanIteratorException, HFBufMgrException, InvalidSlotNumberException,
+          InvalidTupleSizeException, InvalidTypeException, UnknowAttrType, FieldNumberOutOfBoundException, PredEvalException {
+    Tuple t;
+    if (buffered) {
+      if(bufferPosition >= bufferSize){
+        buffered = false;
+        sortedBuffer.clear();
+        return get_reversed_next();
+      }
+      return sortedBuffer.get(bufferPosition++);
+    } else {
+      RID rid;
+      KeyDataEntry nextEntry;
+      nextEntry = ((BTFileScan)indScan).get_prev_clustered_page();
+      if (nextEntry == null) {
+        return null;
+      }
+      rid = ((LeafData) nextEntry.data).getData();
+      PageId pid = rid.pageNo;
+      Page page = new Page();
+      pinPage(pid, page);
+      curr_page = new HFPage(page);
+      curr_page_RID = curr_page.firstRecord();
+      while(curr_page_RID != null){
+        t = curr_page.getRecord(curr_page_RID);
+        t.setHdr((short) _types.length, _types, _s_sizes);
+        if(PredEval.Eval(_selects, t, null, _types, null)){
+          sortedBuffer.add(t);
+        }
+        curr_page_RID = curr_page.nextRecord(curr_page_RID);
+      }
+      unpinPage(curr_page.getCurPage());
+      sortedBuffer.sort((o1, o2) -> {
+        int result = 0;
+        try {
+          switch (_types[indexField-1].attrType){
+            case AttrType.attrString:
+              result = o1.getStrFld(indexField).compareTo(o2.getStrFld(indexField));
+              break;
+            case AttrType.attrInteger:
+              result = o1.getIntFld(indexField) - o2.getIntFld(indexField);
+              break;
+            case AttrType.attrReal:
+              float f = o1.getFloFld(indexField) - o2.getFloFld(indexField);
+              if(f>0) result = 1;
+              if(f<0) result = -1;
+              break;
+          }
+        } catch (IOException | FieldNumberOutOfBoundException e) {
+          e.printStackTrace();
+        }
+        return result * -1;
+      });
+      buffered = true;
+      bufferPosition = 0;
+      bufferSize = sortedBuffer.size();
+      return get_reversed_next();
     }
   }
 

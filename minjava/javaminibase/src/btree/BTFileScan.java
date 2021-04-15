@@ -7,7 +7,6 @@
 package btree;
 import java.io.*;
 import global.*;
-import heap.*;
 
 /**
  * BTFileScan implements a search/iterate interface to B+ tree
@@ -133,6 +132,51 @@ public class BTFileScan  extends IndexFileScan
     catch ( Exception e) {
          e.printStackTrace();
          throw new ScanIteratorException();
+    }
+  }
+
+  public KeyDataEntry get_prev_clustered_page()
+          throws ScanIteratorException {
+
+    KeyDataEntry entry;
+    PageId prevPage;
+    try {
+      if (leafPage == null)
+        return null;
+
+      if ((deletedcurrent && didfirst) || (!deletedcurrent && !didfirst)) {
+        didfirst = true;
+        deletedcurrent = false;
+        entry = leafPage.getCurrent(curRid);
+      } else {
+        entry = leafPage.getPrev(curRid);
+      }
+
+      while (entry == null) {
+        prevPage = leafPage.getPrevPage();
+        SystemDefs.JavabaseBM.unpinPage(leafPage.getCurPage(), true);
+        if (prevPage.pid == INVALID_PAGE) {
+          leafPage = null;
+          return null;
+        }
+
+        leafPage = new BTLeafPage(prevPage, keyType);
+
+        entry = leafPage.getLast(curRid);
+      }
+
+      if(endkey != null) {
+        if(BT.keyCompare(entry.key, endkey) < 0) {
+          SystemDefs.JavabaseBM.unpinPage(leafPage.getCurPage(), false);
+          leafPage = null;
+          return null;
+        }
+      }
+      return entry;
+    }
+    catch ( Exception e) {
+      e.printStackTrace();
+      throw new ScanIteratorException();
     }
   }
 
