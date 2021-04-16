@@ -9,6 +9,7 @@ import global.*;
 import heap.*;
 import index.IndexUtils;
 import iterator.*;
+import ui.Client;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -221,7 +222,7 @@ public class ClusteredBtreeIndex {
     tempScan.close();
   }
 
-  public int insert(Tuple tuple) throws Exception {
+  public RID insert(Tuple tuple) throws Exception {
 
     IndexFileScan indScan = IndexUtils.BTree_scan(getMatchCondition(tuple), bTreeFile);
     RID rid;
@@ -241,10 +242,10 @@ public class ClusteredBtreeIndex {
       pinPage(pid, page);
       HFPage curr_page = new HFPage(page);
       if (curr_page.available_space() >= recSize) {
-        relation.insertRecord(tuple.getTupleByteArray(), pid);
+        RID insertedRID = relation.insertRecord(tuple.getTupleByteArray(), pid);
         unpinPage(pid);
         ((BTFileScan) indScan).DestroyBTreeFileScan();
-        return 0;
+        return insertedRID;
       }
       lastEntry = nextEntry;
       fisrtEntry = false;
@@ -269,14 +270,14 @@ public class ClusteredBtreeIndex {
         bTreeFile.Delete(entry.key, rid);
         bTreeFile.insert(getKeyClass(tuple), newRid);
         unpinPage(pid);
-        return 0;
+        return newRid;
       }
       unpinPage(pid);
       //if last page is full, add a new page
       rid = relation.insertRecordOnNewPage(tuple.returnTupleByteArray());
       //add entry to btree
       bTreeFile.insert(getKeyClass(tuple), rid);
-      return 0;
+      return rid;
     }
 
     //if matching pages are full, split them
@@ -284,12 +285,12 @@ public class ClusteredBtreeIndex {
     return insert(tuple);
   }
 
-  public int delete(Tuple tuple) throws Exception {
+  public List<RID> delete(Tuple tuple) throws Exception {
     CondExpr[] equalitySearch = getMatchCondition(tuple);
     IndexFileScan indScan = IndexUtils.BTree_scan(equalitySearch, bTreeFile);
     RID rid;
     KeyDataEntry nextEntry;
-    int deleteCount = 0;
+    List<RID> deletedRIDs = new ArrayList<>();
 
     while (true) {
       nextEntry = ((BTFileScan) indScan).get_next_clustered_page();
@@ -317,7 +318,7 @@ public class ClusteredBtreeIndex {
             keyDeleted = true;
           }
           relation.deleteRecord(curr_page_RID);
-          deleteCount++;
+          deletedRIDs.add(curr_page_RID);
         } else {
           sortedBuffer.put(t, curr_page_RID);
         }
@@ -339,10 +340,12 @@ public class ClusteredBtreeIndex {
     }
     ((BTFileScan) indScan).DestroyBTreeFileScan();
 
-    return deleteCount;
+    return deletedRIDs;
   }
 
   private void splitDataPage(KeyDataEntry entry) throws Exception {
+    List<RID> oldRids = new ArrayList<>();
+    List<RID> newRids = new ArrayList<>();
     RID rid = ((LeafData) entry.data).getData();
     PageId pid = rid.pageNo;
     Page page = new Page();
@@ -381,8 +384,12 @@ public class ClusteredBtreeIndex {
       } else {
         newRid = relation.insertRecord(tupleToMove.getKey().returnTupleByteArray(), newPageid);
       }
+      oldRids.add(tupleToMove.getValue());
+      newRids.add(newRid);
     }
     bTreeFile.insert(getKeyClass(tupleToMove.getKey()), newRid);
+    //static function: to be implemented in ui/Client.java
+    Client.reIndex(relationName, oldRids, newRids);
   }
 
   private CondExpr[] getMatchCondition(Tuple tuple) throws FieldNumberOutOfBoundException, IOException {
