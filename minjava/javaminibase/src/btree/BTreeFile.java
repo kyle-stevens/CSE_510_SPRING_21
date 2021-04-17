@@ -61,6 +61,10 @@ public class BTreeFile extends IndexFile
   private  PageId  headerPageId;
   private String  dbname;  
   
+  public String getIndexFileName() {
+	  return dbname;
+  }
+  
   /**
    * Access method to data member.
    * @return  Return a BTreeHeaderPage object that is the header page
