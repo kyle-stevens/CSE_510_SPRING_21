@@ -11,6 +11,7 @@ public class UnclusteredLinearHash {
     private int hash2 = 8;
     private int current_tuples=0;
     private int tuple_threshold=0;
+    private int lower_threshold = 0;
     private String prefix= "unclst_buc_";
     public int splitPointer = 0;
     public int number_of_tuples_in_a_page = 0;
@@ -18,7 +19,7 @@ public class UnclusteredLinearHash {
     public int numBuckets=hash1;
     
     private AttrType[] _in;
-    private int indexField;
+    public int indexField;
     
     private String fileName;
 
@@ -144,24 +145,100 @@ public class UnclusteredLinearHash {
     }
     
     public void deleteFromIndex(Tuple t, RID rid) throws Exception{
-//    	t.setHdr(numberOfCols, _in, strSizes);
-//		t = new Tuple(t);
-//		t.setHdr(numberOfCols, _in, strSizes);
-//		int hash = calculateHashValueForTuple(t,false);
-//		if(hash<splitPointer) {
-//			hash = calculateHashValueForTuple(t, true);
-//		}
-//		String name = getHashBucketInnerHeapfileName(t, hash);
-//		RID rid1 = new RID();
-//		Heapfile hf = new Heapfile(name);
-//		Scan scan = new Scan(hf);
-//		while((t = scan.getNext(rid1))!=null) {
-//			if(rid.equals(ridFromTuple(t))) {
-//				scan.closescan();
-//				hf.deleteRecord(rid1);
-//				return;
-//			}
-//		}
+    	t.setHdr(numberOfCols, _in, strSizes);
+		t = new Tuple(t);
+		t.setHdr(numberOfCols, _in, strSizes);
+		int hash = calculateHashValueForTuple(t,false);
+		if(hash<splitPointer) {
+			hash = calculateHashValueForTuple(t, true);
+		}
+		Heapfile hf = new Heapfile(prefix+hash);
+		Scan scan = new Scan(hf);
+		Tuple t1 = null;
+		RID bucket_tuple_rid = new RID();
+		while((t1=scan.getNext(bucket_tuple_rid))!=null) {
+			t1.setHdr((short)keyFileAttr.length, keyFileAttr, keyFileStrLens);
+			if(TupleUtils.CompareTupleWithTuple(_in[indexField-1], t1, 1,t,indexField)==0) {
+				scan.closescan();
+				PageId curPagePID = new PageId(t1.getIntFld(2));
+				FIRST:for(;curPagePID.pid!=GlobalConst.INVALID_PAGE;) {
+					Page page = new Page();
+					pinPage(curPagePID, page, false);
+					HFPage curPage = new HFPage(page);
+					for(RID curRecord = curPage.firstRecord();
+							curRecord!=null;
+							curRecord=curPage.nextRecord(curRecord)) {
+						Tuple t2 = curPage.getRecord(curRecord);
+						if(rid.equals(ridFromTuple(t2))){
+							curPage.deleteRecord(curRecord);
+							if(curPage.empty()) {
+								PageId prev = curPage.getPrevPage();
+								PageId next = curPage.getNextPage();
+								unpinPage(curPagePID, true);
+								freePage(curPagePID);
+								if(prev.pid != GlobalConst.INVALID_PAGE) {
+									pinPage(prev, page, false);
+									curPage = new HFPage(page);
+									curPage.setNextPage(next);
+									unpinPage(prev, true);
+									if(next.pid!=GlobalConst.INVALID_PAGE) {
+										pinPage(next, page, false);
+										curPage = new HFPage(page);
+										curPage.setPrevPage(prev);
+										unpinPage(next, true);
+									}
+								}else {
+									if(next.pid!=GlobalConst.INVALID_PAGE) {
+										pinPage(next, page, false);
+										curPage = new HFPage(page);
+										curPage.setPrevPage(prev);
+										unpinPage(next, true);
+										t1.setIntFld(2, next.pid);
+										hf.updateRecord(bucket_tuple_rid, t1);
+									}else {
+										hf.deleteRecord(bucket_tuple_rid);
+										if(hf.isEmpty()) {
+											deleteFromDirectory(prefix+hash);
+										}
+									}
+								}
+								break FIRST;
+							}
+							unpinPage(curPagePID, true);
+							break FIRST;
+						}
+					}
+					unpinPage(curPagePID, false);
+					curPagePID = curPage.getNextPage();
+				}
+				break;
+			}
+		}
+		current_tuples--;
+		if(current_tuples==lower_threshold) {
+			decrementSplit();
+            Heapfile f = new Heapfile(prefix + splitPointer);
+            Heapfile sf = new Heapfile(null);
+            Scan bucketScan = new Scan(f);
+            t = null;
+            RID tmpRID = new RID();
+            while ((t = bucketScan.getNext(tmpRID)) != null) {
+                t.setHdr((short) 2, keyFileAttr, keyFileStrLens);
+                int newBucket = calculateHashValueFromHashTuple(t, false);
+                if (newBucket != splitPointer) {
+                    sf.insertRecord(tupleFromRid(tmpRID).getTupleByteArray());
+                    Heapfile newBF = new Heapfile(prefix + newBucket);
+                    if(newBF.isEmpty())setupDirectory(prefix+splitPointer);
+                    newBF.insertRecord(t1.getTupleByteArray());
+                }
+            }
+            bucketScan.closescan();
+            bucketScan = new Scan(sf);
+            while ((t1 = bucketScan.getNext(new RID())) != null) {
+                f.deleteRecord(ridFromTuple(t1));
+            }
+            sf.deleteFile();
+		}
     }
     
     private void setupDirectory(String name) throws Exception{
@@ -171,6 +248,20 @@ public class UnclusteredLinearHash {
    		t.setHdr((short)1, dir_f_Attr, dir_f_str_lens);
    		t.setStrFld(1, name);
    	    directory.insertRecord(t.getTupleByteArray());
+    }
+    
+    private void deleteFromDirectory(String name) throws Exception{
+    	Scan scan = new Scan(directory);
+    	Tuple t = null;
+    	RID rid = new RID();
+    	while((t = scan.getNext(rid))!=null) {
+       		t.setHdr((short)1, dir_f_Attr, dir_f_str_lens);
+       		if(t.getStrFld(1).equalsIgnoreCase(name)) {
+       			scan.closescan();
+       			directory.deleteRecord(rid);
+       			break;
+       		}
+    	}
     }
     
     public void insertInIndex(Tuple t, RID rid) throws Exception{
@@ -322,12 +413,29 @@ public class UnclusteredLinearHash {
             splitPointer=0;
         }
     }
+    
+    private void decrementSplit() {
+	 	if(splitPointer==0)return;
+    	splitPointer--;
+    	if(splitPointer==0) {
+    		hash2 = hash1;
+    		hash1 = hash2/2;
+    	}
+    	numBuckets--;
+        totalTuples = number_of_tuples_in_a_page*numBuckets;
+        tuple_threshold = (GlobalConst.MAX_PAGE_UTILIZATION*totalTuples)/100;
+        setLowThreshold();
+    }
 
     private void setTotalTuplesAndThreshold() {
         totalTuples = number_of_tuples_in_a_page*numBuckets;
         tuple_threshold = (GlobalConst.MAX_PAGE_UTILIZATION*totalTuples)/100;
         numBuckets++;
-
+        setLowThreshold();
+    }
+    
+    private void setLowThreshold() {
+    	lower_threshold = (GlobalConst.MIN_HASH_UTILIZATION*totalTuples)/100;
     }
 
     private int calculateHashValueForTuple(Tuple t,boolean reHash) throws Exception{
@@ -489,4 +597,14 @@ public class UnclusteredLinearHash {
 	    return tmpId;
 
 	  }
+	  
+	  private void freePage(PageId pageno) throws HFBufMgrException {
+
+			try {
+				SystemDefs.JavabaseBM.freePage(pageno);
+			} catch (Exception e) {
+				throw new HFBufMgrException(e, "Heapfile.java: freePage() failed");
+			}
+
+		} // end of freePage
 }
