@@ -190,6 +190,34 @@ public class UnclusteredHashIndexScan extends Iterator {
 		return null;
 	}
 	
+	public RID get_next(boolean indexOnly) throws Exception {
+		Tuple t = null;
+
+		if (curr_page != null) {
+			if (curr_page_RID != null) {
+				curr_page_RID = curr_page.nextRecord(curr_page_RID);
+			} else {
+				curr_page_RID = curr_page.firstRecord();
+			}
+			if (curr_page_RID == null) {
+				unpinPage(curr_page.getCurPage(), false);
+				PageId next_page = curr_page.getNextPage();
+				if (next_page.pid != GlobalConst.INVALID_PAGE) {
+					Page page = new Page();
+					pinPage(next_page, page, false);
+					curr_page = new HFPage(page);
+				} else {
+					curr_page = null;
+				}
+				return get_next(indexOnly);
+			}
+			t = curr_page.getRecord(curr_page_RID);
+			
+			return ridFromTuple(t);
+		} 
+		return null;
+	}
+
 	private RID ridFromTuple(Tuple t1) throws Exception {
 	    try {
 	      t1.setHdr((short) 2, _keyPageAttr, null);
