@@ -765,7 +765,8 @@ public class Client {
 					clh.splitPointer);
 		} else {
 			// create a clustered btree index and update all the catalogs.
-			new ClusteredBtreeIndex(fileName, filepath, indexFileName, attr_num);
+			ClusteredBtreeIndex cbi = new ClusteredBtreeIndex(fileName, filepath, indexFileName, attr_num);
+			cbi.close();
 			addIndexInfo(fileName, indexFileName, attr_num, IndexType.B_Index, true, 0, 0, 0);
 		}
 		System.out.println("Table with Index created Successfully");
@@ -983,6 +984,10 @@ public class Client {
 		for (UnclusteredLinearHash ulh : uclhs) {
 			updateUnclstHashIndexInfo(ulh,tableName);
 		}
+		bi.close();
+		for (BTreeFile btf : ubi) {
+			btf.close();
+		}
 		br.close();
 		sys.flushBuffer();
 		System.out.println("Table " + fileName + " updated Successfully.");
@@ -1169,6 +1174,7 @@ public class Client {
 					while((del_rid=iScan.getNext())!=null) {
 						deletedTuples.add(del_rid);
 					}
+					iScan.close();
 					break;
 				case IndexType.Hash:
 					UnclusteredHashIndexScan uhis = new UnclusteredHashIndexScan(getIndexFileName(unClusteredIndex), 
@@ -1215,6 +1221,7 @@ public class Client {
 					for(RID ridd:deletedTuples) {
 						ub.Delete(key, ridd);
 					}
+					ub.close();
 					break;
 				case IndexType.Hash:
 					UnclusteredLinearHash uclh = new UnclusteredLinearHash(getIndexFileName(indexInfo), indexInfo.getHash1(),
@@ -1229,6 +1236,7 @@ public class Client {
 			}
 			
 		}
+		bi.close();
 		updateClstHashIndexInfo(clhs, tableName);
 		System.out.println("Deleted successfully.");
 	}
@@ -1276,6 +1284,7 @@ public class Client {
 					ub.Delete(key, oldRid);
 					ub.insert(key, newRid);
 				}
+				ub.close();
 				break;
 			case IndexType.Hash:
 				UnclusteredLinearHash uclh = new UnclusteredLinearHash(getIndexFileName(iInfo), iInfo.getHash1(),
@@ -1365,11 +1374,13 @@ public class Client {
 				case 0:
 					BTreeFile btree = new BTreeFile(indexName);
 					BT.printAllLeafPages(btree.getHeaderPage());
+					btree.close();
 					break;
 				case 1:
 					ClusteredBtreeIndex clusteredBtreeIndex = new ClusteredBtreeIndex(tableName, indexName, attr_num,
 							in, strLens);
 					clusteredBtreeIndex.printCBtree();
+					clusteredBtreeIndex.close();
 					break;
 				}
 				break;
