@@ -286,7 +286,8 @@ public class IndexNestedLoopsJoin  extends Iterator
             //returned from t//he while loop. Hence, inner is 
             //exhausted, => set get_from_outer = TRUE, go to top of loop
 
-            get_from_outer = true; // Loop back to top and get next outer tuple.	      
+            get_from_outer = true; // Loop back to top and get next outer tuple.
+            inner.close();
         } while (true);
     }
 
@@ -413,7 +414,6 @@ public class IndexNestedLoopsJoin  extends Iterator
 
             try {
                 outer.close();
-                inner.close();
             }catch (Exception e) {
                 throw new JoinsException(e, "NestedLoopsJoin.java: error in closing iterator.");
             }
