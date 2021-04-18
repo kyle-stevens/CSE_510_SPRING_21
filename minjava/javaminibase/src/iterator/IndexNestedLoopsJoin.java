@@ -413,6 +413,7 @@ public class IndexNestedLoopsJoin  extends Iterator
 
             try {
                 outer.close();
+                inner.close();
             }catch (Exception e) {
                 throw new JoinsException(e, "NestedLoopsJoin.java: error in closing iterator.");
             }
