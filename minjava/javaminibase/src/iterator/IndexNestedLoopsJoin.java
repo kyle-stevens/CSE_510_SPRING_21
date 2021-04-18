@@ -272,9 +272,14 @@ public class IndexNestedLoopsJoin  extends Iterator
                         Projection.Join(outer_tuple, _in1,
                                 inner_tuple, _in2,
                                 Jtuple, perm_mat, nOutFlds);
+//                        System.out.println("Joined Tuple:");
+//                        Jtuple.print(Jtypes);
+//                        System.out.println("\n");
                         return Jtuple;
                     }
+//                    else System.out.println("Inner IF Failed");
                 }
+//                else System.out.println("Outer IF Failed");
             }
 
             // There has been no match. (otherwise, we would have 
@@ -285,16 +290,67 @@ public class IndexNestedLoopsJoin  extends Iterator
         } while (true);
     }
 
+    public void set_select_operand(Operand out_op, Operand inp_op, AttrType type){
+        switch (type.attrType){
+            case (AttrType.attrInteger):
+                out_op.integer = inp_op.integer;
+                break;
+            case (AttrType.attrReal):
+                out_op.real = inp_op.real;
+                break;
+            case (AttrType.attrString):
+                out_op.string = inp_op.string;
+                break;
+            case (AttrType.attrSymbol):
+                if (inp_op.symbol.relation.key == RelSpec.outer) {
+                    out_op.symbol = new FldSpec( new RelSpec(RelSpec.outer), inp_op.symbol.offset);
+                }
+                else if (inp_op.symbol.relation.key == RelSpec.innerRel) {
+                    out_op.symbol = new FldSpec( new RelSpec(RelSpec.innerRel), inp_op.symbol.offset);
+                }
+                break;
+            default:
+                System.err.println("INLJ - set_select_operand(): AttrType not supported");
+                break;
+        }
+
+    }
+
     public CondExpr[] get_index_scan_selects (CondExpr [] outputFilter, Tuple outer_tup) throws Exception
     {
         CondExpr [] ind_Scan_select = null;
-//        KeyClass key;
 
         if (outputFilter != null) {
             ind_Scan_select = new CondExpr[outputFilter.length];    // To be used for index scan
-            System.arraycopy(outputFilter,0,ind_Scan_select,0,outputFilter.length);
             int i = 0;
             CondExpr temp_ptr;
+            while(outputFilter[i] != null) {
+                temp_ptr = outputFilter[i];
+                while (temp_ptr != null) {
+                    ind_Scan_select[i] = new CondExpr();
+                    ind_Scan_select[i].type1 = new AttrType(temp_ptr.type1.attrType);
+                    set_select_operand(ind_Scan_select[i].operand1, temp_ptr.operand1, temp_ptr.type1);
+                    ind_Scan_select[i].type2 = new AttrType(temp_ptr.type2.attrType);
+                    set_select_operand(ind_Scan_select[i].operand2, temp_ptr.operand2, temp_ptr.type2);
+                    switch (temp_ptr.op.attrOperator) {
+                        case (AttrOperator.aopGT) -> ind_Scan_select[i].op = new AttrOperator(AttrOperator.aopLT);
+                        case (AttrOperator.aopGE) -> ind_Scan_select[i].op = new AttrOperator(AttrOperator.aopLE);
+                        case (AttrOperator.aopLT) -> ind_Scan_select[i].op = new AttrOperator(AttrOperator.aopGT);
+                        case (AttrOperator.aopLE) -> ind_Scan_select[i].op = new AttrOperator(AttrOperator.aopGE);
+                        default -> {
+                            System.out.println("Executing Default Operator assignment");
+                            ind_Scan_select[i].op = new AttrOperator(temp_ptr.op.attrOperator);
+                        }
+                    }
+                    ind_Scan_select[i].next = temp_ptr.next;
+
+                    temp_ptr = temp_ptr.next;
+                }
+                i++;
+            }
+            ind_Scan_select[i] = null;
+            i = 0;
+            temp_ptr = null;
 
             while (outputFilter[i] != null) {
                 temp_ptr = outputFilter[i];
