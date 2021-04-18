@@ -338,7 +338,7 @@ public class IndexNestedLoopsJoin  extends Iterator
                         case (AttrOperator.aopLT) -> ind_Scan_select[i].op = new AttrOperator(AttrOperator.aopGT);
                         case (AttrOperator.aopLE) -> ind_Scan_select[i].op = new AttrOperator(AttrOperator.aopGE);
                         default -> {
-                            System.out.println("Executing Default Operator assignment");
+//                            System.out.println("Executing Default Operator assignment");
                             ind_Scan_select[i].op = new AttrOperator(temp_ptr.op.attrOperator);
                         }
                     }
