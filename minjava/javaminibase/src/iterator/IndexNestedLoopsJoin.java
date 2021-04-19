@@ -291,113 +291,54 @@ public class IndexNestedLoopsJoin  extends Iterator
         } while (true);
     }
 
-    public void set_select_operand(Operand out_op, Operand inp_op, AttrType type){
-        switch (type.attrType){
-            case (AttrType.attrInteger):
-                out_op.integer = inp_op.integer;
-                break;
-            case (AttrType.attrReal):
-                out_op.real = inp_op.real;
-                break;
-            case (AttrType.attrString):
-                out_op.string = inp_op.string;
-                break;
-            case (AttrType.attrSymbol):
-                if (inp_op.symbol.relation.key == RelSpec.outer) {
-                    out_op.symbol = new FldSpec( new RelSpec(RelSpec.outer), inp_op.symbol.offset);
-                }
-                else if (inp_op.symbol.relation.key == RelSpec.innerRel) {
-                    out_op.symbol = new FldSpec( new RelSpec(RelSpec.innerRel), inp_op.symbol.offset);
-                }
-                break;
-            default:
-                System.err.println("INLJ - set_select_operand(): AttrType not supported");
-                break;
-        }
-
-    }
+//    public void set_select_operand(Operand out_op, Operand inp_op, AttrType type){
+//        switch (type.attrType){
+//            case (AttrType.attrInteger):
+//                out_op.integer = inp_op.integer;
+//                break;
+//            case (AttrType.attrReal):
+//                out_op.real = inp_op.real;
+//                break;
+//            case (AttrType.attrString):
+//                out_op.string = inp_op.string;
+//                break;
+//            case (AttrType.attrSymbol):
+//                if (inp_op.symbol.relation.key == RelSpec.outer) {
+//                    out_op.symbol = new FldSpec( new RelSpec(RelSpec.outer), inp_op.symbol.offset);
+//                }
+//                else if (inp_op.symbol.relation.key == RelSpec.innerRel) {
+//                    out_op.symbol = new FldSpec( new RelSpec(RelSpec.innerRel), inp_op.symbol.offset);
+//                }
+//                break;
+//            default:
+//                System.err.println("INLJ - set_select_operand(): AttrType not supported");
+//                break;
+//        }
+//
+//    }
 
     public CondExpr[] get_index_scan_selects (CondExpr [] outputFilter, Tuple outer_tup) throws Exception
     {
-        CondExpr [] ind_Scan_select = null;
-
-        if (outputFilter != null) {
-            ind_Scan_select = new CondExpr[outputFilter.length];    // To be used for index scan
-            int i = 0;
-            CondExpr temp_ptr;
-            while(outputFilter[i] != null) {
-                temp_ptr = outputFilter[i];
-                while (temp_ptr != null) {
-                    ind_Scan_select[i] = new CondExpr();
-                    ind_Scan_select[i].type1 = new AttrType(temp_ptr.type1.attrType);
-                    set_select_operand(ind_Scan_select[i].operand1, temp_ptr.operand1, temp_ptr.type1);
-                    ind_Scan_select[i].type2 = new AttrType(temp_ptr.type2.attrType);
-                    set_select_operand(ind_Scan_select[i].operand2, temp_ptr.operand2, temp_ptr.type2);
-                    switch (temp_ptr.op.attrOperator) {
-                        case (AttrOperator.aopGT) -> ind_Scan_select[i].op = new AttrOperator(AttrOperator.aopLT);
-                        case (AttrOperator.aopGE) -> ind_Scan_select[i].op = new AttrOperator(AttrOperator.aopLE);
-                        case (AttrOperator.aopLT) -> ind_Scan_select[i].op = new AttrOperator(AttrOperator.aopGT);
-                        case (AttrOperator.aopLE) -> ind_Scan_select[i].op = new AttrOperator(AttrOperator.aopGE);
-                        default -> {
-//                            System.out.println("Executing Default Operator assignment");
-                            ind_Scan_select[i].op = new AttrOperator(temp_ptr.op.attrOperator);
-                        }
-                    }
-                    ind_Scan_select[i].next = temp_ptr.next;
-
-                    temp_ptr = temp_ptr.next;
-                }
-                i++;
-            }
-            ind_Scan_select[i] = null;
-            i = 0;
-            temp_ptr = null;
-
-            while (outputFilter[i] != null) {
-                temp_ptr = outputFilter[i];
-
-                while (temp_ptr != null) {
-                    int fld_num = temp_ptr.operand1.symbol.offset;
-                    if (temp_ptr.operand1.symbol.relation.key == RelSpec.outer) {
-//                        System.out.println("\nfld_num: " + 0 + ", AttrType: " + _in1[0].attrType + "\n");
-                        switch (_in1[fld_num-1].attrType) {
-                            case AttrType.attrInteger:                // Get and set integer value.
-                                try {
-//                                    key = new IntegerKey(outer_tup.getIntFld(fld_num));
-                                    int t_i = outer_tup.getIntFld(fld_num);
-                                    ind_Scan_select[i].type1 = new AttrType(AttrType.attrInteger);
-                                    ind_Scan_select[i].operand1.integer = t_i;
-                                } catch (FieldNumberOutOfBoundException e) {
-                                    throw new TupleUtilsException(e, "FieldNumberOutOfBoundException is caught by IndexNestedLoopsJoin.java");
-                                }
-                                break;
-                            case AttrType.attrReal:                // Get and set float value.
-                                try {
-                                    float t_r = outer_tuple.getFloFld(fld_num);
-                                    ind_Scan_select[i].type1 = new AttrType(AttrType.attrReal);
-                                    ind_Scan_select[i].operand1.real = t_r;
-                                } catch (FieldNumberOutOfBoundException e) {
-                                    throw new TupleUtilsException(e, "FieldNumberOutOfBoundException is caught by IndexNestedLoopsJoin.java");
-                                }
-                                break;
-                            case AttrType.attrString:                // Get and set String value.
-                                try {
-                                    String t_s = outer_tuple.getStrFld(fld_num);
-                                    ind_Scan_select[i].type1 = new AttrType(AttrType.attrString);
-                                    ind_Scan_select[i].operand1.string = t_s;
-                                } catch (FieldNumberOutOfBoundException e) {
-                                    throw new TupleUtilsException(e, "FieldNumberOutOfBoundException is caught by IndexNestedLoopsJoin.java");
-                                }
-                                break;
-                            default:
-                                throw new UnknowAttrType(null, "Don't know how to handle attrSymbol, attrNull");
-                        }
-                    }
-                    temp_ptr = temp_ptr.next;
-                }
-                i++;
-            }
+        CondExpr [] ind_Scan_select = new CondExpr[2];
+        ind_Scan_select[0] = new CondExpr();
+        ind_Scan_select[0].op = outputFilter[0].op;
+        ind_Scan_select[0].operand1.symbol = new FldSpec(new RelSpec(RelSpec.outer), outputFilter[0].operand2.symbol.offset);
+        ind_Scan_select[0].type1 = new AttrType(AttrType.attrSymbol);
+        switch(_in1[outputFilter[0].operand1.symbol.offset-1].attrType) {
+        case AttrType.attrInteger:
+        	ind_Scan_select[0].type2 = new AttrType(AttrType.attrInteger);
+            ind_Scan_select[0].operand2.integer = outer_tup.getIntFld(outputFilter[0].operand1.symbol.offset);
+            break;
+        case AttrType.attrReal:
+        	ind_Scan_select[0].type2 = new AttrType(AttrType.attrReal);
+            ind_Scan_select[0].operand2.real = outer_tup.getFloFld(outputFilter[0].operand1.symbol.offset);
+        	break;
+        case AttrType.attrString:
+        	ind_Scan_select[0].type2 = new AttrType(AttrType.attrString);
+            ind_Scan_select[0].operand2.string = outer_tup.getStrFld(outputFilter[0].operand1.symbol.offset);
+        	break;
         }
+        
         return ind_Scan_select;
     }
 

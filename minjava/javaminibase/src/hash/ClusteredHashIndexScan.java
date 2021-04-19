@@ -142,7 +142,6 @@ public class ClusteredHashIndexScan extends Iterator{
 			t.setHdr((short)_in.length, _in, _sSizes);
 			t = new Tuple(t);
 			t.setHdr((short)_in.length, _in, _sSizes);
-//			System.out.println(curr_page_RID.pageNo.pid);
 			return t;
 		}else if(currBucketScan!=null){
 			t = currBucketScan.getNext(new RID());

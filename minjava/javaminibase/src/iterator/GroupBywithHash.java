@@ -1,13 +1,19 @@
 package iterator;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 
 import global.AggType;
 import global.AttrType;
 import hash.ClusteredHashIndexScan;
 import hash.UnclusteredHashIndexScan;
+import heap.FileAlreadyDeletedException;
+import heap.HFBufMgrException;
+import heap.HFDiskMgrException;
 import heap.Heapfile;
+import heap.InvalidSlotNumberException;
+import heap.InvalidTupleSizeException;
 import heap.Tuple;
 import index.IndexException;
 
@@ -50,13 +56,36 @@ public class GroupBywithHash extends Iterator{
 		for (int i = 0; i < len_in1; i++) {
 		     projection[i] = new FldSpec(new RelSpec(RelSpec.outer), i + 1);
 		}
-		if (clustered)
+		if (clustered) {
+			if(_agg_type.agg_type==AggType.aggSky) {
+				if(n_pages<10) {
+					throw new Exception("Not enough pages to run groupby operator");
+				}
+				blns_pages = n_pages/2;
+			}else {
+				if(n_pages<3) {
+					throw new Exception("Not enough pages to run groupby operator");
+				}
+			}
 			scan = new ClusteredHashIndexScan(indexFileName, _in1, t1_str_sizes, group_by_attr);
+		}
 		else {
+			if(_agg_type.agg_type==AggType.aggSky) {
+				if(n_pages<11) {
+					throw new Exception("Not enough pages to run groupby operator");
+				}
+				blns_pages = (n_pages-1)/2;
+			}else {
+				if(n_pages<3) {
+					throw new Exception("Not enough pages to run groupby operator");
+				}
+			}
 			scan = new UnclusteredHashIndexScan(indexFileName, _in1, t1_str_sizes, group_by_attr, relationName, false);
 		}
 	}
 
+	private int blns_pages;
+	
 	@Override
 	public Tuple get_next() throws Exception {
 		
@@ -292,7 +321,7 @@ public class GroupBywithHash extends Iterator{
 	
 	private Iterator sky2 = null;
 	private Tuple skyNextTuple = null;
-	
+	ArrayList<Heapfile> tmp_files = new ArrayList<>();
 	public Tuple getSky() throws Exception{
 		Tuple t = null;
 		if(sky2!=null && (t=sky2.get_next())!=null) {
@@ -308,6 +337,7 @@ public class GroupBywithHash extends Iterator{
 		}
 		curr_tuple = skyNextTuple;
 		Heapfile hf = new Heapfile(null);
+		tmp_files.add(hf);
 		if(curr_tuple==null) {
 			curr_tuple = scan.get_next();
 			if(curr_tuple!=null)
@@ -329,7 +359,7 @@ public class GroupBywithHash extends Iterator{
 				setHdr(nextTuple);
 			}
 			sky2 = new BlockNestedLoopSky(_in1, _in1.length, t1_str_sizes,
-		               null, hf.getName(), agg_list, agg_list.length, 25);
+		               null, hf.getName(), agg_list, agg_list.length, blns_pages);
 			skyNextTuple = nextTuple;
 			return getSky();
 		}
@@ -340,6 +370,14 @@ public class GroupBywithHash extends Iterator{
 	public void close() throws IOException, JoinsException, SortException, IndexException {
 		if(scan!=null) {
 			scan.close();
+		}
+		for(Heapfile hf:tmp_files) {
+			try {
+				hf.deleteFile();
+			} catch (InvalidSlotNumberException | FileAlreadyDeletedException | InvalidTupleSizeException
+					| HFBufMgrException | HFDiskMgrException | IOException e) {
+				
+			}
 		}
 	}
 	
