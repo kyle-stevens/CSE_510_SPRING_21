@@ -220,6 +220,8 @@ public class ClusteredBtreeIndex {
     }
     sort.close();
     tempScan.close();
+    Heapfile temp = new Heapfile(tempFileName);
+    temp.deleteFile();
   }
 
   public RID insert(Tuple tuple) throws Exception {
