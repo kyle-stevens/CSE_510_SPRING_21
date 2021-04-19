@@ -1,17 +1,21 @@
 package iterator;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 
 import global.AggType;
 import global.AttrType;
-import global.IndexType;
 import global.TupleOrder;
+import heap.FileAlreadyDeletedException;
+import heap.HFBufMgrException;
+import heap.HFDiskMgrException;
 import heap.Heapfile;
+import heap.InvalidSlotNumberException;
+import heap.InvalidTupleSizeException;
 import heap.Tuple;
 import index.ClusteredBtreeIndexScan;
 import index.IndexException;
-import index.IndexScan;
 
 public class GroupBywithSort extends Iterator{
 
@@ -55,6 +59,12 @@ public class GroupBywithSort extends Iterator{
 		     projection[i] = new FldSpec(new RelSpec(RelSpec.outer), i + 1);
 		}
 		if(indexExists) {
+			if(_agg_type.agg_type==AggType.aggSky) {
+				if(n_pages<10) {
+					throw new Exception("Not enough pages to run groupby operator");
+				}
+				bnls_pages = n_pages/2;
+			}
 			scan = new ClusteredBtreeIndexScan(indexFileName, in1,
 		              t1_str_sizes, null, group_by_attr, false);
 		}else{
@@ -63,10 +73,20 @@ public class GroupBywithSort extends Iterator{
 			if(in1[group_by_attr-1].attrType==AttrType.attrString) {
 				size = t1_str_sizes[0];
 			}
-			scan = new Sort(in1, (short)len_in1, t1_str_sizes, am, group_by_attr, new TupleOrder(TupleOrder.Ascending), size , 40);
+			int pages = n_pages;
+			if(_agg_type.agg_type==AggType.aggSky) {
+				if(n_pages<11) {
+					am.close();
+					throw new Exception("Not enough pages to run groupby operator");
+				}
+				bnls_pages = n_pages/2;
+				pages = n_pages-bnls_pages;
+			}
+			scan = new Sort(in1, (short)len_in1, t1_str_sizes, am, group_by_attr, new TupleOrder(TupleOrder.Ascending), size ,pages);
 	}
 	}
 
+	private int bnls_pages;
 	@Override
 	public Tuple get_next() throws Exception {
 		
@@ -304,6 +324,8 @@ public class GroupBywithSort extends Iterator{
 	private Iterator sky2 = null;
 	private Tuple skyNextTuple = null;
 	
+	ArrayList<Heapfile> tmp_files = new ArrayList<>();
+	
 	public Tuple getSky() throws Exception{
 		Tuple t = null;
 		if(sky2!=null && (t=sky2.get_next())!=null) {
@@ -318,6 +340,7 @@ public class GroupBywithSort extends Iterator{
 		}
 		curr_tuple = skyNextTuple;
 		Heapfile hf = new Heapfile(null);
+		tmp_files.add(hf);
 		if(curr_tuple==null) {
 			curr_tuple = scan.get_next();
 			if(curr_tuple!=null)
@@ -339,7 +362,7 @@ public class GroupBywithSort extends Iterator{
 				setHdr(nextTuple);
 			}
 			sky2 = new BlockNestedLoopSky(_in1, _in1.length, t1_str_sizes,
-		               null, hf.getName(), agg_list, agg_list.length, 5);
+		               null, hf.getName(), agg_list, agg_list.length, bnls_pages);
 			skyNextTuple = nextTuple;
 			return getSky();
 		}
@@ -348,9 +371,16 @@ public class GroupBywithSort extends Iterator{
 
 	@Override
 	public void close() throws IOException, JoinsException, SortException, IndexException {
-		// TODO Auto-generated method stub
 		if(scan!=null) {
 			scan.close();
+		}
+		for(Heapfile hf:tmp_files) {
+			try {
+				hf.deleteFile();
+			} catch (InvalidSlotNumberException | FileAlreadyDeletedException | InvalidTupleSizeException
+					| HFBufMgrException | HFDiskMgrException | IOException e) {
+				e.printStackTrace();
+			}
 		}
 	}
 	
