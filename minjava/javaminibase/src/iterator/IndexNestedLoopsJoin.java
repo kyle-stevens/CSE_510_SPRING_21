@@ -91,7 +91,14 @@ public class IndexNestedLoopsJoin  extends Iterator
                              CondExpr rightFilter[],
                              FldSpec   proj_list[],
                              int        n_out_flds
-    ) throws IOException, NestedLoopException, UnknownIndexTypeException, InvalidTypeException, IndexException, InvalidTupleSizeException, KeyNotMatchException, IteratorException, PinPageException, ConstructPageException, UnknownKeyTypeException, UnpinPageException, InvalidSelectionException {
+    ) throws IOException, NestedLoopException, UnknownIndexTypeException, InvalidTypeException, IndexException, InvalidTupleSizeException, KeyNotMatchException, IteratorException, PinPageException, ConstructPageException, UnknownKeyTypeException, UnpinPageException, InvalidSelectionException, Exception {
+
+        if (amt_of_mem < 7) {
+            // Dominant case of Unclustered Hash Index with
+            // minimum 7 page overall requirement is considered as limiting factor
+            throw new Exception("Not enough Buffer pages. " +
+                    "\n Minimum required: 7 \t Available: " + amt_of_mem);
+        }
 
         _in1 = new AttrType[in1.length];
         _in2 = new AttrType[in2.length];
@@ -135,11 +142,6 @@ public class IndexNestedLoopsJoin  extends Iterator
         }catch (TupleUtilsException e){
             throw new NestedLoopException(e,"TupleUtilsException is caught by IndexNestedLoopsJoin.java");
         }
-
-        // Prepare Select condition for index_scan from OutputFilter
-        // In Select CondExpr obj,
-        // typeX will be attrSymbol (Inner) and typeY will be a value (Outer)
-        // ?typeY must be retrieved from outer relation using operand.symbol.offset values of OutputFilter condition?
     }
 
     /**
@@ -173,8 +175,6 @@ public class IndexNestedLoopsJoin  extends Iterator
             UnknownKeyTypeException,
             Exception
     {
-        // This is a DUMBEST form of a join, not making use of any key information...
-
 
         if (done)
             return null;
@@ -209,87 +209,86 @@ public class IndexNestedLoopsJoin  extends Iterator
             }  // ENDS: if (get_from_outer == TRUE)
 
 
-            // The next step is to get a tuple from the inner,
-            // while the inner is not completely scanned && there
-            // is no match (with pred),get a tuple from the inner.
-
             // Get the value of outer tuple field in the select condition
             // to be passed for Index Scan of inner relation
             // Prepare Select condition for Index_Scan with the retrieved value
             outer_tuple.setHdr((short)_in1.length, _in1, t1_str_sizes);
             CondExpr [] scan_selects = get_index_scan_selects(OutputFilter, outer_tuple);
 
-//            if (scan_selects != null) System.out.println("Scan_selects length: " + scan_selects.length);
-
             Rprojection = new FldSpec[in2_len];
 
             for (int i = 0; i < in2_len; i++) {
+                // projection for inner relation fields
                 Rprojection[i] = new FldSpec(new RelSpec(RelSpec.outer), i + 1);
             }
 
             if (inner == null) {
-                switch (Index_type){
+                switch (Index_type) {
                     case (IndexType.B_Index):
-                        if (is_clustered){
-//                            System.out.println("INLJ.get_next() - Calling Clustered Btree Index Scan");
+                        if (is_clustered) {
+                            // Clustered BTree Index
                             inner = new ClusteredBtreeIndexScan(Index_name, this._in2, t2_str_sizescopy, scan_selects, inner_field_num, false);
-                        }
-                        else {
-//                            System.out.println("INLJ.get_next() - Calling Unclustered Btree Index Scan");
+                        } else {
+                            // Un-Clustered BTree Index
                             inner = new IndexScan(new IndexType(IndexType.B_Index), Inner_relation_name, Index_name, this._in2, t2_str_sizescopy, in2_len,
                                     in2_len, Rprojection, scan_selects, inner_field_num, false);
                         }
                         break;
                     case (IndexType.Hash):
-                        if (is_clustered){
-//                            System.out.println("INLJ.get_next() - Calling Clustered Hash Index Scan");
+                        if (is_clustered) {
+                            // Clustered Hash Index
                             inner = new ClusteredHashIndexScan(Index_name, Inner_relation_name, this._in2, t2_str_sizescopy, inner_field_num, outer_field_num, outer_tuple, hash, split_pointer);
-                        }
-                        else {
-//                            System.out.println("INLJ.get_next() - Calling Unclustered Hash Index Scan");
-                        	inner = new UnclusteredHashIndexScan(Index_name, this._in2, t2_str_sizescopy, inner_field_num, Inner_relation_name, outer_field_num, outer_tuple, hash, split_pointer);
+                        } else {
+                            // Un-Clustered Hash Index
+                            inner = new UnclusteredHashIndexScan(Index_name, this._in2, t2_str_sizescopy, inner_field_num, Inner_relation_name, outer_field_num, outer_tuple, hash, split_pointer);
                         }
                         break;
                     default:
                         break;
                 }
-//                System.out.println("Opening Scan on B_Tree INDEX");
             }
 
-            RID rid = new RID();
-            while ((inner_tuple = inner.get_next()) != null)
-            {
-                inner_tuple.setHdr((short)in2_len, _in2,t2_str_sizescopy);
-//                System.out.println("Inner Tuple:");
-//                inner_tuple.print(_in2);
-//                System.out.println("\n");
-                if (PredEval.Eval(RightFilter, inner_tuple, null, _in2, null) == true)
-                {
-                    if (PredEval.Eval(OutputFilter, outer_tuple, inner_tuple, _in1, _in2) == true)
-                    {
-                        // Apply a projection on the outer and inner tuples.
-                        Projection.Join(outer_tuple, _in1,
-                                inner_tuple, _in2,
-                                Jtuple, perm_mat, nOutFlds);
-//                        System.out.println("Joined Tuple:");
-//                        Jtuple.print(Jtypes);
-//                        System.out.println("\n");
-                        return Jtuple;
+            try {
+                RID rid = new RID();
+                // For every outer rel tuple, get the list of all inner rel
+                // tuples through get_next() of appropriate index scan to be joined together
+                while ((inner_tuple = inner.get_next()) != null) {
+                    inner_tuple.setHdr((short) in2_len, _in2, t2_str_sizescopy);
+                    if (PredEval.Eval(RightFilter, inner_tuple, null, _in2, null) == true) {
+                        if (PredEval.Eval(OutputFilter, outer_tuple, inner_tuple, _in1, _in2) == true) {
+                            // Apply a projection on the outer and inner tuples.
+                            Projection.Join(outer_tuple, _in1,
+                                    inner_tuple, _in2,
+                                    Jtuple, perm_mat, nOutFlds);
+                            return Jtuple;
+                        }
                     }
-//                    else System.out.println("Inner IF Failed");
                 }
-//                else System.out.println("Outer IF Failed");
+            }
+            catch (Exception e){
+                System.err.println("Exception caught while scanning inner relation and joining");
+                e.printStackTrace();
+                return null;
+            }
+            finally {
+                if (inner!=null)
+                    inner.close();
             }
 
             // There has been no match. (otherwise, we would have 
-            //returned from t//he while loop. Hence, inner is 
+            //returned from the while loop. Hence, inner is
             //exhausted, => set get_from_outer = TRUE, go to top of loop
 
             get_from_outer = true; // Loop back to top and get next outer tuple.
-            inner.close();
         } while (true);
     }
 
+    /***
+    Used to set the operand of passed select (CondExpr) Expression based on the other object
+     @param out_op Select exp to be copied from
+     @param inp_op Select exp to copy to
+     @param type type of the operand
+     ***/
     public void set_select_operand(Operand out_op, Operand inp_op, AttrType type){
         switch (type.attrType){
             case (AttrType.attrInteger):
@@ -316,6 +315,11 @@ public class IndexNestedLoopsJoin  extends Iterator
 
     }
 
+    /***
+     Used to set the outer rel tuple join attribute value on select (CondExpr) Expression for IndexScan call
+     @param outputFilter Select exp to be referred
+     @param outer_tup Tuple to get the value from
+     ***/
     public CondExpr[] get_index_scan_selects (CondExpr [] outputFilter, Tuple outer_tup) throws Exception
     {
         CondExpr [] ind_Scan_select = null;
@@ -346,7 +350,6 @@ public class IndexNestedLoopsJoin  extends Iterator
                             ind_Scan_select[i].op = new AttrOperator(AttrOperator.aopGE);
                             break;
                         default :
-//                            System.out.println("Executing Default Operator assignment");
                             ind_Scan_select[i].op = new AttrOperator(temp_ptr.op.attrOperator);
                             break;
                     }
@@ -366,11 +369,9 @@ public class IndexNestedLoopsJoin  extends Iterator
                 while (temp_ptr != null) {
                     int fld_num = temp_ptr.operand1.symbol.offset;
                     if (temp_ptr.operand1.symbol.relation.key == RelSpec.outer) {
-//                        System.out.println("\nfld_num: " + 0 + ", AttrType: " + _in1[0].attrType + "\n");
                         switch (_in1[fld_num-1].attrType) {
                             case AttrType.attrInteger:                // Get and set integer value.
                                 try {
-//                                    key = new IntegerKey(outer_tup.getIntFld(fld_num));
                                     int t_i = outer_tup.getIntFld(fld_num);
                                     ind_Scan_select[i].type1 = new AttrType(AttrType.attrInteger);
                                     ind_Scan_select[i].operand1.integer = t_i;
