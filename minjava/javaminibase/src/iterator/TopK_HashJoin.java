@@ -63,8 +63,8 @@ public class TopK_HashJoin  extends Iterator{
 		CondExpr[] outFilter = new CondExpr[2];
 
 		outFilter[0] = new CondExpr();
-		outFilter[0].next  = null;
-		outFilter[0].op    = new AttrOperator(AttrOperator.aopEQ);	
+		outFilter[0].next = null;
+		outFilter[0].op  = new AttrOperator(AttrOperator.aopEQ);	
 		
 		outFilter[1] = null;
 		

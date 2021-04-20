@@ -63,13 +63,7 @@ import iterator.TupleUtils;
 
 public class Client {
 
-	static final String relationName = "data";
 	public static boolean flag = false;
-//	static int n_pages;
-//	static int[] pref_list;
-//	static int pref_list_length;
-//	static AttrType[] _in;
-//	static FldSpec[] projection;
 	static SystemDefs sys;
 
 	static AttrType[] rel_attrs;
@@ -676,7 +670,58 @@ public class Client {
 
 	private static void computeSkyline(String type, String pref_list, String relationName, int n_pages,
 			String outputRelation) {
-
+		try {
+			getRelationAttrInfo(relationName);
+		} catch (Exception e1) {
+			System.out.println("Relation does not exist");
+			return;
+		}
+		AttrType[] in = curr_in.clone();
+		short[] sSizes = curr_str_lens.clone();
+		String[] attr_names = curr_attr_names.clone();
+		String str[] = pref_list.split(",");
+		int pref_list_length=str.length;
+		int[] attr_list = new int[pref_list_length];
+		int i = 0;
+		for (String st : str) {
+			attr_list[i++] = Integer.parseInt(st);
+		}
+		FldSpec[] projection = new FldSpec[in.length];
+		for(i=0;i<in.length;i++) {
+			projection[i] = new FldSpec(new RelSpec(RelSpec.outer),i+1);
+		}
+		
+		if(type.equalsIgnoreCase("NLS")) {
+			try {
+				performNestedLoopsSky(in, sSizes, projection, attr_list, pref_list_length, relationName, n_pages,outputRelation,attr_names);
+			} catch (IndexException | IOException e) {
+				e.printStackTrace();
+			}
+		}else if(type.equalsIgnoreCase("BNLS")) {
+			performBlockNestedSky(in, sSizes, projection, attr_list, pref_list_length, relationName, n_pages,outputRelation,attr_names);
+			
+		}else if(type.equalsIgnoreCase("SFS")) {
+			try {
+				performSortedSky(in, sSizes, projection, attr_list, pref_list_length, relationName, n_pages,outputRelation,attr_names);
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+			
+		}else if(type.equalsIgnoreCase("BS")) {
+			try {
+				performBtreeSky(in, sSizes, projection, attr_list, pref_list_length, relationName, n_pages,outputRelation,attr_names);
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+			
+		}else if(type.equalsIgnoreCase("BSS")) {
+			try {
+				performBtreeSortedSky(in, sSizes, projection, attr_list, pref_list_length, relationName, n_pages,outputRelation,attr_names);
+			} catch (Exception e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
 	}
 
 	private static void createTable(String fileName) throws Exception {
@@ -1790,19 +1835,27 @@ public class Client {
 	}
 
 	// Print Skyline tuples
-	static void printTuple(int tuple_count, Tuple t) throws Exception {
+	static void printTuple(int tuple_count, AttrType[] in, Tuple t) throws Exception {
 		System.out.println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
 		System.out.println("Skyline tuple # " + tuple_count);
 		System.out.println("-----------------------------------");
-//		t.print(_in);
+		t.print(in);
 		System.out.println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
 	}
 
 	// Start NestedLoopsSky
 	static void performNestedLoopsSky(AttrType[] in, short[] Ssizes, FldSpec[] projection, int[] pref_list,
-			int pref_list_length, String relationName, int n_pages) throws IndexException, IOException {
+			int pref_list_length, String relationName, int n_pages, String outputRelation, String[] attr_names) throws IndexException, IOException {
 		// For scanning outer loop
 		sys.flushBuffer();
+
+		PageId[] pageIds = new PageId[GlobalConst.NUMBUF - n_pages];
+		try {
+			get_buffer_pages(pageIds.length, pageIds);
+		} catch (Exception e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}
 		PCounter.initialize();
 		FileScan nlScan = null;
 		try {
@@ -1821,29 +1874,49 @@ public class Client {
 			// Print skyline tuples
 			Tuple nestedLoopSkyline;
 			int tuple_count = 1;
+			Heapfile ohf = null;
+			if(!outputRelation.isEmpty()) {
+				addRelationAttrInfo(outputRelation, attr_names, in, Ssizes);
+				ohf = new Heapfile(outputRelation);
+			}
 			while ((nestedLoopSkyline = nlSky.get_next()) != null) {
-				printTuple(tuple_count, nestedLoopSkyline);
+				printTuple(tuple_count,in, nestedLoopSkyline);
+				if(ohf!=null) {
+					ohf.insertRecord(nestedLoopSkyline.getTupleByteArray());
+				}
 				tuple_count++;
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
 		} finally {
+			// Print the read / write count on disk
+			printDiskAccesses();
 			if (nlScan != null)
 				nlScan.close();
 			if (nlSky != null)
 				nlSky.close();
+			try {
+				free_buffer_pages(pageIds.length, pageIds);
+			} catch (Exception e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 		}
-		// Print the read / write count on disk
-		printDiskAccesses();
 	}
 
 	// Start BlockNestedLoopSky
 	static void performBlockNestedSky(AttrType[] in, short[] Ssizes, FldSpec[] projection, int[] pref_list,
-			int pref_list_length, String relationName, int n_pages) {
+			int pref_list_length, String relationName, int n_pages, String outputRelation, String[] attr_names) {
 		FileScan am2 = null;
 		BlockNestedLoopSky sky2 = null;
 		sys.flushBuffer();
 
+		PageId[] pageIds = new PageId[GlobalConst.NUMBUF - n_pages];
+		try {
+			get_buffer_pages(pageIds.length, pageIds);
+		} catch (Exception e1) {
+			e1.printStackTrace();
+		}
 		PCounter.initialize();
 		try {
 			// flag = true;
@@ -1859,8 +1932,16 @@ public class Client {
 			Tuple t1 = null;
 			int tuple_count = 1;
 			try {
+				Heapfile ohf = null;
+				if(!outputRelation.isEmpty()) {
+					addRelationAttrInfo(outputRelation, attr_names, in, Ssizes);
+					ohf = new Heapfile(outputRelation);
+				}
 				while ((t1 = sky2.get_next()) != null) {
-					printTuple(tuple_count, t1);
+					printTuple(tuple_count,in, t1);
+					if(ohf!=null) {
+						ohf.insertRecord(t1.getTupleByteArray());
+					}
 					tuple_count++;
 				}
 			} catch (Exception e) {
@@ -1870,14 +1951,21 @@ public class Client {
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
+		}finally {
+			printDiskAccesses();
+			try {
+				free_buffer_pages(pageIds.length, pageIds);
+			} catch (Exception e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 		}
 		// Print the read / write count on disk
-		printDiskAccesses();
 	}
 
 	// Start BtreeSortedSky
 	static void performBtreeSortedSky(AttrType[] in, short[] Ssizes, FldSpec[] projection, int[] pref_list,
-			int pref_list_length, String relationName, int n_pages) throws Exception {
+			int pref_list_length, String relationName, int n_pages, String outputRelation, String[] attr_names) throws Exception {
 
 		if (sys.getUnpinCount() < 6)
 			throw new Exception("Not enough pages to create index");
@@ -1943,30 +2031,49 @@ public class Client {
 		scan.closescan();
 		sys.flushBuffer();
 
+		PageId[] pageIds = new PageId[GlobalConst.NUMBUF - n_pages];
+		get_buffer_pages(pageIds.length, pageIds);
+
 		PCounter.initialize();
 		Iterator sc = new BTreeSortedSky(in, (short) in.length, Ssizes, null, relationName, pref_list, pref_list_length,
 				"BTreeIndex", n_pages);
 		Tuple t1 = null;
 		int tuple_count = 1;
 		try {
+			Heapfile ohf = null;
+			if(!outputRelation.isEmpty()) {
+				addRelationAttrInfo(outputRelation, attr_names, in, Ssizes);
+				ohf = new Heapfile(outputRelation);
+			}
 			while ((t1 = sc.get_next()) != null) {
-				printTuple(tuple_count, t1);
+				printTuple(tuple_count,in, t1);
+				if(ohf!=null) {
+					ohf.insertRecord(t1.getTupleByteArray());
+				}
 				tuple_count++;
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
 		} finally {
+			printDiskAccesses();
 			sc.close();
+			if(btf!=null) {
+				System.out.println("File deleted");
+				btf.destroyFile();
+				SystemDefs.JavabaseDB.delete_file_entry("BTreeIndex");
+			}
+			free_buffer_pages(pageIds.length, pageIds);
 		}
 		// Print the read / write count on disk
-		printDiskAccesses();
 	}
 
 	// Start SortFistSky
 	static void performSortedSky(AttrType[] in, short[] Ssizes, FldSpec[] projection, int[] pref_list,
-			int pref_list_length, String relationName, int n_pages) throws Exception {
+			int pref_list_length, String relationName, int n_pages, String outputRelation, String[] attr_names) throws Exception {
 		sys.flushBuffer();
 
+		PageId[] pageIds = new PageId[GlobalConst.NUMBUF - n_pages];
+		get_buffer_pages(pageIds.length, pageIds);
 		PCounter.initialize();
 
 		Iterator am1 = new FileScan(relationName, in, Ssizes, (short) in.length, in.length, projection, null);
@@ -1983,22 +2090,31 @@ public class Client {
 		Tuple t1 = null;
 		int tuple_count = 1;
 		try {
+			Heapfile ohf = null;
+			if(!outputRelation.isEmpty()) {
+				addRelationAttrInfo(outputRelation, attr_names, in, Ssizes);
+				ohf = new Heapfile(outputRelation);
+			}
 			while ((t1 = sc.get_next()) != null) {
-				printTuple(tuple_count, t1);
+				printTuple(tuple_count,in, t1);
 				tuple_count++;
+				if(ohf!=null) {
+					ohf.insertRecord(t1.getTupleByteArray());
+				}
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
 		} finally {
+			printDiskAccesses();
 			sc.close();
+			free_buffer_pages(pageIds.length, pageIds);
 		}
 		// Print the read / write count on disk
-		printDiskAccesses();
 	}
 
 	// Start BtreeSky
 	static void performBtreeSky(AttrType[] in, short[] Ssizes, FldSpec[] projection, int[] pref_list,
-			int pref_list_length, String relationName, int n_pages) throws Exception {
+			int pref_list_length, String relationName, int n_pages, String outputRelation, String[] attr_names) throws Exception {
 //////checking page limits for construction of index	  
 		if (sys.getUnpinCount() < 6)
 			throw new Exception("Not enough pages to create index");
@@ -2069,7 +2185,8 @@ public class Client {
 		}
 //Set up PCounter		  
 		sys.flushBuffer();
-
+		PageId[] pageIds = new PageId[GlobalConst.NUMBUF - n_pages];
+		get_buffer_pages(pageIds.length, pageIds);
 		PCounter.initialize();
 //Create BTreeSky iterator and store tuples to buffer
 //Reserves certain pages for file creation and scanners	  
@@ -2081,17 +2198,31 @@ public class Client {
 		Tuple t1 = null;
 		int tuple_count = 1;
 		try {
+			Heapfile ohf = null;
+			if(!outputRelation.isEmpty()) {
+				addRelationAttrInfo(outputRelation, attr_names, in, Ssizes);
+				ohf = new Heapfile(outputRelation);
+			}
 			while ((t1 = btScan.get_next()) != null) {
-				printTuple(tuple_count, t1);
+				printTuple(tuple_count,in, t1);
 				tuple_count++;
+				if(ohf!=null) {
+					ohf.insertRecord(t1.getTupleByteArray());
+				}
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
 		} finally {
+			printDiskAccesses();
+			for(BTreeFile ub:btf) {
+				ub.destroyFile();
+				SystemDefs.JavabaseDB.delete_file_entry(ub.getIndexFileName());
+				System.out.println("Deleted file :: "+ub.getIndexFileName());
+			}
+			free_buffer_pages(pageIds.length, pageIds);
 			btScan.close();
 		}
 // Print the read / write count on disk
-		printDiskAccesses();
 
 	}
 
