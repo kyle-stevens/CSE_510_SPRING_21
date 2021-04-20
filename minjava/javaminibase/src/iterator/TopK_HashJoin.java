@@ -57,14 +57,14 @@ public class TopK_HashJoin  extends Iterator{
 		this.inner_join_attr = joinAttr2;
 		this.outer_merge_attr = mergeAttr1;
 		this.inner_merge_attr = mergeAttr2;
-		this.n_pages = n_pages;
+		this.n_pages = n_pages/2;
 		this.k = k;
 		
 		CondExpr[] outFilter = new CondExpr[2];
 
 		outFilter[0] = new CondExpr();
-		outFilter[0].next  = null;
-		outFilter[0].op    = new AttrOperator(AttrOperator.aopEQ);	
+		outFilter[0].next = null;
+		outFilter[0].op  = new AttrOperator(AttrOperator.aopEQ);	
 		
 		outFilter[1] = null;
 		
@@ -75,8 +75,8 @@ public class TopK_HashJoin  extends Iterator{
 		outFilter[0].operand2.symbol = new FldSpec (new RelSpec(RelSpec.innerRel),inner_join_attr);
 		
 		
-		HashJoins hj = new HashJoins(outer_in, len_in1, outer_str_lens, inner_in, len_in2, t2_str_sizes, n_pages, relationName1, relationName2, outFilter, null, output_proj_list, n_out_fields);
-		am1 = new SortPref(output_in,(short)n_out_fields,output_str_lens,hj,new TupleOrder(TupleOrder.Descending),pref_list,pref_list_length,n_pages);
+		HashJoins hj = new HashJoins(outer_in, len_in1, outer_str_lens, inner_in, len_in2, t2_str_sizes, this.n_pages, relationName1, relationName2, outFilter, null, output_proj_list, n_out_fields);
+		am1 = new SortPref(output_in,(short)n_out_fields,output_str_lens,hj,new TupleOrder(TupleOrder.Descending),pref_list,pref_list_length,this.n_pages);
 	}
 
 	@Override

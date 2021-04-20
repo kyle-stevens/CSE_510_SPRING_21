@@ -47,7 +47,8 @@ public class SpoofIbuf implements GlobalConst  {
       n_tuples = Ntuples;
      
       // open a scan
-      if (hf_scan != null)  hf_scan = null;
+      if (hf_scan != null) {
+    	  hf_scan.closescan();}
       
       try {
 	hf_scan = _fd.openScan();
@@ -145,7 +146,8 @@ public class SpoofIbuf implements GlobalConst  {
     }
   
   public void closeScan() {
-	  hf_scan.closescan();
+	  if(hf_scan!=null)
+		  hf_scan.closescan();
   }
   
   

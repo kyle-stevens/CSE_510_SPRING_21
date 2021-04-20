@@ -50,20 +50,20 @@ public class IndexNestedLoopsJoin  extends Iterator
      *@param in2  Array containing field types of S
      *@param len_in2  # of columns in S
      *@param  t2_str_sizes shows the length of the string fields.
-     *@param amt_of_mem  IN PAGES
+     *@param amt_of_mem  N PAGES
      *@param am1  access method for left i/p to join
      *@param relationName  access heapfile for right i/p to join
      *@param ind_type  index type on right i/p to join
      *@param index_name  index_name of right i/p to join
      *@param is_clust  True if index is clustered, False otherwise
-     *@param hash1  True if index is clustered
-     *@param split_pntr  True if index is clustered
+     *@param hash1  Hash key in case of Hash Index
+     *@param split_pntr  Split pointer to indicate hash change
      *@param inner_join_attr  inner relation Field_num to join
      *@param outer_join_attr  outer relation Field_num to join
-     *@param outFilter   select expressions
+     *@param outFilter   select expressions for Join Condition
      *@param rightFilter reference to filter applied on right i/p
      *@param proj_list shows what input fields go where in the output tuple
-     *@param n_out_flds number of outer relation fileds
+     *@param n_out_flds number of outer relation fields
      *@exception IOException some I/O fault
      *@exception NestedLoopException exception from this class
      */
@@ -157,7 +157,6 @@ public class IndexNestedLoopsJoin  extends Iterator
      *@exception UnknowAttrType attribute type unknown
      *@exception UnknownKeyTypeException key type unknown
      *@exception Exception other exceptions
-
      */
     public Tuple get_next()
             throws IOException,
@@ -334,14 +333,22 @@ public class IndexNestedLoopsJoin  extends Iterator
                     ind_Scan_select[i].type2 = new AttrType(temp_ptr.type2.attrType);
                     set_select_operand(ind_Scan_select[i].operand2, temp_ptr.operand2, temp_ptr.type2);
                     switch (temp_ptr.op.attrOperator) {
-                        case (AttrOperator.aopGT) -> ind_Scan_select[i].op = new AttrOperator(AttrOperator.aopLT);
-                        case (AttrOperator.aopGE) -> ind_Scan_select[i].op = new AttrOperator(AttrOperator.aopLE);
-                        case (AttrOperator.aopLT) -> ind_Scan_select[i].op = new AttrOperator(AttrOperator.aopGT);
-                        case (AttrOperator.aopLE) -> ind_Scan_select[i].op = new AttrOperator(AttrOperator.aopGE);
-                        default -> {
+                        case (AttrOperator.aopGT) :
+                            ind_Scan_select[i].op = new AttrOperator(AttrOperator.aopLT);
+                            break;
+                        case (AttrOperator.aopGE) :
+                            ind_Scan_select[i].op = new AttrOperator(AttrOperator.aopLE);
+                            break;
+                        case (AttrOperator.aopLT) :
+                            ind_Scan_select[i].op = new AttrOperator(AttrOperator.aopGT);
+                            break;
+                        case (AttrOperator.aopLE) :
+                            ind_Scan_select[i].op = new AttrOperator(AttrOperator.aopGE);
+                            break;
+                        default :
 //                            System.out.println("Executing Default Operator assignment");
                             ind_Scan_select[i].op = new AttrOperator(temp_ptr.op.attrOperator);
-                        }
+                            break;
                     }
                     ind_Scan_select[i].next = temp_ptr.next;
 
@@ -421,9 +428,3 @@ public class IndexNestedLoopsJoin  extends Iterator
         }
     }
 }
-
-
-
-
-
-

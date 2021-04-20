@@ -26,7 +26,6 @@ public class Sort extends Iterator implements GlobalConst
   private int         _sort_fld;
   private TupleOrder  order;
   private int         _n_pages;
-  private byte[][]    bufs;
   private boolean     first_time;
   private int         Nruns;
   private int         max_elems_in_heap;
@@ -40,9 +39,7 @@ public class Sort extends Iterator implements GlobalConst
   private int[]        n_tuples;
   private int          n_runs;
   private Tuple        op_buf;
-  private OBuf         o_buf;
-  private SpoofIbuf[]  i_buf;
-  private PageId[]     bufs_pids;
+  private Scan[]  i_buf;
   private boolean useBM = true; // flag for whether to use buffer manager
   
   /**
@@ -71,19 +68,13 @@ public class Sort extends Iterator implements GlobalConst
     int i;
     pnode cur_node;  // need pq_defs.java
     
-    i_buf = new SpoofIbuf[n_R_runs];   // need io_bufs.java
-    for (int j=0; j<n_R_runs; j++) i_buf[j] = new SpoofIbuf();
+    i_buf = new Scan[n_R_runs];   // need io_bufs.java
+    for (int j=0; j<n_R_runs; j++) i_buf[j] = new Scan(temp_files[j]);
     
     // construct the lists, ignore TEST for now
     // this is a patch, I am not sure whether it works well -- bingjie 4/20/98
     
     for (i=0; i<n_R_runs; i++) {
-      byte[][] apage = new byte[1][];
-      apage[0] = bufs[i];
-
-      // need iobufs.java
-      i_buf[i].init(temp_files[i], apage, 1, tuple_size, n_tuples[i]);
-
       cur_node = new pnode();
       cur_node.run_num = i;
       
@@ -98,8 +89,8 @@ public class Sort extends Iterator implements GlobalConst
 	throw new SortException(e, "Sort.java: Tuple.setHdr() failed");
       }
       
-      temp_tuple =i_buf[i].Get(temp_tuple);  // need io_bufs.java
-            
+      temp_tuple =i_buf[i].getNext(new RID());  // need io_bufs.java
+      temp_tuple.setHdr(n_cols, _in, str_lens);
       if (temp_tuple != null) {
 	/*
 	System.out.print("Get tuple from run " + i);
@@ -231,13 +222,12 @@ public class Sort extends Iterator implements GlobalConst
 	//	System.out.println("Putting tuple into run " + (run_num + 1)); 
 	//	cur_node.tuple.print(_in);
 	
-	o_buf.Put(cur_node.tuple);
+	temp_files[run_num].insertRecord(cur_node.tuple.getTupleByteArray());
+	n_tuples[run_num]++;
       }
       
       // check whether the other queue is full
       if (p_elems_other_Q == max_elems) {
-	// close current run and start next run
-	n_tuples[run_num] = (int) o_buf.flush();  // need io_bufs.java
 	run_num ++;
 
 	// check to see whether need to expand the array
@@ -264,8 +254,6 @@ public class Sort extends Iterator implements GlobalConst
 	  throw new SortException(e, "Sort.java: create Heapfile failed");
 	}
 	
-	// need io_bufs.java
-	o_buf.init(bufs, _n_pages, tuple_size, temp_files[run_num], false);
 	
 	// set the last Elem to be the minimum value for the sort field
 	if(order.tupleOrder == TupleOrder.Ascending) {
@@ -332,7 +320,6 @@ public class Sort extends Iterator implements GlobalConst
 	else {
 	  // generate one more run for all tuples in the other queue
 	  // close current run and start next run
-	  n_tuples[run_num] = (int) o_buf.flush();  // need io_bufs.java
 	  run_num ++;
 	  
 	  // check to see whether need to expand the array
@@ -359,8 +346,6 @@ public class Sort extends Iterator implements GlobalConst
 	    throw new SortException(e, "Sort.java: create Heapfile failed");
 	  }
 	  
-	  // need io_bufs.java
-	  o_buf.init(bufs, _n_pages, tuple_size, temp_files[run_num], false);
 	  
 	  // set the last Elem to be the minimum value for the sort field
 	  if(order.tupleOrder == TupleOrder.Ascending) {
@@ -394,7 +379,6 @@ public class Sort extends Iterator implements GlobalConst
     } // end of while (true)
 
     // close the last run
-    n_tuples[run_num] = (int) o_buf.flush();
     run_num ++;
     
     return run_num; 
@@ -422,9 +406,9 @@ public class Sort extends Iterator implements GlobalConst
     */
     // we just removed one tuple from one run, now we need to put another
     // tuple of the same run into the queue
-    if (i_buf[cur_node.run_num].empty() != true) { 
+    new_tuple = i_buf[cur_node.run_num].getNext(new RID());
+    if (new_tuple != null) { 
       // run not exhausted 
-      new_tuple = new Tuple(tuple_size); // need tuple.java??
 
       try {
 	new_tuple.setHdr(n_cols, _in, str_lens);
@@ -433,7 +417,6 @@ public class Sort extends Iterator implements GlobalConst
 	throw new SortException(e, "Sort.java: setHdr() failed");
       }
       
-      new_tuple = i_buf[cur_node.run_num].Get(new_tuple);  
       if (new_tuple != null) {
 	/*
 	System.out.print(" fill in from run " + cur_node.run_num);
@@ -601,22 +584,8 @@ public class Sort extends Iterator implements GlobalConst
     order = sort_order;
     _n_pages = n_pages;
     
-    // this may need change, bufs ???  need io_bufs.java
-    //    bufs = get_buffer_pages(_n_pages, bufs_pids, bufs);
-    bufs_pids = new PageId[_n_pages];
-    bufs = new byte[_n_pages][];
 
-    if (useBM) {
-      try {
-	get_buffer_pages(_n_pages, bufs_pids, bufs);
-      }
-      catch (Exception e) {
-	throw new SortException(e, "Sort.java: BUFmgr error");
-      }
-    }
-    else {
-      for (int k=0; k<_n_pages; k++) bufs[k] = new byte[MAX_SPACE];
-    }
+   
     
     first_time = true;
     
@@ -634,12 +603,8 @@ public class Sort extends Iterator implements GlobalConst
       throw new SortException(e, "Sort.java: Heapfile error");
     }
     
-    o_buf = new OBuf();
     
-    o_buf.init(bufs, _n_pages, tuple_size, temp_files[0], false);
-    //    output_tuple = null;
-    
-    max_elems_in_heap = 200;
+    max_elems_in_heap = 10000;
     sortFldLen = sort_fld_len;
     
     Q = new pnodeSplayPQ(sort_fld, in[sort_fld - 1], order);
@@ -718,16 +683,10 @@ public class Sort extends Iterator implements GlobalConst
 	throw new SortException(e, "Sort.java: error in closing iterator.");
       }
 
-      if (useBM) {
-	try {
-	  free_buffer_pages(_n_pages, bufs_pids);
-	} 
-	catch (Exception e) {
-	  throw new SortException(e, "Sort.java: BUFmgr error");
-	}
-	for (int i=0; i<_n_pages; i++) bufs_pids[i].pid = INVALID_PAGE;
+     
+      for(int i=0;i<i_buf.length;i++) {
+    	  if(i_buf[i]!=null)i_buf[i].closescan();
       }
-      
       for (int i = 0; i<temp_files.length; i++) {
 	if (temp_files[i] != null) {
 	  try {
