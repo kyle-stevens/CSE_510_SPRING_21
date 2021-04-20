@@ -41,25 +41,7 @@ import heap.Scan;
 import heap.Tuple;
 import index.IndexException;
 import index.IndexScan;
-import iterator.BTreeSky;
-import iterator.BTreeSortedSky;
-import iterator.BlockNestedLoopSky;
-import iterator.CondExpr;
-import iterator.FileScan;
-import iterator.FldSpec;
-import iterator.GroupBywithHash;
-import iterator.GroupBywithSort;
-import iterator.HashJoins;
-import iterator.IndexNestedLoopsJoin;
-import iterator.Iterator;
-import iterator.IteratorBMException;
-import iterator.NestedLoopsJoins;
-import iterator.NestedLoopsSky;
-import iterator.RelSpec;
-import iterator.SortFirstSky;
-import iterator.SortMerge;
-import iterator.TopK_HashJoin;
-import iterator.TupleUtils;
+import iterator.*;
 
 public class Client {
 
@@ -425,7 +407,33 @@ public class Client {
 					it.close();
 			}
 		} else {
-			// call NRA
+			System.out.println("Calling NRA");
+			getRelationAttrInfo(outerRelation);
+			AttrType[] outer_in = curr_in.clone();
+			short[] outer_strLens = curr_str_lens.clone();
+			getRelationAttrInfo(innerRelation);
+			AttrType[] inner_in = curr_in.clone();
+			short[] inner_strLens = curr_str_lens.clone();
+
+			int len_in1 = outer_in.length;
+			int len_in2 = inner_in.length;
+			int n_out_flds = len_in1 + len_in2;
+			AttrType[] output_attr = new AttrType[n_out_flds];
+
+			System.arraycopy(outer_in, 0, output_attr, 0, len_in1);
+			System.arraycopy(inner_in, 0, output_attr, len_in1, len_in2);
+
+			TopKNRAJoin topKNRAJoin = new TopKNRAJoin(outer_in,outer_strLens,outer_join_attr,outer_merge_attr,
+							inner_in,inner_strLens,inner_join_attr,inner_merge_attr,
+							outerRelation,innerRelation,k,n_pages);
+
+			Tuple t = topKNRAJoin.get_next();
+			while (t != null) {
+				t.print(output_attr);
+				t = topKNRAJoin.get_next();
+			}
+			topKNRAJoin.close();
+			System.out.println("NRA done");
 		}
 	}
 
