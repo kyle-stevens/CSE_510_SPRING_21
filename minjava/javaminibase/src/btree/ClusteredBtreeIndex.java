@@ -293,7 +293,9 @@ public class ClusteredBtreeIndex {
     RID rid;
     KeyDataEntry nextEntry;
     List<RID> deletedRIDs = new ArrayList<>();
-
+    Map<KeyClass, RID> needs_to_be_deleted = new HashMap<>();
+    Map<KeyClass, RID> needs_to_be_inserted = new HashMap<>();
+    
     while (true) {
       nextEntry = ((BTFileScan) indScan).get_next_clustered_page();
       if (nextEntry == null) {
@@ -316,10 +318,10 @@ public class ClusteredBtreeIndex {
         t.setHdr((short) numFlds, attrTypes, strSizes);
         if(TupleUtils.Equal(tuple, t, attrTypes, numFlds)) {
           if(curr_page_RID.equals(rid)) {
-            bTreeFile.Delete(nextEntry.key, rid);
+  //          bTreeFile.Delete(nextEntry.key, rid);
             keyDeleted = true;
           }
-          relation.deleteRecord(curr_page_RID);
+   //       relation.deleteRecord(curr_page_RID);
           deletedRIDs.add(curr_page_RID);
         } else {
           sortedBuffer.put(t, curr_page_RID);
@@ -327,21 +329,32 @@ public class ClusteredBtreeIndex {
         curr_page_RID = curr_page.nextRecord(curr_page_RID);
       }
 
+      unpinPage(curr_page.getCurPage());
       List<Map.Entry<Tuple, RID>> sortedList = new ArrayList<>(sortedBuffer.entrySet());
 
       //if data page is not empty
-      if(sortedList.size() > 0) {
+      if((sortedList.size() > 0 && keyDeleted)||(sortedList.isEmpty())) {
         //if existing key in btree is deleted
-        if(keyDeleted) {
-          bTreeFile.insert(getKeyClass(sortedList.get(sortedList.size()-1).getKey()),
+    	  needs_to_be_deleted.put(nextEntry.key, rid);
+        if(sortedList.size() > 0) {
+        	needs_to_be_inserted.put(getKeyClass(sortedList.get(sortedList.size()-1).getKey()),
                   sortedList.get(sortedList.size()-1).getValue());
+//          bTreeFile.insert(getKeyClass(sortedList.get(sortedList.size()-1).getKey()),
+//                  sortedList.get(sortedList.size()-1).getValue());
         }
         //unpin only if page is not empty
-        unpinPage(curr_page.getCurPage());
       }
     }
     ((BTFileScan) indScan).DestroyBTreeFileScan();
-
+    for(RID rid1:deletedRIDs) {
+    	relation.deleteRecord(rid1);
+    }
+    for(Map.Entry<KeyClass, RID> entry: needs_to_be_deleted.entrySet()) {
+    	bTreeFile.Delete(entry.getKey(), entry.getValue());
+    }
+    for(Map.Entry<KeyClass, RID> entry: needs_to_be_inserted.entrySet()) {
+    	bTreeFile.insert(entry.getKey(), entry.getValue());
+    }
     return deletedRIDs;
   }
 
