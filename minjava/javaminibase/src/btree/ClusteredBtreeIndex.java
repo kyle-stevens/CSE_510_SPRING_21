@@ -20,7 +20,7 @@ import java.util.*;
 public class ClusteredBtreeIndex {
 
   private static final String STR = "STR", INT = "INT", tempFileName = "tempDataFile";
-  static FldSpec[] projection;
+  private FldSpec[] projection;
   private final BTreeFile bTreeFile;
   private final Heapfile relation;
   private final int indexField;
