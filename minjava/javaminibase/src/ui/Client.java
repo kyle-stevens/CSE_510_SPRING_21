@@ -443,10 +443,19 @@ public class Client {
 			getRelationAttrInfo(outerRelation);
 			AttrType[] outer_in = curr_in.clone();
 			short[] outer_strLens = curr_str_lens.clone();
+			String[] outer_names = curr_attr_names.clone();
 			getRelationAttrInfo(innerRelation);
 			AttrType[] inner_in = curr_in.clone();
 			short[] inner_strLens = curr_str_lens.clone();
-
+			String[] inner_names = curr_attr_names.clone();
+			String output_names[] = new String[outer_in.length+inner_in.length];
+			int p=0;
+			for(String tmp:outer_names) {
+				output_names[p++] = tmp;
+			}
+			for(String tmp:inner_names) {
+				output_names[p++] = tmp;
+			}
 			int len_in1 = outer_in.length;
 			int len_in2 = inner_in.length;
 			int n_out_flds = len_in1 + len_in2;
@@ -454,16 +463,26 @@ public class Client {
 
 			System.arraycopy(outer_in, 0, output_attr, 0, len_in1);
 			System.arraycopy(inner_in, 0, output_attr, len_in1, len_in2);
-
+			short output_str_lens[] = new short[outer_strLens.length + inner_strLens.length];
+			int j = 0;
+			for (short value : outer_strLens) {
+				output_str_lens[j++] = value;
+			}
+			for (short value : inner_strLens) {
+				output_str_lens[j++] = value;
+			}
 			TopKNRAJoin topKNRAJoin = new TopKNRAJoin(outer_in,outer_strLens,outer_join_attr,outer_merge_attr,
 							inner_in,inner_strLens,inner_join_attr,inner_merge_attr,
 							outerRelation,innerRelation,k,n_pages);
 
 			Tuple t = topKNRAJoin.get_next();
-
-			Heapfile outputTable;
+			Heapfile outputTable = null;
 			if(!outputTableName.isEmpty()) {
 				outputTable = new Heapfile(outputTableName);
+				//needs to be changed
+				addRelationAttrInfo(outputTableName, output_names, output_attr, output_str_lens);
+			}
+			if(!outputTableName.isEmpty()) {
 				while (t != null) {
 					outputTable.insertRecord(t.returnTupleByteArray());
 					t = topKNRAJoin.get_next();
@@ -1468,7 +1487,15 @@ public class Client {
 				scan.closescan();
 			}
 			j+=deletedTuples.size();
-			deletedTuples_final.addAll(deletedTuples);
+			//deletedTuples_final.addAll(deletedTuples);
+			if (clusteredIndex == null) {
+				for (RID ridd : deletedTuples) {
+					try {
+						hf.deleteRecord(ridd);
+					}catch(Exception e) {
+					}
+				}
+			}
 			for (UnclusteredLinearHash uclh : uclhs) {
 				for (RID ridd : deletedTuples) {
 					uclh.deleteFromIndex(t, ridd);
@@ -1510,14 +1537,7 @@ public class Client {
 			 */
 
 		}
-		if (clusteredIndex == null) {
-			for (RID ridd : deletedTuples_final) {
-				try {
-					hf.deleteRecord(ridd);
-				}catch(Exception e) {
-				}
-			}
-		}
+		
 		//System.out.println(j+" size");
 
 		for (BTreeFile btf : ubi) {
