@@ -37,7 +37,7 @@ public class UnclusteredLinearHash {
     private AttrType keyFileAttr[];
     private short[] keyFileStrLens;
     
-    private String directoryFile;
+    public String directoryFile;
     private Heapfile directory;
 
 
@@ -80,7 +80,9 @@ public class UnclusteredLinearHash {
 
         number_of_tuples_in_a_page = (GlobalConst.MAX_SPACE - HFPage.DPFIXED) / (size + HFPage.SIZE_OF_SLOT);
         
-        hash1 = (int)((relation.getRecCnt()*100.0)/(GlobalConst.MAX_PAGE_UTILIZATION*number_of_tuples_in_a_page))+1;
+        int tmp = (int)((relation.getRecCnt()*100.0)/(GlobalConst.MAX_PAGE_UTILIZATION*number_of_tuples_in_a_page));
+        hash1 = 2;
+        while(hash1<=tmp)hash1*=2;
         hash2 = 2*hash1;
         numBuckets = hash1;
         setTotalTuplesAndThreshold();
@@ -171,6 +173,7 @@ public class UnclusteredLinearHash {
 						Tuple t2 = curPage.getRecord(curRecord);
 						if(rid.equals(ridFromTuple(t2))){
 							curPage.deleteRecord(curRecord);
+							current_tuples--;
 							if(curPage.empty()) {
 								PageId prev = curPage.getPrevPage();
 								PageId next = curPage.getNextPage();
@@ -214,30 +217,33 @@ public class UnclusteredLinearHash {
 				break;
 			}
 		}
-		current_tuples--;
 		if(current_tuples==lower_threshold) {
+			if(splitPointer==0 && hash1==2) {
+				return;
+			}
+			int reHashBucket = 0;
+			int newBucket = 0;
+			if(splitPointer==0) {
+				reHashBucket = hash1-1;
+				newBucket = (hash1/2)-1;
+			}else {
+				reHashBucket = splitPointer+hash1-1;
+				newBucket = splitPointer-1;
+			}
+			Heapfile oldFile = new Heapfile(prefix+reHashBucket);
+			if(!oldFile.isEmpty()) {
+				Heapfile newFile = new Heapfile(prefix+newBucket);
+				if(newFile.isEmpty())setupDirectory(prefix+newBucket);
+				scan = new Scan(oldFile);
+				while((t=scan.getNext(new RID()))!=null) {
+					t.setHdr((short)2, keyFileAttr, keyFileStrLens);
+					newFile.insertRecord(t.getTupleByteArray());
+				}
+				oldFile.deleteFile();
+				deleteFromDirectory(prefix+reHashBucket);
+
+			}
 			decrementSplit();
-            Heapfile f = new Heapfile(prefix + splitPointer);
-            Heapfile sf = new Heapfile(null);
-            Scan bucketScan = new Scan(f);
-            t = null;
-            RID tmpRID = new RID();
-            while ((t = bucketScan.getNext(tmpRID)) != null) {
-                t.setHdr((short) 2, keyFileAttr, keyFileStrLens);
-                int newBucket = calculateHashValueFromHashTuple(t, false);
-                if (newBucket != splitPointer) {
-                    sf.insertRecord(tupleFromRid(tmpRID).getTupleByteArray());
-                    Heapfile newBF = new Heapfile(prefix + newBucket);
-                    if(newBF.isEmpty())setupDirectory(prefix+splitPointer);
-                    newBF.insertRecord(t1.getTupleByteArray());
-                }
-            }
-            bucketScan.closescan();
-            bucketScan = new Scan(sf);
-            while ((t1 = bucketScan.getNext(new RID())) != null) {
-                f.deleteRecord(ridFromTuple(t1));
-            }
-            sf.deleteFile();
 		}
     }
     
@@ -363,7 +369,7 @@ public class UnclusteredLinearHash {
 			String bucketName = t.getStrFld(1);
 			
 			String hash[] = bucketName.split("_");
-			System.out.println("====Printing the bucket with hash value::"+hash[hash.length-1]+"====");
+			System.out.println("\n\n====Printing the bucket with hash value::"+hash[hash.length-1]+"====\n\n");
 			Scan innerScan = new Scan(new Heapfile(bucketName));
 			while((t=innerScan.getNext(new RID()))!=null) {
 				t.setHdr((short)2, keyFileAttr, keyFileStrLens);
@@ -407,31 +413,32 @@ public class UnclusteredLinearHash {
 
     private void increamentSplit() {
         splitPointer++;
-        if(splitPointer==hash1+1) {
+        if(splitPointer==hash1) {
             hash1 = hash2;
             hash2 = 2*hash1;
             splitPointer=0;
         }
+        setTotalTuplesAndThreshold();
     }
     
     private void decrementSplit() {
-	 	if(splitPointer==0)return;
+    	if (splitPointer == 0) {
+			hash2 = hash1;
+			hash1 = hash2 / 2;
+			splitPointer = hash1;
+		}
     	splitPointer--;
-    	if(splitPointer==0) {
-    		hash2 = hash1;
-    		hash1 = hash2/2;
-    	}
-    	numBuckets--;
-        totalTuples = number_of_tuples_in_a_page*numBuckets;
-        tuple_threshold = (GlobalConst.MAX_PAGE_UTILIZATION*totalTuples)/100;
-        setLowThreshold();
+        setTotalTuplesAndThreshold();
     }
 
     private void setTotalTuplesAndThreshold() {
-        totalTuples = number_of_tuples_in_a_page*numBuckets;
-        tuple_threshold = (GlobalConst.MAX_PAGE_UTILIZATION*totalTuples)/100;
-        numBuckets++;
+        totalTuples = number_of_tuples_in_a_page*(hash1+splitPointer);
+        setHighThreshold();
         setLowThreshold();
+    }
+    
+    private void setHighThreshold() {
+        tuple_threshold = (GlobalConst.MAX_PAGE_UTILIZATION*totalTuples)/100;
     }
     
     private void setLowThreshold() {
