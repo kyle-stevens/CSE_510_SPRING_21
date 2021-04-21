@@ -268,12 +268,12 @@ public class IndexNestedLoopsJoin  extends Iterator
             catch (Exception e){
                 System.err.println("Exception caught while scanning inner relation and joining");
                 e.printStackTrace();
-                return null;
-            }
-            finally {
                 if (inner!=null)
                     inner.close();
+                return null;
             }
+
+            inner.close();
 
             // There has been no match. (otherwise, we would have 
             //returned from the while loop. Hence, inner is
