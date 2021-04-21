@@ -75,7 +75,7 @@ public class TopKNRAJoin extends Iterator{
     this.inner_join_attr = joinAttr2;
     this.outer_merge_attr = mergeAttr1;
     this.inner_merge_attr = mergeAttr2;
-    this.n_pages = n_pages;
+    this.n_pages = n_pages - 14;
     this.k = k;
     this.metaDataFileName = "NRAMetadata";
     String joinKeyFileName = "NRAJoinKeyData";
@@ -84,6 +84,10 @@ public class TopKNRAJoin extends Iterator{
 
     String outerIndexFile = "clst_bt_" + relationName1 + "_" + mergeAttr1;
     String innerIndexFile = "clst_bt_" + relationName2 + "_" + mergeAttr2;
+
+    if(n_pages < 15) {
+      throw new NRAException("Not enough buffer pages allocated (minimum 15 are required)");
+    }
 
     innerScan = new ClusteredBtreeIndexScan(innerIndexFile, inner_in, inner_str_lens, null, inner_merge_attr, true);
     outerScan = new ClusteredBtreeIndexScan(outerIndexFile, outer_in, outer_str_lens, null, inner_merge_attr, true);
@@ -150,16 +154,16 @@ public class TopKNRAJoin extends Iterator{
     }
 
     tupleMetaData = new NRABuffer();
-    this.bufferPIDs = new PageId[n_pages];
-    byte[][] buffer = new byte[n_pages][];
+    this.bufferPIDs = new PageId[this.n_pages];
+    byte[][] buffer = new byte[this.n_pages][];
 
     try {
-      get_buffer_pages(n_pages, bufferPIDs, buffer);
+      get_buffer_pages(this.n_pages, bufferPIDs, buffer);
     } catch (Exception e) {
       throw new NRAException(e, "BUFMgr error");
     }
 
-    tupleMetaData.init(buffer, n_pages, metaTupleSize, metaDataFile, false);   //Initialize the buffer
+    tupleMetaData.init(buffer, this.n_pages, metaTupleSize, metaDataFile, false);   //Initialize the buffer
 
     computeTopK();
     createTopKBuffer();
@@ -362,6 +366,7 @@ public class TopKNRAJoin extends Iterator{
             if(keyEqual(key, kc_outer)) {
               temp1 = getUpdatedMetaTuple(temp, lb + outerMergeValue, lb + outerMergeValue,
                       3, false);
+              outerCandidateFile.insertRecord(outer.returnTupleByteArray());
             } else {
               temp1 = getUpdatedMetaTuple(temp, 0, lb + outerMergeValue, 0, true);
             }
@@ -393,6 +398,7 @@ public class TopKNRAJoin extends Iterator{
               if(keyEqual(key, kc_outer)) {
                 temp1 = getUpdatedMetaTuple(metaTuple, lb + outerMergeValue, lb + outerMergeValue,
                         3, false);
+                outerCandidateFile.insertRecord(outer.returnTupleByteArray());
               } else {
                 temp1 = getUpdatedMetaTuple(metaTuple, 0, lb + outerMergeValue, 0, true);
               }
@@ -437,6 +443,7 @@ public class TopKNRAJoin extends Iterator{
             if(keyEqual(key, kc_inner)) {
               temp1 = getUpdatedMetaTuple(temp, lb + innerMergeValue, lb + innerMergeValue,
                       3, false);
+              innerCandidateFile.insertRecord(inner.returnTupleByteArray());
             } else {
               temp1 = getUpdatedMetaTuple(temp, 0, lb + innerMergeValue,
                       0, true);
@@ -468,6 +475,7 @@ public class TopKNRAJoin extends Iterator{
               if(keyEqual(key, kc_inner)) {
                 temp1 = getUpdatedMetaTuple(metaTuple, lb + innerMergeValue, lb + innerMergeValue,
                         3, false);
+                innerCandidateFile.insertRecord(inner.returnTupleByteArray());
               } else {
                 temp1 = getUpdatedMetaTuple(metaTuple, 0, lb + innerMergeValue,
                         0, true);
@@ -545,8 +553,7 @@ public class TopKNRAJoin extends Iterator{
             projection, null);
 
     Sort sort = new Sort(metaDataAttrTypes, (short) metaDataAttrTypes.length, meta_str_lens, tempScan,
-            2, new TupleOrder(TupleOrder.Descending), 4, 200);
-
+            2, new TupleOrder(TupleOrder.Descending), 4, 10);
 
     Tuple t;
     for(int i=0; i<k; i++){
@@ -561,10 +568,10 @@ public class TopKNRAJoin extends Iterator{
 
       joinKeyData.insert(joink, joinKeyData.get_buf_status());
 
-      joink.print(joinKeyAttrTypes);
-      System.out.println("Join key = "+getJoinKeyValue(getJoinKeyFromMetaData(t)));
-      System.out.println("Source = "+t.getIntFld(4));
-      System.out.println("Bounds = "+t.getFloFld(2)+" -- "+t.getFloFld(3));
+//      joink.print(joinKeyAttrTypes);
+//      System.out.println("Join key = "+getJoinKeyValue(getJoinKeyFromMetaData(t)));
+//      System.out.println("Source = "+t.getIntFld(4));
+//      System.out.println("Bounds = "+t.getFloFld(2)+" -- "+t.getFloFld(3));
     }
 
     sort.close();

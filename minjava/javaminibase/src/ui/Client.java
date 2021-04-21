@@ -407,7 +407,9 @@ public class Client {
 					it.close();
 			}
 		} else {
-			System.out.println("Calling NRA");
+			System.out.println("--------------------------------------------");
+			System.out.println("Calling NRA-based Top-K Join");
+			System.out.println("--------------------------------------------");
 			getRelationAttrInfo(outerRelation);
 			AttrType[] outer_in = curr_in.clone();
 			short[] outer_strLens = curr_str_lens.clone();
@@ -428,12 +430,27 @@ public class Client {
 							outerRelation,innerRelation,k,n_pages);
 
 			Tuple t = topKNRAJoin.get_next();
-			while (t != null) {
-				t.print(output_attr);
-				t = topKNRAJoin.get_next();
+
+			Heapfile outputTable;
+			if(!outputTableName.isEmpty()) {
+				outputTable = new Heapfile(outputTableName);
+				while (t != null) {
+					outputTable.insertRecord(t.returnTupleByteArray());
+					t = topKNRAJoin.get_next();
+				}
+				System.out.println("Output saved to new table. TableName = "+outputTableName);
+			} else {
+				System.out.println("Printing top k tuples");
+				while (t != null) {
+					System.out.println("--------------------------------------------");
+					t.print(output_attr);
+					t = topKNRAJoin.get_next();
+				}
 			}
 			topKNRAJoin.close();
-			System.out.println("NRA done");
+			System.out.println("--------------------------------------------");
+			System.out.println("NRA-based Top-K Join is done");
+			System.out.println("--------------------------------------------");
 		}
 	}
 
