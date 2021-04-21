@@ -63,8 +63,8 @@ public class TopKNRAJoin extends Iterator{
           short[] t2_str_sizes,
           int joinAttr2,
           int mergeAttr2,
-          String relationName1,
-          String relationName2,
+          String relation1IndexFile,
+          String relation2IndexFile,
           int k,
           int n_pages
   ) throws Exception {
@@ -83,16 +83,13 @@ public class TopKNRAJoin extends Iterator{
     this.outerCandidateFileName = "NRAOuterCandidates";
     this.innerCandidateFileName = "NRAInnerCandidates";
 
-    String outerIndexFile = "clst_bt_" + relationName1 + "_" + mergeAttr1;
-    String innerIndexFile = "clst_bt_" + relationName2 + "_" + mergeAttr2;
-
     if(n_pages < 15) {
       throw new NRAException("Not enough buffer pages allocated (minimum 15 are required)");
     }
 
     //6 pages
-    innerScan = new ClusteredBtreeIndexScan(innerIndexFile, inner_in, inner_str_lens, null, inner_merge_attr, true);
-    outerScan = new ClusteredBtreeIndexScan(outerIndexFile, outer_in, outer_str_lens, null, inner_merge_attr, true);
+    outerScan = new ClusteredBtreeIndexScan(relation1IndexFile, outer_in, outer_str_lens, null, inner_merge_attr, true);
+    innerScan = new ClusteredBtreeIndexScan(relation2IndexFile, inner_in, inner_str_lens, null, inner_merge_attr, true);
 
     try {
       metaDataFile = new Heapfile(metaDataFileName);

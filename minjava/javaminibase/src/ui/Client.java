@@ -573,6 +573,7 @@ public class Client {
 					t1.print(topk_out_attr);
 					t = topKNRAJoin.get_next();
 				}
+				System.out.println("--------------------------------------------");
 			}
 			}catch(Exception e) {
 				
