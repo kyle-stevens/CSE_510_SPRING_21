@@ -125,8 +125,8 @@ public class SystemDefs {
 	  try {
 		  JavabaseBM.flushAllPages();
 	  }catch(Exception e) {
-		  System.out.println("Error flushing the pages");
-	  }
+		  
+	 }
 	  JavabaseDB.closeDB();
   }
 }
