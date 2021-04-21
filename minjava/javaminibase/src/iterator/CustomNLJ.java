@@ -181,6 +181,7 @@ public class CustomNLJ extends Iterator {
             inner = null;
           }
           outer.close();
+          outer = null;
           break;
         }
 
@@ -347,7 +348,13 @@ public class CustomNLJ extends Iterator {
    * @throws JoinsException join error from lower layers
    * @throws IndexException index access error
    */
-  public void close() throws JoinsException, IOException, IndexException {
+  public void close() throws JoinsException, IOException, IndexException, SortException {
+    if(outer != null) {
+      outer.close();
+    }
 
+    if(inner != null) {
+      inner.closescan();
+    }
   }
 }
