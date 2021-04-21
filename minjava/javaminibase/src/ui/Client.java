@@ -146,6 +146,9 @@ public class Client {
 				} else {
 					errorQueryMessage();
 				}
+				if(sys!=null) {
+					sys.flushBuffer();
+				}
 				printDiskAccesses();
 				continue;
 			case "create_index":
@@ -161,6 +164,9 @@ public class Client {
 				} else {
 					errorQueryMessage();
 				}
+				if(sys!=null) {
+					sys.flushBuffer();
+				}
 				printDiskAccesses();
 				continue;
 			case "insert_data":
@@ -174,6 +180,9 @@ public class Client {
 					}
 				} else {
 					errorQueryMessage();
+				}
+				if(sys!=null) {
+					sys.flushBuffer();
 				}
 				printDiskAccesses();
 				continue;
@@ -189,6 +198,9 @@ public class Client {
 				} else {
 					errorQueryMessage();
 				}
+				if(sys!=null) {
+					sys.flushBuffer();
+				}
 				printDiskAccesses();
 				continue;
 			case "output_table":
@@ -203,6 +215,10 @@ public class Client {
 				} else {
 					errorQueryMessage();
 				}
+				
+				if(sys!=null) {
+					sys.flushBuffer();
+				}
 				printDiskAccesses();
 				continue;
 			case "output_index":
@@ -215,6 +231,9 @@ public class Client {
 					}
 				} else {
 					errorQueryMessage();
+				}
+				if(sys!=null) {
+					sys.flushBuffer();
 				}
 				printDiskAccesses();
 				continue;
@@ -423,10 +442,9 @@ public class Client {
 						break;
 					}
 					t1.setFloFld(n_out_flds + 1, sum / 2);
-					t1.print(topk_out_attr);
 					if(hf!=null)
 						hf.insertRecord(t1.getTupleByteArray());
-
+					else t1.print(topk_out_attr);
 				}
 				printDiskAccesses();
 			} catch (Exception e) {
@@ -463,6 +481,11 @@ public class Client {
 
 			System.arraycopy(outer_in, 0, output_attr, 0, len_in1);
 			System.arraycopy(inner_in, 0, output_attr, len_in1, len_in2);
+			AttrType[] topk_out_attr = new AttrType[n_out_flds + 1];
+			for (int i = 0; i < n_out_flds; i++) {
+				topk_out_attr[i] = output_attr[i];
+			}
+			topk_out_attr[n_out_flds] = new AttrType(AttrType.attrReal);
 			short output_str_lens[] = new short[outer_strLens.length + inner_strLens.length];
 			int j = 0;
 			for (short value : outer_strLens) {
@@ -471,7 +494,12 @@ public class Client {
 			for (short value : inner_strLens) {
 				output_str_lens[j++] = value;
 			}
-			TopKNRAJoin topKNRAJoin = new TopKNRAJoin(outer_in,outer_strLens,outer_join_attr,outer_merge_attr,
+			PageId[] pageIds = new PageId[GlobalConst.NUMBUF - n_pages];
+			get_buffer_pages(pageIds.length, pageIds);
+			PCounter.initialize();
+			TopKNRAJoin topKNRAJoin = null;
+			try {
+			topKNRAJoin = new TopKNRAJoin(outer_in,outer_strLens,outer_join_attr,outer_merge_attr,
 							inner_in,inner_strLens,inner_join_attr,inner_merge_attr,
 							outerRelation,innerRelation,k,n_pages);
 
@@ -479,12 +507,38 @@ public class Client {
 			Heapfile outputTable = null;
 			if(!outputTableName.isEmpty()) {
 				outputTable = new Heapfile(outputTableName);
-				//needs to be changed
 				addRelationAttrInfo(outputTableName, output_names, output_attr, output_str_lens);
 			}
+			Tuple t1 = new Tuple();
+			t1.setHdr((short) (n_out_flds + 1), topk_out_attr, output_str_lens);
+			t1 = new Tuple(t1.size());
 			if(!outputTableName.isEmpty()) {
 				while (t != null) {
-					outputTable.insertRecord(t.returnTupleByteArray());
+					t1.setHdr((short) (n_out_flds + 1), topk_out_attr, output_str_lens);
+					for (int i = 0; i < n_out_flds; i++) {
+						switch (output_attr[i].attrType) {
+						case AttrType.attrInteger:
+							t1.setIntFld(i + 1, t.getIntFld(i + 1));
+							break;
+						case AttrType.attrReal:
+							t1.setFloFld(i + 1, t.getFloFld(i + 1));
+							break;
+						case AttrType.attrString:
+							t1.setStrFld(i + 1, t.getStrFld(i + 1));
+							break;
+						}
+					}
+					float sum = 0;
+					switch (output_attr[outer_merge_attr].attrType) {
+					case AttrType.attrInteger:
+						sum = t.getIntFld(outer_merge_attr) + t.getIntFld(outer_in.length + inner_merge_attr);
+						break;
+					case AttrType.attrReal:
+						sum = t.getFloFld(outer_merge_attr) + t.getFloFld(outer_in.length + inner_merge_attr);
+						break;
+					}
+					t1.setFloFld(n_out_flds + 1, sum / 2);
+					outputTable.insertRecord(t1.returnTupleByteArray());
 					t = topKNRAJoin.get_next();
 				}
 				System.out.println("Output saved to new table. TableName = "+outputTableName);
@@ -492,11 +546,41 @@ public class Client {
 				System.out.println("Printing top k tuples");
 				while (t != null) {
 					System.out.println("--------------------------------------------");
-					t.print(output_attr);
+					t1.setHdr((short) (n_out_flds + 1), topk_out_attr, output_str_lens);
+					for (int i = 0; i < n_out_flds; i++) {
+						switch (output_attr[i].attrType) {
+						case AttrType.attrInteger:
+							t1.setIntFld(i + 1, t.getIntFld(i + 1));
+							break;
+						case AttrType.attrReal:
+							t1.setFloFld(i + 1, t.getFloFld(i + 1));
+							break;
+						case AttrType.attrString:
+							t1.setStrFld(i + 1, t.getStrFld(i + 1));
+							break;
+						}
+					}
+					float sum = 0;
+					switch (output_attr[outer_merge_attr].attrType) {
+					case AttrType.attrInteger:
+						sum = t.getIntFld(outer_merge_attr) + t.getIntFld(outer_in.length + inner_merge_attr);
+						break;
+					case AttrType.attrReal:
+						sum = t.getFloFld(outer_merge_attr) + t.getFloFld(outer_in.length + inner_merge_attr);
+						break;
+					}
+					t1.setFloFld(n_out_flds + 1, sum / 2);
+					t1.print(topk_out_attr);
 					t = topKNRAJoin.get_next();
 				}
 			}
-			topKNRAJoin.close();
+			}catch(Exception e) {
+				
+			}finally {
+				printDiskAccesses();
+				if(topKNRAJoin!=null)
+					topKNRAJoin.close();
+			}
 			System.out.println("--------------------------------------------");
 			System.out.println("NRA-based Top-K Join is done");
 			System.out.println("--------------------------------------------");
@@ -725,10 +809,11 @@ public class Client {
 			int resultCnt = 0;
 			while ((t = scan.get_next()) != null) {
 				t.setHdr((short) output_attr.length, output_attr, output_str_lens);
-				t.print(output_attr);
+				
 				if (ohf != null) {
 					ohf.insertRecord(t.getTupleByteArray());
-				}
+				}else
+					t.print(output_attr);
 				resultCnt++;
 			}
 			System.out.println("counts::" + resultCnt);
@@ -1829,9 +1914,9 @@ public class Client {
 
 				while ((t = gbs.get_next()) != null) {
 					t.setHdr((short) number_cols, result_in, ssizes);
-					t.print(result_in);
 					if (ohf != null)
 						ohf.insertRecord(t.getTupleByteArray());
+					else t.print(result_in);
 				}
 			} catch (Exception e) {
 				e.printStackTrace();
@@ -1880,9 +1965,9 @@ public class Client {
 				Tuple t = null;
 				while ((t = gbh.get_next()) != null) {
 					t.setHdr((short) number_cols, result_in, ssizes);
-					t.print(result_in);
 					if (ohf != null)
 						ohf.insertRecord(t.getTupleByteArray());
+					else t.print(result_in);
 				}
 			} catch (Exception e) {
 				e.printStackTrace();
@@ -2011,9 +2096,11 @@ public class Client {
 				ohf = new Heapfile(outputRelation);
 			}
 			while ((nestedLoopSkyline = nlSky.get_next()) != null) {
-				printTuple(tuple_count, in, nestedLoopSkyline);
 				if (ohf != null) {
 					ohf.insertRecord(nestedLoopSkyline.getTupleByteArray());
+				}else {
+					printTuple(tuple_count, in, nestedLoopSkyline);
+					
 				}
 				tuple_count++;
 			}
@@ -2069,10 +2156,10 @@ public class Client {
 					ohf = new Heapfile(outputRelation);
 				}
 				while ((t1 = sky2.get_next()) != null) {
-					printTuple(tuple_count, in, t1);
+					
 					if (ohf != null) {
 						ohf.insertRecord(t1.getTupleByteArray());
-					}
+					}else printTuple(tuple_count, in, t1);
 					tuple_count++;
 				}
 			} catch (Exception e) {
@@ -2178,10 +2265,10 @@ public class Client {
 				ohf = new Heapfile(outputRelation);
 			}
 			while ((t1 = sc.get_next()) != null) {
-				printTuple(tuple_count, in, t1);
+				
 				if (ohf != null) {
 					ohf.insertRecord(t1.getTupleByteArray());
-				}
+				}else printTuple(tuple_count, in, t1);
 				tuple_count++;
 			}
 		} catch (Exception e) {
@@ -2229,11 +2316,10 @@ public class Client {
 				ohf = new Heapfile(outputRelation);
 			}
 			while ((t1 = sc.get_next()) != null) {
-				printTuple(tuple_count, in, t1);
 				tuple_count++;
 				if (ohf != null) {
 					ohf.insertRecord(t1.getTupleByteArray());
-				}
+				}else printTuple(tuple_count, in, t1);
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -2338,11 +2424,10 @@ public class Client {
 				ohf = new Heapfile(outputRelation);
 			}
 			while ((t1 = btScan.get_next()) != null) {
-				printTuple(tuple_count, in, t1);
 				tuple_count++;
 				if (ohf != null) {
 					ohf.insertRecord(t1.getTupleByteArray());
-				}
+				}else printTuple(tuple_count, in, t1);
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
