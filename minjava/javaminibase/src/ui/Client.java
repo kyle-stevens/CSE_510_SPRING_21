@@ -466,6 +466,34 @@ public class Client {
 			AttrType[] inner_in = curr_in.clone();
 			short[] inner_strLens = curr_str_lens.clone();
 			String[] inner_names = curr_attr_names.clone();
+			
+			ArrayList<IndexInfo> outer_indexes = getIndexInfo(outerRelation, outer_merge_attr);
+			
+			ArrayList<IndexInfo> inner_indexes = getIndexInfo(innerRelation, inner_merge_attr);
+			
+			String outer_index = "";
+			String inner_index = "";
+			
+			for(IndexInfo iInfo:outer_indexes) {
+				if(iInfo.getIndexType()==IndexType.B_Index&&iInfo.getClustered()==1) {
+					outer_index = getIndexFileName(iInfo);
+					break;
+				}
+			}
+			for(IndexInfo iInfo:inner_indexes) {
+				if(iInfo.getIndexType()==IndexType.B_Index&&iInfo.getClustered()==1) {
+					inner_index = getIndexFileName(iInfo);
+					break;
+				}
+				
+			}
+			
+			if(outer_index.isEmpty()||inner_index.isEmpty()) {
+				System.out.println("Clustered btree index does not exist.");
+				return;
+			}
+			
+			
 			String output_names[] = new String[outer_in.length+inner_in.length];
 			int p=0;
 			for(String tmp:outer_names) {
@@ -501,7 +529,7 @@ public class Client {
 			try {
 			topKNRAJoin = new TopKNRAJoin(outer_in,outer_strLens,outer_join_attr,outer_merge_attr,
 							inner_in,inner_strLens,inner_join_attr,inner_merge_attr,
-							outerRelation,innerRelation,k,n_pages);
+							outer_index,inner_index,k,n_pages);
 
 			Tuple t = topKNRAJoin.get_next();
 			Heapfile outputTable = null;
@@ -573,7 +601,6 @@ public class Client {
 					t1.print(topk_out_attr);
 					t = topKNRAJoin.get_next();
 				}
-				System.out.println("--------------------------------------------");
 			}
 			}catch(Exception e) {
 				
