@@ -95,7 +95,7 @@ public class ClusteredBtreeIndex {
   private void readDataFromFile(String filePath) throws Exception {
     File file = new File(filePath);
     BufferedReader br = new BufferedReader(new FileReader(file));
-    int numberOfCols = (short) Integer.parseInt(br.readLine().trim());
+    int numberOfCols = (short) Integer.parseInt(br.readLine().split(",")[0].trim());
     numFlds = numberOfCols;
 
     if (indexField > numberOfCols || indexField < 1) {
@@ -108,8 +108,7 @@ public class ClusteredBtreeIndex {
     attrTypes = new AttrType[numberOfCols];
     int numStr = 0;
     for (int i = 0; i < numberOfCols; i++) {
-      str = br.readLine();
-      String[] attrInfo = str.split("\\s+");
+      String[] attrInfo = br.readLine().split(",");
       if (attrInfo[1].equalsIgnoreCase(STR)) {
         numStr++;
         attrTypes[i] = new AttrType(AttrType.attrString);
@@ -129,7 +128,7 @@ public class ClusteredBtreeIndex {
     }
 
     strSizes = new short[numStr];
-    Arrays.fill(strSizes, (short) 30);
+    Arrays.fill(strSizes, (short) GlobalConst.MAX_STR_LEN);
 
     setKeySize();
     recSize = calculateRecSize(numberOfCols, attrTypes, strSizes);
@@ -140,7 +139,7 @@ public class ClusteredBtreeIndex {
     Heapfile temp = new Heapfile(tempFileName);
 
     while ((str = br.readLine()) != null) {
-      String[] attrs = str.split("\\s+");
+      String[] attrs = str.split(",");
       int k = 1;
 
       for (String attr : attrs) {

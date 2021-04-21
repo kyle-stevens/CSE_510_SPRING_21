@@ -27,6 +27,7 @@ public class TopKNRAJoin extends Iterator{
 
   private final int n_pages;
   private final int k;
+  private int passingCandidates;
 
   private final ClusteredBtreeIndexScan innerScan;
   private final ClusteredBtreeIndexScan outerScan;
@@ -89,6 +90,7 @@ public class TopKNRAJoin extends Iterator{
       throw new NRAException("Not enough buffer pages allocated (minimum 15 are required)");
     }
 
+    //6 pages
     innerScan = new ClusteredBtreeIndexScan(innerIndexFile, inner_in, inner_str_lens, null, inner_merge_attr, true);
     outerScan = new ClusteredBtreeIndexScan(outerIndexFile, outer_in, outer_str_lens, null, inner_merge_attr, true);
 
@@ -195,15 +197,16 @@ public class TopKNRAJoin extends Iterator{
 
   private void computeTopK() throws Exception {
     int bufferSize = 0;
-    int passingCandidates;
+    passingCandidates = 0;
     while(true) {
       float threshold, innerMergeValue=0, outerMergeValue=0;
       Tuple inner = innerScan.get_reversed_next();
       Tuple outer = outerScan.get_reversed_next();
-      passingCandidates = 0;
 
       if(inner == null && outer == null)
         break;
+
+      passingCandidates = 0;
 
       if(inner != null && outer != null) {
         inner.setHdr((short) inner_in.length, inner_in, inner_str_lens);
@@ -374,6 +377,8 @@ public class TopKNRAJoin extends Iterator{
               passingCandidates++;
             }
             tupleMetaData.updateCurrent(temp1);
+          }else if (lb >= threshold){
+            passingCandidates++;
           }
 
           if(keyEqual(key, kc_outer))
@@ -391,7 +396,6 @@ public class TopKNRAJoin extends Iterator{
             int source = metaTuple.getIntFld(4);
             KeyClass key = getJoinKeyFromMetaData(metaTuple);
             float lb = metaTuple.getFloFld(2);
-            float ub = metaTuple.getFloFld(3);
 
             if(source == 1) {
               Tuple temp1;
@@ -406,6 +410,8 @@ public class TopKNRAJoin extends Iterator{
                 passingCandidates++;
               }
               metaDataFile.updateRecord(metaTupleRid, temp1);
+            }else if (lb >= threshold){
+              passingCandidates++;
             }
 
             if(keyEqual(key, kc_outer))
@@ -452,6 +458,8 @@ public class TopKNRAJoin extends Iterator{
               passingCandidates++;
             }
             tupleMetaData.updateCurrent(temp1);
+          }else if (lb >= threshold){
+            passingCandidates++;
           }
 
           if(keyEqual(key, kc_inner))
@@ -484,6 +492,8 @@ public class TopKNRAJoin extends Iterator{
                 passingCandidates++;
               }
               metaDataFile.updateRecord(metaTupleRid, temp1);
+            }else if (lb >= threshold){
+              passingCandidates++;
             }
 
             if(keyEqual(key, kc_inner))
@@ -520,7 +530,7 @@ public class TopKNRAJoin extends Iterator{
 
     if(passingCandidates < k) {
       System.out.println("Could not find top "+k+" tuples");
-      System.out.println("TOPKNRAJoin found top "+passingCandidates+" tuples");
+      System.out.println("TOPKNRAJoin found top "+passingCandidates+" unique tuples");
     }
     //Free buffer pages
     try {
@@ -555,27 +565,120 @@ public class TopKNRAJoin extends Iterator{
     Sort sort = new Sort(metaDataAttrTypes, (short) metaDataAttrTypes.length, meta_str_lens, tempScan,
             2, new TupleOrder(TupleOrder.Descending), 4, 10);
 
-    Tuple t;
-    for(int i=0; i<k; i++){
-      t = sort.get_next();
-      if(t == null)
+    Tuple t1, t2 = null;
+    boolean started = false, upperSortingRequired = false;
+    int begin = 0, end = 0;
+    Heapfile upperSort = null;
+    Heapfile lowerSort = new Heapfile("lowerSort");
+    for(int i=0; i<passingCandidates; i++){
+
+      if(i>=k && !started) {
         break;
+      }
 
-      Tuple joink = new Tuple(joinKeyTupleSize);
-      joink.setHdr((short)joinKeyAttrTypes.length, joinKeyAttrTypes, join_key_str_lens);
-      setMetaDataKey(joink,getJoinKeyFromMetaData(t));
-      joink.setIntFld(2,t.getIntFld(4));
+      t1 = sort.get_next();
 
-      joinKeyData.insert(joink, joinKeyData.get_buf_status());
+      if(t2 !=null) {
+        if(t2.getFloFld(2) == t1.getFloFld(2)) {
+          if(started){
+            end++;
+          }
+          else {
+            upperSort = new Heapfile("upperSort");
+            begin = i-1;
+            end = i;
+            started = true;
+            upperSort.insertRecord(t2.returnTupleByteArray());
+          }
+          upperSort.insertRecord(t1.returnTupleByteArray());
+        } else if(started) {
+          if(begin < k && end >=k) {
+            upperSortingRequired = true;
+            break;
+          } else {
+            begin = 0;
+            end = 0;
+            upperSort.deleteFile();
+            upperSort = null;
+            started = false;
+          }
+        }
+      }
 
-//      joink.print(joinKeyAttrTypes);
-//      System.out.println("Join key = "+getJoinKeyValue(getJoinKeyFromMetaData(t)));
-//      System.out.println("Source = "+t.getIntFld(4));
-//      System.out.println("Bounds = "+t.getFloFld(2)+" -- "+t.getFloFld(3));
+      if(t1 == null)
+        break;
+      t2 = new Tuple(t1);
+
+      if(i<k) {
+        lowerSort.insertRecord(t1.returnTupleByteArray());
+      }
     }
 
     sort.close();
     metaDataFile.deleteFile();
+
+    if(upperSortingRequired) {
+
+      Scan lowerSortedScan = lowerSort.openScan();
+      RID lowerSortedRID = new RID();
+      Tuple tempLowerSorted;
+      int getCount = begin;
+      while((tempLowerSorted = lowerSortedScan.getNext(lowerSortedRID))!=null && getCount>0) {
+        tempLowerSorted.setHdr((short) metaDataAttrTypes.length, metaDataAttrTypes, meta_str_lens);
+
+        Tuple joink = new Tuple(joinKeyTupleSize);
+        joink.setHdr((short)joinKeyAttrTypes.length, joinKeyAttrTypes, join_key_str_lens);
+        setMetaDataKey(joink,getJoinKeyFromMetaData(tempLowerSorted));
+        joink.setIntFld(2, tempLowerSorted.getIntFld(4));
+        joinKeyData.insert(joink, joinKeyData.get_buf_status());
+
+        getCount--;
+      }
+
+      lowerSortedScan.closescan();
+      lowerSort.deleteFile();
+
+      getCount = k - begin;
+
+      tempScan = new FileScan(upperSort.getName(), metaDataAttrTypes, meta_str_lens,
+              (short) metaDataAttrTypes.length, (short) metaDataAttrTypes.length,
+              projection, null);
+
+      sort = new Sort(metaDataAttrTypes, (short) metaDataAttrTypes.length, meta_str_lens, tempScan,
+              3, new TupleOrder(TupleOrder.Descending), 4, 10);
+
+      Tuple tempUpperSorted;
+      while((tempUpperSorted = sort.get_next())!=null && getCount>0) {
+
+        Tuple joink = new Tuple(joinKeyTupleSize);
+        joink.setHdr((short)joinKeyAttrTypes.length, joinKeyAttrTypes, join_key_str_lens);
+        setMetaDataKey(joink,getJoinKeyFromMetaData(tempUpperSorted));
+        joink.setIntFld(2, tempUpperSorted.getIntFld(4));
+        joinKeyData.insert(joink, joinKeyData.get_buf_status());
+
+        getCount--;
+      }
+
+      sort.close();
+      upperSort.deleteFile();
+    } else {
+
+      Scan lowerSortedScan = lowerSort.openScan();
+      RID lowerSortedRID = new RID();
+      Tuple tempLowerSorted;
+      while((tempLowerSorted = lowerSortedScan.getNext(lowerSortedRID))!=null) {
+        tempLowerSorted.setHdr((short) metaDataAttrTypes.length, metaDataAttrTypes, meta_str_lens);
+
+        Tuple joink = new Tuple(joinKeyTupleSize);
+        joink.setHdr((short)joinKeyAttrTypes.length, joinKeyAttrTypes, join_key_str_lens);
+        setMetaDataKey(joink,getJoinKeyFromMetaData(tempLowerSorted));
+        joink.setIntFld(2, tempLowerSorted.getIntFld(4));
+        joinKeyData.insert(joink, joinKeyData.get_buf_status());
+      }
+
+      lowerSortedScan.closescan();
+      lowerSort.deleteFile();
+    }
   }
 
   private void join_topK() throws Exception {
