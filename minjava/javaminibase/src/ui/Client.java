@@ -578,8 +578,10 @@ public class Client {
 				
 			}finally {
 				printDiskAccesses();
+				free_buffer_pages(pageIds.length, pageIds);
 				if(topKNRAJoin!=null)
 					topKNRAJoin.close();
+				
 			}
 			System.out.println("--------------------------------------------");
 			System.out.println("NRA-based Top-K Join is done");
