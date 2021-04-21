@@ -144,6 +144,7 @@ public class Client {
 				System.out.println("DB closed successfully.");
 				continue;
 			case "create_table":
+				PCounter.initialize();
 				if (queryParts.length == 2) {
 					try {
 						createTable(queryParts[1]);
@@ -162,8 +163,10 @@ public class Client {
 				} else {
 					errorQueryMessage();
 				}
+				printDiskAccesses();
 				continue;
 			case "create_index":
+				PCounter.initialize();
 				if (queryParts.length == 4) {
 					try {
 						createIndex(queryParts[3], Integer.parseInt(queryParts[2]),
@@ -175,8 +178,10 @@ public class Client {
 				} else {
 					errorQueryMessage();
 				}
+				printDiskAccesses();
 				continue;
 			case "insert_data":
+				PCounter.initialize();
 				if (queryParts.length == 3) {
 					try {
 						insertData(queryParts[1], queryParts[2]);
@@ -187,8 +192,10 @@ public class Client {
 				} else {
 					errorQueryMessage();
 				}
+				printDiskAccesses();
 				continue;
 			case "delete_data":
+				PCounter.initialize();
 				if (queryParts.length == 3) {
 					try {
 						deleteData(queryParts[1], queryParts[2]);
@@ -199,8 +206,10 @@ public class Client {
 				} else {
 					errorQueryMessage();
 				}
+				printDiskAccesses();
 				continue;
 			case "output_table":
+				PCounter.initialize();
 				if (queryParts.length == 2) {
 					try {
 						printTable(queryParts[1]);
@@ -211,8 +220,10 @@ public class Client {
 				} else {
 					errorQueryMessage();
 				}
+				printDiskAccesses();
 				continue;
 			case "output_index":
+				PCounter.initialize();
 				if (queryParts.length == 3) {
 					try {
 						outputIndex(queryParts[1], Integer.parseInt(queryParts[2]));
@@ -222,6 +233,7 @@ public class Client {
 				} else {
 					errorQueryMessage();
 				}
+				printDiskAccesses();
 				continue;
 			case "groupby":
 				if (queryParts.length == 7) {
