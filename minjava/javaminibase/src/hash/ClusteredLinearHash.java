@@ -153,7 +153,7 @@ public class ClusteredLinearHash {
 		// Enter the path for data file
 		File file = new File(filePath);
 		BufferedReader br = new BufferedReader(new FileReader(file));
-		this.numberOfCols = (short) Integer.parseInt(br.readLine().trim());
+		this.numberOfCols = (short) Integer.parseInt(br.readLine().split(",")[0].trim());
 
 		if (indexField > numberOfCols || indexField < 1) {
 			br.close();
@@ -165,7 +165,7 @@ public class ClusteredLinearHash {
 		int numStr = 0;
 		for (int i = 0; i < numberOfCols; i++) {
 			str = br.readLine();
-			String attrInfo[] = str.split("\\t");
+			String attrInfo[] = str.split(",");
 			if (attrInfo[1].equalsIgnoreCase(GlobalConst.STR)) {
 				numStr++;
 				_in[i] = new AttrType(AttrType.attrString);
@@ -211,7 +211,7 @@ public class ClusteredLinearHash {
 		}
 		try {
 			while ((str = br.readLine()) != null) {
-				String attrs[] = str.split("\\t");
+				String attrs[] = str.split(",");
 
 				int k = 1;
 
@@ -379,6 +379,7 @@ public class ClusteredLinearHash {
 	 * @param rid
 	 * @throws Exception
 	 */
+	int j=0;
 	public ArrayList<RID> deleteFromIndex(Tuple t) throws Exception {
 		ArrayList<RID> deletedTuples = new ArrayList<>();
 		int hash = calculateHashValueForTuple(t, false);
@@ -399,73 +400,75 @@ public class ClusteredLinearHash {
 				break;
 			}
 		}
-		Set<Integer> set = new HashSet<>();
-		List<Integer> allPages = new ArrayList<>();
 		if (header != null) {
 			PageId curr = new PageId(header.pid);
 			while (curr.pid != GlobalConst.INVALID_PAGE) {
 				Page page = new Page();
 				pinPage(curr, page, false);
 				HFPage curPage = new HFPage(page);
-				int total=0,deleted=0;
 				for (RID curr_RID = curPage.firstRecord(); curr_RID != null; curr_RID = curPage.nextRecord(curr_RID)) {
 					Tuple t2 = curPage.getRecord(curr_RID);
 					t2.setHdr(numberOfCols, _in, strSizes);
 					if (TupleUtils.Equal(t2, t, _in, numberOfCols)) {
 						deletedTuples.add(curr_RID);
-						deleted++;
 					}
-					total++;
-				}
-				allPages.add(curPage.getCurPage().pid);
-				if(total==deleted) {
-					set.add(curPage.getCurPage().pid);
 				}
 				PageId next = curPage.getNextPage();
 				unpinPage(curr, false);
-				curr = next;	//need copy- potential bug
+				curr = next;
 			}
 		}
-		allPages.removeAll(set);
-		if(allPages.isEmpty()) {
-			//entire linkedlist is gone
-			hf.deleteRecord(keyTupleRID);
-			if (hf.isEmpty()) {
-				//bucket is empty removie its entry from directory file
-				deleteFromDirectory(bucketName);
-			}
-		}else {
-			if(!set.isEmpty()) {
-				//some of the pages are deleted
-				if(header.pid!=allPages.get(0))  {
-					//header is not there need to update the bucket
-					Tuple newHeader = keyTupleFromTuple(t1, allPages.get(0));
-					hf.updateRecord(keyTupleRID, newHeader);
-					header.pid = allPages.get(0);
-				}
-				//update linked list as some of the pages are deleted from it
-				int prev = GlobalConst.INVALID_PAGE;
-				int next = GlobalConst.INVALID_PAGE;
-				for(int i=0;i<allPages.size();i++) {
-					if(i==allPages.size()-1) {
-						next = GlobalConst.INVALID_PAGE;
-					}else {
-						next = allPages.get(i+1);
+		if (header != null) {
+			PageId curr = new PageId(header.pid);
+			PageId newHead = null;
+			while (curr.pid != GlobalConst.INVALID_PAGE) {
+				Page page = new Page();
+				pinPage(curr, page, false);
+				HFPage curPage = new HFPage(page);
+				if (isEmpty(curPage, deletedTuples)) {
+					PageId next = curPage.getNextPage();
+					PageId prev = curPage.getPrevPage();
+					unpinPage(curr, false);
+					if (prev.pid != GlobalConst.INVALID_PAGE) {
+						pinPage(prev, page, false);
+						curPage = new HFPage(page);
+						curPage.setNextPage(next);
+						unpinPage(prev, true);
+						if (next.pid != GlobalConst.INVALID_PAGE) {
+							pinPage(next, page, false);
+							curPage = new HFPage(page);
+							curPage.setPrevPage(prev);
+							unpinPage(next, true);
+						}
+					} else if (next.pid != GlobalConst.INVALID_PAGE) {
+						pinPage(next, page, false);
+						curPage = new HFPage(page);
+						curPage.setPrevPage(prev);
+						unpinPage(next, true);
 					}
-					Page page = new Page();
-					pinPage(new PageId(allPages.get(i)), page, false);
-					HFPage hfp = new HFPage(page);
-					hfp.setPrevPage(new PageId(prev));
-					hfp.setNextPage(new PageId(next));
-					prev = hfp.getCurPage().pid;
-					unpinPage(hfp.getCurPage(), true);
+					current_pages--;
+					curr = next;
+					continue;
+				} else if (newHead == null) {
+					newHead = new PageId(curr.pid);
 				}
+				PageId next = curPage.getNextPage();
+				unpinPage(curr, false);
+				curr = next;
+			}
+			if (newHead == null) {
+				hf.deleteRecord(keyTupleRID);
+				if (hf.isEmpty()) {
+					deleteFromDirectory(bucketName);
+				}
+			} else if (newHead.pid != header.pid) {
+				t1.setIntFld(2, newHead.pid);
+				hf.updateRecord(keyTupleRID, t1);
 			}
 		}
 		for (RID rid : deletedTuples) {
 			relation.deleteRecord(rid);
 		}
-		current_pages-=set.size();
 		if(current_pages==lower_threshold) {
 			if(splitPointer==0 && hash1==2) {
 				return deletedTuples;
@@ -494,14 +497,31 @@ public class ClusteredLinearHash {
 			}
 			decrementSplit();
 		}
-		
 		return deletedTuples;
+	}
+	
+	private boolean isEmpty(HFPage currPage, ArrayList<RID> deletedTuples) throws Exception {
+		RID cur_Page_RID = currPage.firstRecord();
+		while (cur_Page_RID != null) {
+			boolean flag = true;
+			for (RID rid : deletedTuples) {
+				if (rid.equals(cur_Page_RID)) {
+					flag = false;
+					break;
+				}
+			}
+			if (flag)
+				return false;
+			cur_Page_RID = currPage.nextRecord(cur_Page_RID);
+		}
+		return true;
 	}
 
 
 	public void printIndex() throws Exception {
 		Scan scan = new Scan(hashDirectory);
 		Tuple t = null;
+		j=0;
 		while ((t = scan.getNext(new RID())) != null) {
 			t.setHdr(dirColNum, dirAttr, dirStrlens);
 			String bucketName = t.getStrFld(1);
@@ -510,6 +530,7 @@ public class ClusteredLinearHash {
 			Heapfile hf = new Heapfile(bucketName);
 			Scan innerScan = new Scan(hf);
 			while ((t = innerScan.getNext(new RID())) != null) {
+				j=0;
 				t.setHdr(keyPageColNum, keyPageAttr, keyPageStrlens);
 				String result = "[ key = ";
 				switch (keyPageAttr[0].attrType) {
@@ -530,15 +551,18 @@ public class ClusteredLinearHash {
 					Page page = new Page();
 					pinPage(header, page, false);
 					HFPage hfp = new HFPage(page);
+					j+=hfp.getSlotCnt();
 					header = hfp.getNextPage();
 					unpinPage(hfp.getCurPage(), false);
 				}
 				result += "]";
 				System.out.println(result);
+				System.out.println(" tuples for this key:: "+j);
 			}
 			innerScan.closescan();
 		}
 		scan.closescan();
+		System.out.println(j+" total tuples");
 	}
 
 	private String getHashBucketName(int hash) {

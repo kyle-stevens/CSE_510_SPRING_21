@@ -340,10 +340,20 @@ public class Client {
 			getRelationAttrInfo(outerRelation);
 			AttrType[] outer_in = curr_in.clone();
 			short[] outer_strLens = curr_str_lens.clone();
+			String[] outer_names = curr_attr_names.clone();
 			getRelationAttrInfo(innerRelation);
 			AttrType[] inner_in = curr_in.clone();
 			short[] inner_strLens = curr_str_lens.clone();
-
+			String[] inner_names = curr_attr_names.clone();
+			String output_names[] = new String[outer_in.length+inner_in.length+1];
+			int p=0;
+			for(String tmp:outer_names) {
+				output_names[p++] = tmp;
+			}
+			for(String tmp:inner_names) {
+				output_names[p++] = tmp;
+			}
+			output_names[p] = "AVG";
 			int len_in1 = outer_in.length;
 			int len_in2 = inner_in.length;
 			int n_out_flds = len_in1 + len_in2;
@@ -399,7 +409,11 @@ public class Client {
 				Tuple t1 = new Tuple();
 				t1.setHdr((short) (n_out_flds + 1), topk_out_attr, output_str_lens);
 				t1 = new Tuple(t1.size());
-
+				Heapfile hf = null;
+				if(!outputTableName.isEmpty()) {
+					hf = new Heapfile(outputTableName);
+					addRelationAttrInfo(outputTableName, output_names, topk_out_attr, output_str_lens);
+				}
 				while ((t = it.get_next()) != null) {
 					t.setHdr((short) n_out_flds, output_attr, output_str_lens);
 					t1.setHdr((short) (n_out_flds + 1), topk_out_attr, output_str_lens);
@@ -427,6 +441,8 @@ public class Client {
 					}
 					t1.setFloFld(n_out_flds + 1, sum / 2);
 					t1.print(topk_out_attr);
+					if(hf!=null)
+						hf.insertRecord(t1.getTupleByteArray());
 
 				}
 				printDiskAccesses();
@@ -748,15 +764,15 @@ public class Client {
 			System.out.println("Please open a database first.");
 			return;
 		}
-		File file = new File(prefix_file_path + fileName + ".txt");
+		File file = new File(prefix_file_path + fileName + ".csv");
 		BufferedReader br = new BufferedReader(new FileReader(file));
-		int numberOfCols = Integer.parseInt(br.readLine().trim());
+		int numberOfCols = Integer.parseInt(br.readLine().split(",")[0].trim());
 		String attr_names[] = new String[numberOfCols];
 		AttrType[] in = new AttrType[numberOfCols];
 		int strnum = 0;
 		int i = 0;
 		while (i < numberOfCols) {
-			String str[] = br.readLine().split("\\s+");
+			String str[] = br.readLine().split(",");
 			attr_names[i] = str[0];
 			switch (str[1]) {
 			case "INT":
@@ -784,7 +800,7 @@ public class Client {
 		t = new Tuple(t.size());
 		t.setHdr((short) numberOfCols, in, strsizes);
 		while ((str = br.readLine()) != null) {
-			String attrs[] = str.split("\\s+");
+			String attrs[] = str.split(",");
 
 			int k = 1;
 
@@ -929,16 +945,16 @@ public class Client {
 			break;
 		}
 		indexFileName += fileName + "_" + attr_num;
-		String filepath = prefix_file_path + fileName + ".txt";
+		String filepath = prefix_file_path + fileName + ".csv";
 		File file = new File(filepath);
 		BufferedReader br = new BufferedReader(new FileReader(file));
-		int numberOfCols = Integer.parseInt(br.readLine().trim());
+		int numberOfCols = Integer.parseInt(br.readLine().split(",")[0].trim());
 		String attr_names[] = new String[numberOfCols];
 		AttrType[] in = new AttrType[numberOfCols];
 		int strnum = 0;
 		int i = 0;
 		while (i < numberOfCols) {
-			String str[] = br.readLine().split("\\s+");
+			String str[] = br.readLine().split(",");
 			attr_names[i] = str[0];
 			switch (str[1]) {
 			case "INT":
@@ -1066,9 +1082,9 @@ public class Client {
 		getRelationAttrInfo(tableName);
 		AttrType[] in = curr_in.clone();
 		short[] strLens = curr_str_lens.clone();
-		File file = new File(prefix_file_path + fileName + ".txt");
+		File file = new File(prefix_file_path + fileName + ".csv");
 		BufferedReader br = new BufferedReader(new FileReader(file));
-		int numberOfCols = Integer.parseInt(br.readLine().trim());
+		int numberOfCols = Integer.parseInt(br.readLine().split(",")[0].trim());
 		while (numberOfCols-- > 0) {
 			br.readLine();
 		}
@@ -1126,7 +1142,7 @@ public class Client {
 		t = new Tuple(t.size());
 		t.setHdr((short) in.length, in, strLens);
 		while ((str = br.readLine()) != null) {
-			String attrs[] = str.split("\\s+");
+			String attrs[] = str.split(",");
 
 			int k = 1;
 
@@ -1241,9 +1257,9 @@ public class Client {
 		getRelationAttrInfo(tableName);
 		AttrType[] in = curr_in.clone();
 		short[] strLens = curr_str_lens.clone();
-		File file = new File(prefix_file_path + fileName + ".txt");
+		File file = new File(prefix_file_path + fileName + ".csv");
 		BufferedReader br = new BufferedReader(new FileReader(file));
-		int numberOfCols = Integer.parseInt(br.readLine().trim());
+		int numberOfCols = Integer.parseInt(br.readLine().split(",")[0].trim());
 		while (numberOfCols-- > 0) {
 			br.readLine();
 		}
@@ -1320,7 +1336,7 @@ public class Client {
 		int j = 0;
 		while ((str = br.readLine()) != null) {
 			ArrayList<RID> deletedTuples = new ArrayList<>();
-			String attrs[] = str.split("\\s+");
+			String attrs[] = str.split(",");
 
 			int k = 1;
 
@@ -1425,6 +1441,7 @@ public class Client {
 				}
 				scan.closescan();
 			}
+			j+=deletedTuples.size();
 			deletedTuples_final.addAll(deletedTuples);
 			for (UnclusteredLinearHash uclh : uclhs) {
 				for (RID ridd : deletedTuples) {
@@ -1469,10 +1486,13 @@ public class Client {
 		}
 		if (clusteredIndex == null) {
 			for (RID ridd : deletedTuples_final) {
-				if (hf.deleteRecord(ridd))
-					j++;
+				try {
+					hf.deleteRecord(ridd);
+				}catch(Exception e) {
+				}
 			}
 		}
+		//System.out.println(j+" size");
 
 		for (BTreeFile btf : ubi) {
 			btf.close();
@@ -1486,7 +1506,6 @@ public class Client {
 			br.close();
 		if (clhs != null)
 			updateClstHashIndexInfo(clhs, tableName);
-		System.out.println("Total tuples deleted::" + j);
 		System.out.println("Deleted successfully.");
 	}
 
@@ -1593,10 +1612,14 @@ public class Client {
 		System.out.println("====" + tableName + "====");
 		System.out.println(Arrays.toString(attr_names));
 		int j = 0;
-		while ((t = scan.getNext(new RID())) != null) {
-			t.setHdr((short) attr_names.length, in, strLens);
-			t.print(in);
-			j++;
+		try {
+			while ((t = scan.getNext(new RID())) != null) {
+				t.setHdr((short) attr_names.length, in, strLens);
+				t.print(in);
+				j++;
+			}
+		}catch(Exception e) {
+			
 		}
 		System.out.println("Total tuples:: " + j);
 	}
@@ -1659,16 +1682,16 @@ public class Client {
 					ulh.printIndex();
 					break;
 				case 1:
-					ClusteredHashIndexScan chis = new ClusteredHashIndexScan(indexName, in, strLens, attr_num);
-					Tuple t = null;
-					int j = 0;
-					while ((t = chis.get_next()) != null) {
-						j++;
-					}
-					System.out.println("total tuples::" + j);
-//					ClusteredLinearHash clh = new ClusteredLinearHash(tableName, indexName, attr_num, iInfo.getHash1(),
-//							iInfo.getNumBuckets(), iInfo.getSplitPointer(), in, strLens);
-//					clh.printIndex();
+//					ClusteredHashIndexScan chis = new ClusteredHashIndexScan(indexName, in, strLens, attr_num);
+//					Tuple t = null;
+//					int j = 0;
+//					while ((t = chis.get_next()) != null) {
+//						j++;
+//					}
+					ClusteredLinearHash clh = new ClusteredLinearHash(tableName, indexName, attr_num, iInfo.getHash1(),
+							iInfo.getNumBuckets(), iInfo.getSplitPointer(), in, strLens);
+					clh.printIndex();
+					//System.out.println("total tuples::" + j);
 					break;
 				}
 				break;
