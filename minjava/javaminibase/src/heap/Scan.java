@@ -227,7 +227,7 @@ public class Scan implements GlobalConst{
     }
     catch (Exception e){
       // 	System.err.println("SCAN: Error in Scan" + e);
-      e.printStackTrace();
+      //e.printStackTrace();
     }  
     }
     datapageId.pid = 0;
@@ -241,7 +241,7 @@ public class Scan implements GlobalConst{
       }
       catch (Exception e){
 	//     System.err.println("SCAN: Error in Scan: " + e);
-	e.printStackTrace();
+	//e.printStackTrace();
       }
     }
     dirpage = null;
