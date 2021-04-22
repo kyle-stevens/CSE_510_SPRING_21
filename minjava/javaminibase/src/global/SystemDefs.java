@@ -101,24 +101,7 @@ public class SystemDefs {
   public void flushBuffer() {
 	  try {
 		JavabaseBM.flushAllPages();
-	} catch (HashOperationException e) {
-		// TODO Auto-generated catch block
-		e.printStackTrace();
-	} catch (PageUnpinnedException e) {
-		// TODO Auto-generated catch block
-		e.printStackTrace();
-	} catch (PagePinnedException e) {
-		// TODO Auto-generated catch block
-		e.printStackTrace();
-	} catch (PageNotFoundException e) {
-		// TODO Auto-generated catch block
-		e.printStackTrace();
-	} catch (BufMgrException e) {
-		// TODO Auto-generated catch block
-		e.printStackTrace();
-	} catch (IOException e) {
-		// TODO Auto-generated catch block
-		e.printStackTrace();
+	} catch (Exception e) {
 	}
   }
   public void closeDB() throws Exception{

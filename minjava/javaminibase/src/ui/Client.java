@@ -433,7 +433,7 @@ public class Client {
 						}
 					}
 					float sum = 0;
-					switch (output_attr[outer_merge_attr].attrType) {
+					switch (output_attr[outer_merge_attr-1].attrType) {
 					case AttrType.attrInteger:
 						sum = t.getIntFld(outer_merge_attr) + t.getIntFld(outer_in.length + inner_merge_attr);
 						break;
@@ -557,7 +557,7 @@ public class Client {
 						}
 					}
 					float sum = 0;
-					switch (output_attr[outer_merge_attr].attrType) {
+					switch (output_attr[outer_merge_attr-1].attrType) {
 					case AttrType.attrInteger:
 						sum = t.getIntFld(outer_merge_attr) + t.getIntFld(outer_in.length + inner_merge_attr);
 						break;
@@ -589,7 +589,7 @@ public class Client {
 						}
 					}
 					float sum = 0;
-					switch (output_attr[outer_merge_attr].attrType) {
+					switch (output_attr[outer_merge_attr-1].attrType) {
 					case AttrType.attrInteger:
 						sum = t.getIntFld(outer_merge_attr) + t.getIntFld(outer_in.length + inner_merge_attr);
 						break;
@@ -1460,9 +1460,7 @@ public class Client {
 		}
 		if (uclhs.size() > 0) {
 			uncl = IndexType.Hash;
-		} else if (ubi.size() > 0) {
-			uncl = IndexType.B_Index;
-		}
+		} 
 		ClusteredLinearHash clhs = null;
 		ClusteredBtreeIndex bi = null;
 
@@ -1488,7 +1486,7 @@ public class Client {
 		t.setHdr((short) in.length, in, strLens);
 		t = new Tuple(t.size());
 		t.setHdr((short) in.length, in, strLens);
-		ArrayList<RID> deletedTuples_final = new ArrayList<>();
+		//ArrayList<RID> deletedTuples_final = new ArrayList<>();
 		FldSpec[] projection = new FldSpec[in.length];
 		for (int i = 0; i < in.length; i++) {
 			projection[i] = new FldSpec(new RelSpec(RelSpec.outer), i + 1);
@@ -1590,6 +1588,7 @@ public class Client {
 					break;
 				}
 			} else {
+				hf = new Heapfile(tableName);
 				Scan scan = new Scan(hf);
 				Tuple t3 = null;
 				RID deleteRid = new RID();
@@ -1604,6 +1603,7 @@ public class Client {
 			j+=deletedTuples.size();
 			//deletedTuples_final.addAll(deletedTuples);
 			if (clusteredIndex == null) {
+				hf = new Heapfile(tableName);
 				for (RID ridd : deletedTuples) {
 					try {
 						hf.deleteRecord(ridd);
@@ -1616,26 +1616,26 @@ public class Client {
 					uclh.deleteFromIndex(t, ridd);
 				}
 			}
-			for (BTreeFile btf : ubi) {
-				KeyClass key = null;
-				String str1[] = btf.getIndexFileName().split("_");
-				int fldNo = Integer.parseInt(str1[str1.length - 1]);
-				switch (in[fldNo - 1].attrType) {
-				case AttrType.attrInteger:
-					key = new IntegerKey(t.getIntFld(fldNo));
-					break;
-				case AttrType.attrReal:
-					key = new RealKey(t.getFloFld(fldNo));
-					break;
-				case AttrType.attrString:
-					key = new StringKey(t.getStrFld(fldNo));
-					break;
-				}
-				for (RID ridd : deletedTuples) {
-					System.out.println(btf.Delete(key, ridd));
-					System.out.println(ridd.slotNo + " " + ridd.pageNo + " deleted from index");
-				}
-			}
+//			for (BTreeFile btf : ubi) {
+//				KeyClass key = null;
+//				String str1[] = btf.getIndexFileName().split("_");
+//				int fldNo = Integer.parseInt(str1[str1.length - 1]);
+//				switch (in[fldNo - 1].attrType) {
+//				case AttrType.attrInteger:
+//					key = new IntegerKey(t.getIntFld(fldNo));
+//					break;
+//				case AttrType.attrReal:
+//					key = new RealKey(t.getFloFld(fldNo));
+//					break;
+//				case AttrType.attrString:
+//					key = new StringKey(t.getStrFld(fldNo));
+//					break;
+//				}
+//				for (RID ridd : deletedTuples) {
+//					btf.Delete(key, ridd);
+////					System.out.println(ridd.slotNo + " " + ridd.pageNo + " deleted from index");
+//				}
+//			}
 			/*
 			 * for (IndexInfo indexInfo : indices) { switch (indexInfo.getIndexType()) {
 			 * case IndexType.B_Index: BTreeFile ub = new
