@@ -2,20 +2,15 @@ package iterator;
 
 import java.io.IOException;
 
-import bufmgr.PageNotReadException;
 
 import global.AttrType;
 import global.IndexType;
 import global.PageId;
 import global.RID;
 import heap.Heapfile;
-import heap.InvalidTupleSizeException;
-import heap.InvalidTypeException;
 import heap.Tuple;
-import heap.Scan;
 import index.IndexException;
 import index.IndexScan;
-import index.UnknownIndexTypeException;
 
 
 public class BTreeSky extends Iterator{
@@ -38,15 +33,10 @@ public class BTreeSky extends Iterator{
     //HeapFile Scan Object for BNLS
     private FileScan fScan;
     //CondExpr for FileScan
-    private CondExpr[] cExpr;
     private String file_name;
 
 
 
-    private int _n_out_flds;
-    private FldSpec[] _proj_list;
-    private CondExpr[] _outFilter;
-    private Iterator scan;
     private PageId[] bufferPIDs;
     private int _n_Pages;
     private AttrType[] _in_1;
@@ -85,7 +75,11 @@ public class BTreeSky extends Iterator{
             this.indexNames = index_file_list;
             file_name = "skyline_candidates";
             //Initialize Heap file to one named 'skyline_candidates'
-            heap = new Heapfile(null);
+            heap = new Heapfile("TEMP_BTREE_SKY");
+            if(!heap.isEmpty()) {
+            	heap.deleteFile();
+            	heap = new Heapfile("TEMP_BTREE_SKY");
+            }
             blockNestedFile = new Heapfile(file_name);
             _dataFile = new Heapfile(relationName);
             //Initialize Buffer
@@ -96,24 +90,15 @@ public class BTreeSky extends Iterator{
             oBuf = new BTreeSkyBuf(buffer, n_pages, heap,blockNestedFile,_dataFile);
             //Initialize FldSpec object for use in iteration
             Sprojection = new FldSpec[len_in1];
-            //Initialize CondExpr array;
-            cExpr = new CondExpr[pref_list_length];
             //Create iterator array
             iter = new IndexScan[pref_list_length];
             //Iterate over IndexFiles and create separate iterators and fldspecs
             for(int j = 0; j<len_in1;j++){
 		    Sprojection[j] = new FldSpec(new RelSpec(RelSpec.outer), j+1);
 	    }
-	    for(int i=0; i<pref_list_length;i++){
-                    cExpr[i] = new CondExpr();
-                    
-            }
             this._in_1 = in1;
 
             _len_in1 = len_in1;
-            _n_out_flds = pref_list_length;
-            _proj_list = Sprojection;
-            _outFilter = cExpr;
             //Get Iterator for Heapfile
             //Initialize BNLS object to use heapfile
             runSky();
@@ -129,9 +114,8 @@ public class BTreeSky extends Iterator{
                 //Create Tuple Objects for comparisons and manipulation
                 RID temp;
                 RID temp2;
-                Tuple dup;
                 //Set Loop and exit condition
-                boolean duplicate = false;
+                
                 iter[0] = new IndexScan(new IndexType(IndexType.B_Index),
                         relationName,
                         indexNames[0],
@@ -143,7 +127,6 @@ public class BTreeSky extends Iterator{
                         null,
                         0,
                         false);
-                scan = iter[0]; //setting up get_next
                 //Loop over the tuples of the first index_file ( Tuple Field )
                 temp = iter[0].getNext();
                 oBuf.Put(temp);
@@ -160,7 +143,6 @@ public class BTreeSky extends Iterator{
                              null,
                              0,
                              false);
-                	scan = iter[i];
                 	while((temp2=iter[i].getNext())!= null) {
                 		if(temp.equals(temp2))
                 		{
@@ -170,8 +152,10 @@ public class BTreeSky extends Iterator{
                 			while((rid2=iter[i].getNext())!=null) {
                     			Tuple t3 = _dataFile.getRecord(rid2);
                     			t3.setHdr(_len_in1, _in_1, _t1_str_sizes);
-                				if(!TupleUtils.Equal(t3, t2, _in_1, _len_in1))
-                					break;
+                    			if(TupleUtils.CompareTupleWithTuple(_in_1[pref_list[i]-1], t3, pref_list[i], t2, pref_list[i])!=0)
+                    				break;
+//                				if(!TupleUtils.Equal(t3, t2, _in_1, _len_in1))
+//                					break;
                 				oBuf.Put(rid2);
                 			}
                 			iter[i].close();
@@ -200,9 +184,11 @@ public class BTreeSky extends Iterator{
         }
         @Override
         public void close() throws IOException, JoinsException, SortException, IndexException {
-	// TODO Auto-generated method stub
                 try{
                 	bNLS.close();
+                	blockNestedFile.deleteFile();
+                	heap.deleteFile();
+                	System.out.println("files are deleted");
                 }
                 catch (Exception e){
                 	e.printStackTrace();

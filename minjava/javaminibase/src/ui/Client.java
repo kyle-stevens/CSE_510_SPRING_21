@@ -2446,7 +2446,7 @@ public class Client {
 
 // Print Skyline Tuples
 		Tuple t1 = null;
-		int tuple_count = 1;
+		int tuple_count = 0;
 		try {
 			Heapfile ohf = null;
 			if (!outputRelation.isEmpty()) {
