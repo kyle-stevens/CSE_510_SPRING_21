@@ -120,7 +120,7 @@ public class BTFileScan  extends IndexFileScan
       }
 
       if (endkey != null && previousEntry != null) {
-        if(BT.keyCompare(previousEntry.key, endkey) > 0 && BT.keyCompare(entry.key, previousEntry.key) > 0) {
+        if(BT.keyCompare(previousEntry.key, endkey) > 0) {
           SystemDefs.JavabaseBM.unpinPage(leafPage.getCurPage(), false);
           leafPage = null;
           return null;
