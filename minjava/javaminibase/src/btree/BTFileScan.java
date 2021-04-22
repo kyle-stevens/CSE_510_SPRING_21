@@ -126,6 +126,14 @@ public class BTFileScan  extends IndexFileScan
           return null;
         }
       }
+
+      if(endkey !=null && previousEntry == null) {
+        if(BT.keyCompare(entry.key, endkey) < 0) {
+          SystemDefs.JavabaseBM.unpinPage(leafPage.getCurPage(), false);
+          leafPage = null;
+          return null;
+        }
+      }
       previousEntry = entry;
       return entry;
     }

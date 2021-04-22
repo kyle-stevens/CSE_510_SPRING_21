@@ -17,6 +17,8 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.util.*;
 
+import static global.GlobalConst.INVALID_PAGE;
+
 public class ClusteredBtreeIndex {
 
   private static final String STR = "STR", INT = "INT", tempFileName = "tempDataFile";
@@ -226,6 +228,17 @@ public class ClusteredBtreeIndex {
   public RID insert(Tuple tuple) throws Exception {
 
     IndexFileScan indScan = IndexUtils.BTree_scan(getMatchCondition(tuple), bTreeFile);
+
+    if (bTreeFile.getHeaderPage().get_rootId().pid == INVALID_PAGE){        // no pages in the BTREE
+      RID insertedRID = relation.insertRecord(tuple.getTupleByteArray());
+      bTreeFile.insert(getKeyClass(tuple), insertedRID);
+      return insertedRID;
+    }
+
+    if(indScan == null) {
+      throw new Exception("Problem while creating btree scan");
+    }
+
     RID rid;
     KeyDataEntry nextEntry, lastEntry = null;
     boolean fisrtEntry = true;
@@ -258,7 +271,7 @@ public class ClusteredBtreeIndex {
     if (fisrtEntry) {
       rid = new RID();
       BTLeafPage lastLeafPage = bTreeFile.findRunEnd(null, rid);
-      KeyDataEntry entry = lastLeafPage.getCurrent(rid);
+      KeyDataEntry entry = lastLeafPage.getLast(rid);
       rid = ((LeafData) entry.data).getData();
       PageId pid = rid.pageNo;
       Page page = new Page();
