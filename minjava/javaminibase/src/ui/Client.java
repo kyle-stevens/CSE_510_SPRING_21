@@ -433,7 +433,7 @@ public class Client {
 						}
 					}
 					float sum = 0;
-					switch (output_attr[outer_merge_attr].attrType) {
+					switch (output_attr[outer_merge_attr-1].attrType) {
 					case AttrType.attrInteger:
 						sum = t.getIntFld(outer_merge_attr) + t.getIntFld(outer_in.length + inner_merge_attr);
 						break;
@@ -557,7 +557,7 @@ public class Client {
 						}
 					}
 					float sum = 0;
-					switch (output_attr[outer_merge_attr].attrType) {
+					switch (output_attr[outer_merge_attr-1].attrType) {
 					case AttrType.attrInteger:
 						sum = t.getIntFld(outer_merge_attr) + t.getIntFld(outer_in.length + inner_merge_attr);
 						break;
@@ -589,7 +589,7 @@ public class Client {
 						}
 					}
 					float sum = 0;
-					switch (output_attr[outer_merge_attr].attrType) {
+					switch (output_attr[outer_merge_attr-1].attrType) {
 					case AttrType.attrInteger:
 						sum = t.getIntFld(outer_merge_attr) + t.getIntFld(outer_in.length + inner_merge_attr);
 						break;

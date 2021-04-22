@@ -88,7 +88,7 @@ public class TopKNRAJoin extends Iterator{
     }
 
     //6 pages
-    outerScan = new ClusteredBtreeIndexScan(relation1IndexFile, outer_in, outer_str_lens, null, inner_merge_attr, true);
+    outerScan = new ClusteredBtreeIndexScan(relation1IndexFile, outer_in, outer_str_lens, null, outer_merge_attr, true);
     innerScan = new ClusteredBtreeIndexScan(relation2IndexFile, inner_in, inner_str_lens, null, inner_merge_attr, true);
 
     try {

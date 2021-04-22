@@ -1275,7 +1275,7 @@ public class BTreeFile extends IndexFile
 
 		while (sortPage.getType() == NodeType.INDEX) {
 			pageIndex=new BTIndexPage(page, headerPage.get_keyType());
-			prevpageno = pageIndex.getNextPage();
+			prevpageno = ((IndexData)pageIndex.getLast(startrid).data).getData();
 			curEntry= pageIndex.getLast(startrid);
 			while ( curEntry!=null && hi_key != null
 							&& BT.keyCompare(curEntry.key, hi_key) > 0) {
